@@ -1,0 +1,17 @@
+{
+    "name": "girder-jsonforms",
+    "version": "1.0.0",
+    "description": "Extend Girder with JSON Editor forms.",
+    "keywords": [
+        "girder",
+        "jsonforms"
+    ],
+    "license": "BSD-3",
+    "npm": {
+        "dependencies": {
+            "bootstrap": "^4.0.0",
+            "@json-editor/json-editor": "^2.14.0",
+            "handlebars": "^4.0.11"
+        }
+    }
+}

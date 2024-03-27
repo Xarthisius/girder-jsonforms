@@ -1,0 +1,11 @@
+{
+    "name": "JSONForms",
+    "description": "Plugin adding support for JSON forms.",
+    "version": "1.0.0",
+    "npm": {
+        "dependencies": {
+            "@json-editor/json-editor": "^2.14.0",
+            "handlebars": "^4.0.11"
+        }
+    }
+}

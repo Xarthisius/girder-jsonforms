@@ -1,0 +1,13 @@
+.g-form-list-header
+  .g-form-pagination
+  button.g-form-create-button.btn.btn-sm.btn-default
+    i.icon-plus-squared
+    |  Create form
+
+.list-group.g-form-list-container
+  each form in forms
+    a.list-group-item.g-execute-form-link(
+        href=formUrlFunc && formUrlFunc(form),
+        data-form-id=form.id)
+      h4.list-group-item-heading.g-execute-form-link-header= form.name()
+      .list-group-item-text.g-execute-form-link-body= form.get('description')
