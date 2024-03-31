@@ -1,20 +1,21 @@
-import ItemCollection from 'girder/collections/ItemCollection';
-import FolderCollection from 'girder/collections/FolderCollection';
+import _ from 'underscore';
 import FolderModel from 'girder/models/FolderModel';
 import BrowserWidget from 'girder/views/widgets/BrowserWidget';
 import View from 'girder/views/View';
 import router from 'girder/router';
 import UploadWidget from 'girder/views/widgets/UploadWidget';
 import { getCurrentUser } from 'girder/auth';
-import events from 'girder/events';
 
-import { JSONEditor } from '@json-editor/json-editor';
-// import { Handlebars } from 'handlebars';
-
-import FormEntryModel from '../models/FormEntryModel';
-import template from '../templates/formView.pug';
 import '../stylesheets/formView.styl';
 
+import flatpickr from 'flatpickr'; // eslint-disable-line no-unused-vars
+import Handlebars from 'handlebars';
+import { JSONEditor } from '@json-editor/json-editor';
+
+import template from '../templates/formView.pug';
+import FormEntryModel from '../models/FormEntryModel';
+
+import 'flatpickr/dist/flatpickr.min.css';
 
 function makeid(length) {
     let result = '';
@@ -22,10 +23,31 @@ function makeid(length) {
     const charactersLength = characters.length;
     let counter = 0;
     while (counter < length) {
-      result += characters.charAt(Math.floor(Math.random() * charactersLength));
-      counter += 1;
+        result += characters.charAt(Math.floor(Math.random() * charactersLength));
+        counter += 1;
     }
     return result;
+}
+
+// Function to access or create nested objects based on keys
+function accessOrCreate(obj, keys) {
+    let current = obj;
+    for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) {
+            current[keys[i]] = {};
+        }
+        current = current[keys[i]];
+    }
+    return current;
+}
+
+function setField(jseditor, field, value) {
+    const formValue = jseditor.jsoneditor.getValue();
+    let keys = field.split('.');
+    keys.shift(); // Remove the first string 'root'
+    let objToUpdate = accessOrCreate(formValue, keys);
+    objToUpdate[keys[keys.length - 1]] = value;
+    jseditor.jsoneditor.setValue(formValue);
 }
 
 var lastParent = null;
@@ -59,56 +81,30 @@ const FormView = View.extend({
                 formId: this.model.id,
                 data: JSON.stringify(this.form.getValue()),
                 sourceId: this.tempFolder.id,
-                destinationId: this.destFolder.id,
+                destinationId: this.destFolder.id
             }).save().done(() => {
                 router.navigate('forms', {trigger: true});
             });
         }
     },
 
-
-    uploadDialog: function (jseditor, field, directory) {
-        var onlyFiles = true;
-        var onlyFolders = false;
-        if (directory === true) {
-            onlyFiles = false;
-            onlyFolders = true;
-        }
-        new UploadWidget({
-            el: $('#g-dialog-container'),
-            parentView: this,
-            title: 'Upload a file',
-            multiFile: false,
-            onlyFiles: onlyFiles,
-            onlyFolders: onlyFolders,
-            overrideStart: false,
-            overrideStartText: 'Upload',
-            overrideStartIcon: 'ok',
-            overrideStartClass: 'btn-primary',
-            parent: this.tempFolder,
-            parentType: 'folder',
-        }).on('g:uploadFinished', function (info) {
-            if (info.files.length === 0) {
-                return;
-            } else if (info.files.length === 1) {
-                var ids = info.files[0].id;
-            } else {
-                var ids = info.files.map(function (file) {
-                    return file.id;
-                }).join(',');
-            }
-            const value = jseditor.jsoneditor.getValue();
-            value[field] = ids;
-            jseditor.jsoneditor.setValue(value);
-        }, this).render();
-    },
-    
     initialize: function (settings) {
+        window.Handlebars = Handlebars; // Otherwise the helper is not available in the template
+        Handlebars.registerHelper('multiply', function (a, b) { return a * b; });
+        Handlebars.registerHelper('divide', function (a, b) { return a / b; });
+        Handlebars.registerHelper('add', function (a, b) { return a + b; });
+
         this.schema = JSON.parse(this.model.get('schema'));
+        /*
+        if ("code" in this.schema) {
+            // You gotta be fucking kidding me....
+            eval(this.schema.code);
+        }
+        */
         const destFolderId = this.model.get('folderId');
         this.destFolder = null;
         if (destFolderId) {
-            var folder = new FolderModel({_id: destFolderId}).once('g:fetched', function(val) {
+            var folder = new FolderModel({_id: destFolderId}).once('g:fetched', function (val) {
                 this.destFolder = folder;
             }, this);
             $.when(folder.fetch()).done(() => {
@@ -131,7 +127,7 @@ const FormView = View.extend({
         this.tempFolder = new FolderModel({
             parentType: 'user',
             parentId: this.currentUser.id,
-            name: tempName,
+            name: tempName
         });
         this.tempFolder.save().done(() => {
             this.tempFolder.addMetadata('formId', this.model.id);
@@ -143,45 +139,76 @@ const FormView = View.extend({
         });
 
         JSONEditor.defaults.callbacks.button = {
-          "button1CB" : function(jseditor, element) {
-            var value = jseditor.jsoneditor.getValue();
-            const field = jseditor.options.button.uploadFor;
-            value[field] = 'Waiting for a file to be uploaded';
-            this.uploadDialog(jseditor, field, false);
-            jseditor.jsoneditor.setValue(value);
-          }.bind(this),
-          "button2CB" : function(jseditor,e) {
-            var value = jseditor.jsoneditor.getValue();
-            const field = jseditor.options.button.uploadFor;
-            value[field] = 'Waiting for a directory to be uploaded';
-            this.uploadDialog(jseditor, field, true);
-            jseditor.jsoneditor.setValue(value);
-          }.bind(this)
-        }
+            'button1CB': function (jseditor, element) {
+                const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
+                setField(jseditor, field, 'Waiting for a file to be uploaded');
+                this.uploadDialog(jseditor, field, false);
+            }.bind(this),
+            'button2CB': function (jseditor, e) {
+                const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
+                setField(jseditor, field, 'Waiting for a directory to be uploaded');
+                this.uploadDialog(jseditor, field, true);
+            }.bind(this)
+        };
         this.listenTo(this.dataSelector, 'g:saved', function (val) {
             this.$('#g-folder-data-id').val(val.attributes.name);
             this.$('#g-folder-data-id').attr('objId', val.id);
             this.destFolder = val;
-            this.render();            
+            this.render();
         });
 
         this.form = null;
     },
 
+    uploadDialog: function (jseditor, field, directory) {
+        var onlyFiles = true;
+        var onlyFolders = false;
+        if (directory === true) {
+            onlyFiles = false;
+            onlyFolders = true;
+        }
+        new UploadWidget({
+            el: $('#g-dialog-container'),
+            parentView: this,
+            title: 'Upload a file',
+            multiFile: false,
+            onlyFiles: onlyFiles,
+            onlyFolders: onlyFolders,
+            overrideStart: false,
+            overrideStartText: 'Upload',
+            overrideStartIcon: 'ok',
+            overrideStartClass: 'btn-primary',
+            parent: this.tempFolder,
+            parentType: 'folder'
+        }).on('g:uploadFinished', function (info) {
+            var ids = '';
+            if (info.files.length === 0) {
+                return;
+            } else if (info.files.length === 1) {
+                ids = info.files[0].id;
+            } else {
+                ids = info.files.map(function (file) {
+                    return file.id;
+                }).join(',');
+            }
+            setField(jseditor, field, ids);
+        }, this).render();
+    },
+
     render: function () {
         this.$el.html(template({
             form: this.model,
-            destFolder: this.destFolder,
+            destFolder: this.destFolder
         }));
         const formContainer = this.$('.g-form-container');
         this.form = new JSONEditor(formContainer[0], {
             schema: this.schema,
             theme: 'bootstrap3',
-            //template: 'handlebars',
+            template: 'handlebars',
             disable_edit_json: true,
             disable_properties: true,
             disable_collapse: true,
-            show_errors: 'interactive',
+            show_errors: 'always'
         });
         if (this.model.get('folderId')) {
             this.$('#g-folder-data-id').attr('objId', this.model.get('folderId'));
@@ -189,12 +216,12 @@ const FormView = View.extend({
         }
         const view = this;
         $.when(this.form.promise).done(() => {
-          if (view.destFolder === null) {
-              view.form.disable();
-          } else {
-              view.form.enable();
-          }
-        })
+            if (view.destFolder === null) {
+                view.form.disable();
+            } else {
+                view.form.enable();
+            }
+        });
         return this;
     }
 });

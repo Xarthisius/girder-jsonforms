@@ -9,7 +9,6 @@ router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
 });
 
-
 router.route('form/:id', 'form', function (id, params) {
     const item = new FormModel({_id: id});
     const promises = [item.fetch()];
