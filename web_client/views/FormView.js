@@ -142,7 +142,7 @@ const FormView = View.extend({
             'button1CB': function (jseditor, element) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
                 setField(jseditor, field, 'Waiting for a file to be uploaded');
-                this.uploadDialog(jseditor, field, false);
+                this.uploadDialog(jseditor, field, false, true);
             }.bind(this),
             'button2CB': function (jseditor, e) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
@@ -160,7 +160,7 @@ const FormView = View.extend({
         this.form = null;
     },
 
-    uploadDialog: function (jseditor, field, directory) {
+    uploadDialog: function (jseditor, field, directory, multiFile = false) {
         var onlyFiles = true;
         var onlyFolders = false;
         if (directory === true) {
@@ -171,7 +171,7 @@ const FormView = View.extend({
             el: $('#g-dialog-container'),
             parentView: this,
             title: 'Upload a file',
-            multiFile: false,
+            multiFile: multiFile,
             onlyFiles: onlyFiles,
             onlyFolders: onlyFolders,
             overrideStart: false,
@@ -182,12 +182,13 @@ const FormView = View.extend({
             parentType: 'folder'
         }).on('g:uploadFinished', function (info) {
             var ids = '';
+            console.log(info);
             if (info.files.length === 0) {
                 return;
             } else if (info.files.length === 1) {
                 ids = info.files[0].id;
             } else {
-                ids = info.files.map(function (file) {
+                ids = Array.from(info.files).map(function (file) {
                     return file.id;
                 }).join(',');
             }
