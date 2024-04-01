@@ -35,7 +35,7 @@ class FormEntry(Resource):
         if form:
             q = {"formId": form["_id"]}
 
-        cursor = self.findWithPermissions(
+        cursor = FormEntryModel().findWithPermissions(
             q,
             sort=sort,
             user=self.getCurrentUser(),

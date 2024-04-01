@@ -14,18 +14,19 @@ class Form(AccessControlledModel):
                 "_id",
                 "name",
                 "description",
+                "entryFileName",
                 "schema",
                 "created",
                 "updated",
                 "folderId",
-                "pathTransform",
+                "pathTemplate",
             ),
         )
 
     def validate(self, doc):
         return doc
 
-    def create(self, name, description, schema, creator, folder=None, pathTransform=None):
+    def create(self, name, description, schema, creator, folder=None, pathTemplate=None, entryFileName=None):
         now = datetime.datetime.utcnow()
 
         form = {
@@ -33,7 +34,8 @@ class Form(AccessControlledModel):
             "description": description,
             "schema": schema,
             "folderId": None,
-            "pathTransform": pathTransform,
+            "pathTemplate": pathTemplate,
+            "entryFileName": entryFileName or "entry.json",
             "created": now,
             "updated": now,
         }
@@ -42,18 +44,21 @@ class Form(AccessControlledModel):
 
         return self.save(form)
 
-    def update(self, form, name, description, schema, folder=None, pathTransform=None):
+    def update(self, form, name, description, schema, folder=None, pathTemplate=None, entryFileName=None):
         now = datetime.datetime.utcnow()
 
         form["name"] = name
         form["description"] = description
         form["schema"] = schema
         form["updated"] = now
-        form["pathTransform"] = pathTransform
+        form["pathTemplate"] = pathTemplate
 
         if folder:
             form["folderId"] = folder["_id"]
         else:
             form["folderId"] = None
+
+        if entryFileName:
+            form["entryFileName"] = entryFileName
 
         return self.save(form)

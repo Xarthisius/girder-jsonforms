@@ -53,21 +53,28 @@ class Form(Resource):
             level=AccessType.WRITE,
         )
         .param(
-            "pathTransform",
+            "pathTemplate",
             "Python template string to transform destination path based on form entry",
+            required=False,
+            dataType="string",
+        )
+        .param(
+            "entryFileName",
+            "The name of the file to save the form entry in the destination folder",
             required=False,
             dataType="string",
         )
     )
     @filtermodel(model="form", plugin="jsonforms")
-    def createForm(self, name, description, schema, folder, pathTransform):
+    def createForm(self, name, description, schema, folder, pathTemplate, entryFileName):
         return FormModel().create(
             name,
             description,
             schema,
             self.getCurrentUser(),
             folder=folder,
-            pathTransform=pathTransform,
+            pathTemplate=pathTemplate,
+            entryFileName=entryFileName,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -92,8 +99,14 @@ class Form(Resource):
             level=AccessType.WRITE,
         )
         .param(
-            "pathTransform",
+            "pathTemplate",
             "Python template string to transform destination path based on form entry",
+            required=False,
+            dataType="string",
+        )
+        .param(
+            "entryFileName",
+            "The name of the file to save the form entry in the destination folder",
             required=False,
             dataType="string",
         )
@@ -101,24 +114,22 @@ class Form(Resource):
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
     )
-    def updateForm(self, form, name, description, schema, folder, pathTransform):
+    def updateForm(self, form, name, description, schema, folder, pathTemplate, entryFileName):
         if name is not None:
             form["name"] = name
         if description is not None:
             form["description"] = description
         if schema is not None:
             form["schema"] = schema
-        print(":!!!!")
-        print(folder)
-        print(":!!!!")
+        if entryFileName is not None:
+            form["entryFileName"] = entryFileName
         if folder:
             form["folderId"] = folder["_id"]
-        if pathTransform is not None:
-            if not pathTransform:
-                form["pathTransform"] = None
+        if pathTemplate is not None:
+            if not pathTemplate:
+                form["pathTemplate"] = None
             else:
-                form["pathTransform"] = pathTransform
-        print(form)
+                form["pathTemplate"] = pathTemplate
         return FormModel().save(form)
 
     @access.user
