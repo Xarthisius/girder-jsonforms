@@ -93,6 +93,39 @@ const FormView = View.extend({
         Handlebars.registerHelper('multiply', function (a, b) { return a * b; });
         Handlebars.registerHelper('divide', function (a, b) { return a / b; });
         Handlebars.registerHelper('add', function (a, b) { return a + b; });
+        Handlebars.registerHelper('subtract', function (a, b) { return a - b; });
+        Handlebars.registerHelper('substr', function (string, from, length) {
+            return string !== undefined ? string.substr(from, length) : '';
+        });
+        Handlebars.registerHelper('split', function (string, separator, index) {
+            return string.split(separator)[index];
+        });
+        Handlebars.registerHelper('tamupath', function TAMUPath(sampleId, wagon = false) {
+            if (sampleId === undefined || sampleId === null || sampleId === '') {
+                return '';
+            }
+            let campaign = sampleId.substr(0, 3);
+            let sampleNo = parseInt(sampleId.substr(3, 2));
+            let wagonId = Math.trunc(sampleNo / 8);
+            let wagonBegin = (wagonId * 8 + 1).toString().padStart(2, '0');
+            let wagonEnd = ((wagonId + 1) * 8).toString().padStart(2, '0');
+            let group = sampleId.split('_')[1];
+            let manufactureMethod = group.substr(0, 3);
+            let method = sampleId.split('_')[2];
+            if (method === 'EDS') {
+                method = manufactureMethod === 'VAM' ? 'SEM-EDS' : 'EDS-EBSD';
+            }
+            if (manufactureMethod === 'VAM') {
+                return `${campaign}/${group}/${sampleId.split('_')[0]}/${method}`;
+            } else if (manufactureMethod === 'DED') {
+                let root = `${campaign}/${group}-${wagonBegin}-${wagonEnd}`;
+                if (wagon) {
+                    return `${root}/${method}`;
+                } else {
+                    return `${root}/${sampleId.split('_')[0]}/${method}`;
+                }
+            }
+        });
 
         this.schema = JSON.parse(this.model.get('schema'));
         /*
@@ -108,7 +141,7 @@ const FormView = View.extend({
                 this.destFolder = folder;
             }, this);
             $.when(folder.fetch()).done(() => {
-                this.render();
+                this._fetchFolderToRoot(this.destFolder);
             });
         }
         this.currentUser = getCurrentUser();
@@ -148,16 +181,30 @@ const FormView = View.extend({
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
                 setField(jseditor, field, 'Waiting for a directory to be uploaded');
                 this.uploadDialog(jseditor, field, true);
-            }.bind(this)
+            }.bind(this),
+            'buttonSample': function (jseditor, e) {
+                const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
+                setField(jseditor, field, 'Waiting for a file to be uploaded');
+                this.uploadDialog(jseditor, field, false, true);
+            }
         };
         this.listenTo(this.dataSelector, 'g:saved', function (val) {
             this.$('#g-folder-data-id').val(val.attributes.name);
             this.$('#g-folder-data-id').attr('objId', val.id);
-            this.destFolder = val;
-            this.render();
+            // this.destFolder = val;
+            this._fetchFolderToRoot(val);
         });
 
         this.form = null;
+    },
+
+    _fetchFolderToRoot: function (folder) {
+        folder.getRootPath().done((path) => {
+            let rootType = path[0].type;
+            this.destFolderPath = `/${rootType}/${path.map((obj) => obj.object.name).join('/')}/${folder.name()}`;
+            this.destFolder = folder;
+            this.render();
+        });
     },
 
     uploadDialog: function (jseditor, field, directory, multiFile = false) {
@@ -179,7 +226,10 @@ const FormView = View.extend({
             overrideStartIcon: 'ok',
             overrideStartClass: 'btn-primary',
             parent: this.tempFolder,
-            parentType: 'folder'
+            parentType: 'folder',
+            otherParams: {
+                reference: JSON.stringify(jseditor.parent.value)
+            }
         }).on('g:uploadFinished', function (info) {
             var ids = '';
             console.log(info);
@@ -199,7 +249,7 @@ const FormView = View.extend({
     render: function () {
         this.$el.html(template({
             form: this.model,
-            destFolder: this.destFolder
+            destFolderPath: this.destFolderPath
         }));
         const formContainer = this.$('.g-form-container');
         this.form = new JSONEditor(formContainer[0], {

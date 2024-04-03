@@ -8,6 +8,7 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.model_base import AccessControlledModel
 from girder.models.upload import Upload
+from girder.utility import JsonEncoder
 
 
 class FormEntry(AccessControlledModel):
@@ -58,45 +59,69 @@ class FormEntry(AccessControlledModel):
             "folders": [],
         }
 
-        if form["pathTemplate"]:
-            extra_path = self._getExtraPath(form["pathTemplate"], data)
-
-            if extra_path:
-                for subfolder in extra_path.split(os.path.sep):
-                    destination = Folder().createFolder(
-                        destination,
-                        subfolder,
-                        parentType="folder",
-                        creator=creator,
-                        reuseExisting=True,
-                    )
-
         entry["folderId"] = destination["_id"]
 
         # Move from temp to destination
+        known_targets = {None: destination}
         for child in Folder().childFolders(source, "folder", user=creator):
+            try:
+                target = known_targets[child.get("meta", {}).get("targetPath")]
+            except KeyError:
+                target = self.get_destination_folder(child, destination, creator)
+                known_targets[child["_id"]] = target
+            child = self.unique(child, target)
+            Folder().move(child, target, "folder")
             entry["folders"].append(child["_id"])
-            child = self.unique(child, destination)
-            Folder().move(child, destination, "folder")
+
         for child in Folder().childItems(source):
+            try:
+                target = known_targets[child.get("meta", {}).get("targetPath")]
+            except KeyError:
+                target = self.get_destination_folder(child, destination, creator)
+                known_targets[child["_id"]] = target
+            child = self.unique(child, target)
+            Item().move(child, target)
             entry["files"].append(child["_id"])
-            child = self.unique(child, destination)
-            Item().move(child, destination)
         Folder().remove(source)
 
         # Dump the entry into json file, by creating bytes buffer from json dump and
-        # Upload().uploadFromFile will create a file in the destination folder
-        with io.BytesIO(json.dumps(data).encode()) as f:
-            Upload().uploadFromFile(
-                f,
-                f.getbuffer().nbytes,
-                form["entryFileName"],
-                parentType="folder",
-                parent=destination,
-                mimeType="application/json",
-            )
+        # Upload().uploadFromFile will create a file in each destination folder
+        if len(known_targets) > 1:
+            known_targets.pop(None)
+
+        for target in known_targets.values():
+            with io.BytesIO(
+                json.dumps(
+                    entry, sort_keys=True, allow_nan=False, cls=JsonEncoder
+                ).encode("utf-8")
+            ) as f:
+                Upload().uploadFromFile(
+                    f,
+                    f.getbuffer().nbytes,
+                    form["entryFileName"],
+                    parentType="folder",
+                    parent=target,
+                    mimeType="application/json",
+                )
 
         return self.save(entry)
+
+    @staticmethod
+    def get_destination_folder(child, root, user):
+        destination = root
+        if "targetPath" not in child["meta"]:
+            return destination
+
+        for subfolder in child["meta"]["targetPath"].split(os.path.sep):
+            destination = Folder().createFolder(
+                destination,
+                subfolder,
+                parentType="folder",
+                creator=user,
+                reuseExisting=True,
+            )
+
+        return destination
 
     @staticmethod
     def unique(child, destination):
@@ -104,9 +129,17 @@ class FormEntry(AccessControlledModel):
         n = 0
         checkName = True
         while checkName:
-            q = {"name": name, "folderId": destination["_id"], "_id": {"$ne": child["_id"]}}
+            q = {
+                "name": name,
+                "folderId": destination["_id"],
+                "_id": {"$ne": child["_id"]},
+            }
             dupItem = Item().findOne(q, fields=["_id"])
-            q = {"name": name, "parentId": destination["_id"], "parentCollection": "folder"}
+            q = {
+                "name": name,
+                "parentId": destination["_id"],
+                "parentCollection": "folder",
+            }
             dupFolder = Folder().findOne(q, fields=["_id"])
 
             if dupItem is None and dupFolder is None:
