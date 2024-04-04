@@ -62,22 +62,25 @@ class FormEntry(AccessControlledModel):
         entry["folderId"] = destination["_id"]
 
         # Move from temp to destination
-        known_targets = {None: destination}
+        path = entry["data"].get("targetPath")
+        known_targets = {None: self.get_destination_folder(path, destination, creator)}
         for child in Folder().childFolders(source, "folder", user=creator):
+            path = child.get("meta", {}).get("targetPath")
             try:
-                target = known_targets[child.get("meta", {}).get("targetPath")]
+                target = known_targets[path]
             except KeyError:
-                target = self.get_destination_folder(child, destination, creator)
+                target = self.get_destination_folder(path, destination, creator)
                 known_targets[child["_id"]] = target
             child = self.unique(child, target)
             Folder().move(child, target, "folder")
             entry["folders"].append(child["_id"])
 
         for child in Folder().childItems(source):
+            path = child.get("meta", {}).get("targetPath")
             try:
-                target = known_targets[child.get("meta", {}).get("targetPath")]
+                target = known_targets[path]
             except KeyError:
-                target = self.get_destination_folder(child, destination, creator)
+                target = self.get_destination_folder(path, destination, creator)
                 known_targets[child["_id"]] = target
             child = self.unique(child, target)
             Item().move(child, target)
@@ -89,7 +92,10 @@ class FormEntry(AccessControlledModel):
         if len(known_targets) > 1:
             known_targets.pop(None)
 
+        processed = set()
         for target in known_targets.values():
+            if target["_id"] in processed:
+                continue
             with io.BytesIO(
                 json.dumps(
                     entry, sort_keys=True, allow_nan=False, cls=JsonEncoder
@@ -103,16 +109,17 @@ class FormEntry(AccessControlledModel):
                     parent=target,
                     mimeType="application/json",
                 )
+            processed.add(target["_id"])
 
         return self.save(entry)
 
     @staticmethod
-    def get_destination_folder(child, root, user):
-        destination = root
-        if "targetPath" not in child["meta"]:
-            return destination
+    def get_destination_folder(path, root, user):
+        if path is None:
+            return root
 
-        for subfolder in child["meta"]["targetPath"].split(os.path.sep):
+        destination = root
+        for subfolder in path.split(os.path.sep):
             destination = Folder().createFolder(
                 destination,
                 subfolder,
