@@ -100,8 +100,11 @@ const FormView = View.extend({
         Handlebars.registerHelper('split', function (string, separator, index) {
             return string.split(separator)[index];
         });
+        Handlebars.registerHelper('join', function (a, b, separator) {
+            return `${a}${separator}${b}`;
+        });
         Handlebars.registerHelper('tamupath', function TAMUPath(sampleId, wagon = false) {
-            if (sampleId === undefined || sampleId === null || sampleId === '') {
+            if (sampleId === undefined || sampleId === null || sampleId === '' || (Array.isArray(sampleId) && sampleId.length === 1 && sampleId[0] === '')) {
                 return '';
             }
             let campaign = sampleId.substr(0, 3);
@@ -114,6 +117,10 @@ const FormView = View.extend({
             let method = sampleId.split('_')[2];
             if (method === 'EDS') {
                 method = manufactureMethod === 'VAM' ? 'SEM-EDS' : 'EDS-EBSD';
+            } else if (method === 'SHPB') {
+                method = `Compression (SHPB)/${sampleId.split('_')[3]}`;
+            } else if (method === 'Tensile' || method === 'SPT') {
+                method = `${method}/${sampleId.split('_')[3]}`;
             }
             if (manufactureMethod === 'VAM') {
                 return `${campaign}/${group}/${sampleId.split('_')[0]}/${method}`;
@@ -232,7 +239,6 @@ const FormView = View.extend({
             }
         }).on('g:uploadFinished', function (info) {
             var ids = '';
-            console.log(info);
             if (info.files.length === 0) {
                 return;
             } else if (info.files.length === 1) {
