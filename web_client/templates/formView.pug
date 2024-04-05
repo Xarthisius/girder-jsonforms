@@ -1,6 +1,10 @@
 .g-body-title Form #[a(href=`#form/${form.id}`)= form.name()]
-
-fasdfdasf
+if (level >= AccessType.ADMIN)
+  .g-form-actions
+    button.g-access-form.g-edit-access.btn.btn-sm.btn-warning(title="Access control")
+      i.icon-lock
+    button.g-delete-form.btn.btn-sm.btn-danger(title="Delete form")
+      i.icon-trash
 
 form#g-form(role="form")
   if destFolder === null

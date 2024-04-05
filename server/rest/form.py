@@ -1,8 +1,9 @@
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, filtermodel
-from girder.constants import AccessType, TokenScope
+from girder.constants import AccessType, TokenScope, SortDir
 from girder.models.folder import Folder
+from girder.utility.progress import noProgress
 
 from ..models.form import Form as FormModel
 
@@ -16,12 +17,31 @@ class Form(Resource):
         self.route("POST", (), self.createForm)
         self.route("PUT", (":id",), self.updateForm)
         self.route("DELETE", (":id",), self.deleteForm)
+        self.route("GET", (":id", "access"), self.getFromAccess)
+        self.route("PUT", (":id", "access"), self.updateFromAccess)
 
     @access.public
-    @autoDescribeRoute(Description("List all forms"))
+    @autoDescribeRoute(
+        Description("List all forms")
+        .param(
+            "level", "The minimum access level to filter the forms by",
+            dataType="integer",
+            required=False,
+            default=AccessType.READ,
+            enum=[AccessType.NONE, AccessType.READ, AccessType.WRITE, AccessType.ADMIN],
+        )
+        .pagingParams(defaultSort="name", defaultSortDir=SortDir.ASCENDING)
+    )
     @filtermodel(model="form", plugin="jsonforms")
-    def listForm(self, params):
-        return FormModel().find()
+    def listForm(self, level, limit, offset, sort):
+        return FormModel().findWithPermissions(
+            query={},
+            offset=offset,
+            limit=limit,
+            sort=sort,
+            user=self.getCurrentUser(),
+            level=level,
+        )
 
     @access.public
     @autoDescribeRoute(
@@ -66,7 +86,9 @@ class Form(Resource):
         )
     )
     @filtermodel(model="form", plugin="jsonforms")
-    def createForm(self, name, description, schema, folder, pathTemplate, entryFileName):
+    def createForm(
+        self, name, description, schema, folder, pathTemplate, entryFileName
+    ):
         return FormModel().create(
             name,
             description,
@@ -110,11 +132,13 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
-        .responseClass('Form')
+        .responseClass("Form")
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
     )
-    def updateForm(self, form, name, description, schema, folder, pathTemplate, entryFileName):
+    def updateForm(
+        self, form, name, description, schema, folder, pathTemplate, entryFileName
+    ):
         if name is not None:
             form["name"] = name
         if description is not None:
@@ -141,3 +165,51 @@ class Form(Resource):
     @filtermodel(model="form", plugin="jsonforms")
     def deleteForm(self, form):
         FormModel().remove(form)
+
+    @access.user(scope=TokenScope.DATA_OWN)
+    @autoDescribeRoute(
+        Description("Get the access control list for a form").modelParam(
+            "id", "The ID of the form", model=FormModel, level=AccessType.ADMIN
+        )
+    )
+    def getFromAccess(self, form):
+        return FormModel().getFullAccessList(form)
+
+    @access.user(scope=TokenScope.DATA_OWN)
+    @autoDescribeRoute(
+        Description("Update the access control list for a form")
+        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.ADMIN)
+        .jsonParam(
+            "access", "The JSON-encoded access control list.", requireObject=True
+        )
+        .jsonParam(
+            "publicFlags",
+            "JSON list of public access flags.",
+            requireArray=True,
+            required=False,
+        )
+        .param(
+            "public",
+            "Whether the form should be publicly visible.",
+            dataType="boolean",
+            required=False,
+        )
+        .errorResponse("ID was invalid.")
+        .errorResponse("Admin access was denied for the form.", 403)
+    )
+    def updateFromAccess(self, form, access, publicFlags, public):
+        user = self.getCurrentUser()
+        if form["folderId"]:
+            folder = Folder().load(form["folderId"], force=True)
+            Folder().setAccessList(
+                folder,
+                access,
+                save=True,
+                recurse=True,
+                user=user,
+                progress=noProgress,
+                setPublic=public,
+                publicFlags=publicFlags,
+            )
+
+        return FormModel().setAccessList(form, access, save=True, user=user)

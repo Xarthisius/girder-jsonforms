@@ -1,10 +1,12 @@
 import _ from 'underscore';
+import AccessWidget from 'girder/views/widgets/AccessWidget';
 import FolderModel from 'girder/models/FolderModel';
 import BrowserWidget from 'girder/views/widgets/BrowserWidget';
 import View from 'girder/views/View';
 import router from 'girder/router';
 import UploadWidget from 'girder/views/widgets/UploadWidget';
 import { getCurrentUser } from 'girder/auth';
+import { AccessType } from 'girder/constants';
 
 import '../stylesheets/formView.styl';
 
@@ -66,6 +68,7 @@ const FormView = View.extend({
         'click .g-open-browser': function () {
             this.dataSelector.setElement($('#g-dialog-container')).render();
         },
+        'click .g-edit-access': 'editAccess',
         'click a.g-cancel-form': function () {
             this.tempFolder.destroy();
             router.navigate('forms', {trigger: true});
@@ -255,6 +258,8 @@ const FormView = View.extend({
     render: function () {
         this.$el.html(template({
             form: this.model,
+            level: this.model.getAccessLevel(),
+            AccessType: AccessType,
             destFolderPath: this.destFolderPath
         }));
         const formContainer = this.$('.g-form-container');
@@ -280,7 +285,20 @@ const FormView = View.extend({
             }
         });
         return this;
+    },
+
+    editAccess: function () {
+        new AccessWidget({
+            el: $('#g-dialog-container'),
+            model: this.model,
+            modelType: 'form',
+            parentView: this
+        }).on('g:accessListSaved', function (params) {
+            console.log(params);
+            console.log('Should change access to folderId');
+        }, this).render();
     }
+
 });
 
 export default FormView;

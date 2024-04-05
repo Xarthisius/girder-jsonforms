@@ -1,6 +1,6 @@
-import Model from 'girder/models/Model';
+import AccessControlledModel from 'girder/models/AccessControlledModel';
 
-var FormModel = Model.extend({
+var FormModel = AccessControlledModel.extend({
     resourceName: 'form'
 });
 
