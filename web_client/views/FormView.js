@@ -224,6 +224,7 @@ const FormView = View.extend({
             onlyFiles = false;
             onlyFolders = true;
         }
+        const value = jseditor.parent.getValue();
         new UploadWidget({
             el: $('#g-dialog-container'),
             parentView: this,
@@ -238,7 +239,11 @@ const FormView = View.extend({
             parent: this.tempFolder,
             parentType: 'folder',
             otherParams: {
-                reference: JSON.stringify(jseditor.parent.value)
+                reference: JSON.stringify({
+                    gdriveFolderId: this.model.get('gdriveFolderId'),
+                    sampleId: value.sampleId,
+                    targetPath: value.targetPath
+                })
             }
         }).on('g:uploadFinished', function (info) {
             var ids = '';

@@ -3,6 +3,7 @@ import io
 import json
 import os
 
+from girder import events
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder.models.item import Item
@@ -13,6 +14,7 @@ from girder.utility import JsonEncoder
 
 class FormEntry(AccessControlledModel):
     def initialize(self):
+        global GDRIVE_SERVICE
         self.name = "entry"
         self.ensureIndices(["formId"])
 
@@ -63,27 +65,46 @@ class FormEntry(AccessControlledModel):
 
         # Move from temp to destination
         path = entry["data"].get("targetPath")
-        known_targets = {None: self.get_destination_folder(path, destination, creator)}
+        known_targets = {
+            None: (
+                self.get_destination_folder(path, destination, creator),
+                entry["data"].get("sampleId"),
+            )
+        }
         for child in Folder().childFolders(source, "folder", user=creator):
             path = child.get("meta", {}).get("targetPath")
             try:
-                target = known_targets[path]
+                target, _ = known_targets[path]
             except KeyError:
                 target = self.get_destination_folder(path, destination, creator)
-                known_targets[child["_id"]] = target
+                known_targets[path] = target, child.get("meta", {}).get("sampleId")
             child = self.unique(child, target)
             Folder().move(child, target, "folder")
+            # TODO upload to GDrive
             entry["folders"].append(child["_id"])
 
         for child in Folder().childItems(source):
             path = child.get("meta", {}).get("targetPath")
             try:
-                target = known_targets[path]
+                target, _ = known_targets[path]
             except KeyError:
                 target = self.get_destination_folder(path, destination, creator)
-                known_targets[child["_id"]] = target
+                known_targets[path] = target, child.get("meta", {}).get("sampleId")
             child = self.unique(child, target)
-            Item().move(child, target)
+            child = Item().move(child, target)
+            for file in Item().childFiles(child):
+                # Upload to GDrive
+                gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
+                if gdrive_folder_id:
+                    events.daemon.trigger(
+                        "gdrive.upload",
+                        {
+                            "file": file,
+                            "gdriveFolderId": gdrive_folder_id,
+                            "path": os.path.join(path, file["name"]),
+                            "currentUser": creator,
+                        },
+                    )
             entry["files"].append(child["_id"])
         Folder().remove(source)
 
@@ -93,7 +114,7 @@ class FormEntry(AccessControlledModel):
             known_targets.pop(None)
 
         processed = set()
-        for target in known_targets.values():
+        for path, (target, sampleId) in known_targets.items():
             if target["_id"] in processed:
                 continue
             with io.BytesIO(
@@ -101,14 +122,30 @@ class FormEntry(AccessControlledModel):
                     entry, sort_keys=True, allow_nan=False, cls=JsonEncoder
                 ).encode("utf-8")
             ) as f:
-                Upload().uploadFromFile(
+                reference = {
+                    "sampleId": sampleId,
+                    "targetPath": path or entry["data"].get("targetPath"),
+                    "gdriveFolderId": form.get("gdriveFolderId"),
+                }
+                obj = Upload().uploadFromFile(
                     f,
                     f.getbuffer().nbytes,
                     form["entryFileName"],
                     parentType="folder",
                     parent=target,
+                    reference=json.dumps(reference),
                     mimeType="application/json",
                 )
+                if form.get("gdriveFolderId"):
+                    events.daemon.trigger(
+                        "gdrive.upload",
+                        {
+                            "file": obj,
+                            "gdriveFolderId": form["gdriveFolderId"],
+                            "path": os.path.join(path, obj["name"]),
+                            "currentUser": creator,
+                        },
+                    )
             processed.add(target["_id"])
 
         return self.save(entry)

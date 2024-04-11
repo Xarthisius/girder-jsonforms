@@ -24,7 +24,8 @@ class Form(Resource):
     @autoDescribeRoute(
         Description("List all forms")
         .param(
-            "level", "The minimum access level to filter the forms by",
+            "level",
+            "The minimum access level to filter the forms by",
             dataType="integer",
             required=False,
             default=AccessType.READ,
@@ -84,10 +85,23 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
+        .param(
+            "gdriveFolderId",
+            "Google Drive folder ID to save the form entry",
+            required=False,
+            dataType="string",
+        )
     )
     @filtermodel(model="form", plugin="jsonforms")
     def createForm(
-        self, name, description, schema, folder, pathTemplate, entryFileName
+        self,
+        name,
+        description,
+        schema,
+        folder,
+        pathTemplate,
+        entryFileName,
+        gdriveFolderId,
     ):
         return FormModel().create(
             name,
@@ -97,6 +111,7 @@ class Form(Resource):
             folder=folder,
             pathTemplate=pathTemplate,
             entryFileName=entryFileName,
+            gdriveFolderId=gdriveFolderId or None,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -132,12 +147,26 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
+        .param(
+            "gdriveFolderId",
+            "Google Drive folder ID to save the form entry",
+            required=False,
+            dataType="string",
+        )
         .responseClass("Form")
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
     )
     def updateForm(
-        self, form, name, description, schema, folder, pathTemplate, entryFileName
+        self,
+        form,
+        name,
+        description,
+        schema,
+        folder,
+        pathTemplate,
+        entryFileName,
+        gdriveFolderId,
     ):
         if name is not None:
             form["name"] = name
@@ -154,6 +183,8 @@ class Form(Resource):
                 form["pathTemplate"] = None
             else:
                 form["pathTemplate"] = pathTemplate
+        if gdriveFolderId:
+            form["gdriveFolderId"] = gdriveFolderId
         return FormModel().save(form)
 
     @access.user

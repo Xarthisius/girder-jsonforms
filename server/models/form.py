@@ -18,6 +18,7 @@ class Form(AccessControlledModel):
                 "schema",
                 "created",
                 "updated",
+                "gdriveFolderId",
                 "folderId",
                 "pathTemplate",
             ),
@@ -26,7 +27,17 @@ class Form(AccessControlledModel):
     def validate(self, doc):
         return doc
 
-    def create(self, name, description, schema, creator, folder=None, pathTemplate=None, entryFileName=None):
+    def create(
+        self,
+        name,
+        description,
+        schema,
+        creator,
+        folder=None,
+        pathTemplate=None,
+        entryFileName=None,
+        gdriveFolderId=None,
+    ):
         now = datetime.datetime.utcnow()
 
         form = {
@@ -34,6 +45,7 @@ class Form(AccessControlledModel):
             "description": description,
             "schema": schema,
             "folderId": None,
+            "gdriveFolderId": gdriveFolderId,
             "pathTemplate": pathTemplate,
             "entryFileName": entryFileName or "entry.json",
             "created": now,
@@ -44,7 +56,17 @@ class Form(AccessControlledModel):
 
         return self.save(form)
 
-    def update(self, form, name, description, schema, folder=None, pathTemplate=None, entryFileName=None):
+    def update(
+        self,
+        form,
+        name,
+        description,
+        schema,
+        folder=None,
+        pathTemplate=None,
+        entryFileName=None,
+        gdriveFolderId=None,
+    ):
         now = datetime.datetime.utcnow()
 
         form["name"] = name
@@ -60,5 +82,8 @@ class Form(AccessControlledModel):
 
         if entryFileName:
             form["entryFileName"] = entryFileName
+
+        if gdriveFolderId:
+            form["gdriveFolderId"] = gdriveFolderId
 
         return self.save(form)
