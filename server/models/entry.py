@@ -117,6 +117,7 @@ class FormEntry(AccessControlledModel):
         for path, (target, sampleId) in known_targets.items():
             if target["_id"] in processed:
                 continue
+            path = path or entry["data"].get("targetPath")
             with io.BytesIO(
                 json.dumps(
                     entry, sort_keys=True, allow_nan=False, cls=JsonEncoder
@@ -124,7 +125,7 @@ class FormEntry(AccessControlledModel):
             ) as f:
                 reference = {
                     "sampleId": sampleId,
-                    "targetPath": path or entry["data"].get("targetPath"),
+                    "targetPath": path,
                     "gdriveFolderId": form.get("gdriveFolderId"),
                 }
                 obj = Upload().uploadFromFile(
