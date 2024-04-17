@@ -29,7 +29,7 @@ class FormEntry(Resource):
         )
         .pagingParams(defaultSort="created")
     )
-    @filtermodel(model="entry", plugin="jsonforms")
+    @filtermodel(model=FormEntryModel, plugin="jsonforms")
     def listFormEntry(self, form, limit, offset, sort):
         q = {}
         if form:
@@ -51,7 +51,7 @@ class FormEntry(Resource):
             "id", "The ID of the form", model=FormEntryModel, level=AccessType.READ
         )
     )
-    @filtermodel(model="entry", plugin="jsonforms")
+    @filtermodel(model=FormEntryModel, plugin="jsonforms")
     def getFormEntry(self, entry):
         return entry
 
@@ -87,7 +87,7 @@ class FormEntry(Resource):
             level=AccessType.WRITE,
         )
     )
-    # @filtermodel(model="entry", plugin="jsonforms")
+    @filtermodel(model=FormEntryModel, plugin="jsonforms")
     def createFormEntry(self, form, data, source, destination):
         return FormEntryModel().create(
             form,
