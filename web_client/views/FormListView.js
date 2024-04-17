@@ -7,7 +7,7 @@ var FormListView = View.extend({
         this.paginateFormsWidget = new PaginateFormsWidget({
             el: this.$el,
             parentView: this,
-            formUrlFunc: (form) => { return `#form/${form.id}`; }
+            formUrlFunc: (form) => { return `#form/${form.id}/entry`; }
         });
     }
 });

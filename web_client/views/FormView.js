@@ -205,6 +205,7 @@ const FormView = View.extend({
             this._fetchFolderToRoot(val);
         });
 
+        this.initialValues = settings.initialValues;
         this.form = null;
     },
 
@@ -283,6 +284,9 @@ const FormView = View.extend({
         }
         const view = this;
         $.when(this.form.promise).done(() => {
+            if (view.initialValues) {
+                view.form.setValue(view.initialValues.get('data'));
+            }
             if (view.destFolder === null) {
                 view.form.disable();
             } else {
