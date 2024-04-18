@@ -8,13 +8,13 @@ import UploadWidget from 'girder/views/widgets/UploadWidget';
 import { getCurrentUser } from 'girder/auth';
 import { AccessType } from 'girder/constants';
 
-import '../stylesheets/formView.styl';
+import '../stylesheets/editFormView.styl';
 
 import flatpickr from 'flatpickr'; // eslint-disable-line no-unused-vars
 import Handlebars from 'handlebars';
 import { JSONEditor } from '@json-editor/json-editor';
 
-import template from '../templates/formView.pug';
+import template from '../templates/editFormView.pug';
 import FormEntryModel from '../models/FormEntryModel';
 
 import 'flatpickr/dist/flatpickr.min.css';
@@ -54,7 +54,7 @@ function setField(jseditor, field, value) {
 
 var lastParent = null;
 
-const FormView = View.extend({
+const EditFormView = View.extend({
     events: {
         'click .g-reload-form': function (event) {
             this.model.fetch().done(() => { this.render(); });
@@ -80,14 +80,21 @@ const FormView = View.extend({
                 this.form.root.showValidationErrors(errors);
                 return;
             }
-            new FormEntryModel({
-                formId: this.model.id,
-                data: JSON.stringify(this.form.getValue()),
-                sourceId: this.tempFolder.id,
-                destinationId: this.destFolder.id
-            }).save().done(() => {
-                router.navigate('forms', {trigger: true});
-            });
+            if (this.initialValues) {
+                this.initialValues.set('data', this.form.getValue());
+                this.initialValues.save().done(() => {
+                    router.navigate('forms', {trigger: true});
+                });
+            } else {
+                new FormEntryModel({
+                    formId: this.model.id,
+                    data: JSON.stringify(this.form.getValue()),
+                    sourceId: this.tempFolder.id,
+                    destinationId: this.destFolder.id
+                }).save().done(() => {
+                    router.navigate('forms', {trigger: true});
+                });
+            }
         }
     },
 
@@ -160,10 +167,10 @@ const FormView = View.extend({
             showItems: false,
             selectItem: false,
             root: lastParent || this.currentUser,
-            titleText: this.initialValues ? this.initialValues.data : 'Select a folder for upload',
+            titleText: 'Select a folder for upload',
             helpText: 'Browse to a directory to select it, then click "Save"',
             showPreview: false,
-            input: this.initialValues ? {default: this.initialValues.data} : false,
+            input: false,
             validate: _.noop
         });
         const tempName = `_temp_${this.model.id}_${makeid(5)}`;
@@ -310,4 +317,4 @@ const FormView = View.extend({
 
 });
 
-export default FormView;
+export default EditFormView;

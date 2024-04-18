@@ -4,7 +4,7 @@ import events from 'girder/events';
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
 import FormListView from './views/FormListView';
-import FormView from './views/FormView';
+import EditFormView from './views/EditFormView';
 
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
@@ -24,7 +24,7 @@ router.route('form/:id/entry', 'form', function (id, params) {
             router.navigate('form/' + id + '/entry', {trigger: true, replace: true});
             return;
         }
-        events.trigger('g:navigateTo', FormView, {
+        events.trigger('g:navigateTo', EditFormView, {
             model: item,
             initialValues: entry
         }, {
