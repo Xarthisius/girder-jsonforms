@@ -3,6 +3,7 @@ import events from 'girder/events';
 
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
+import FormView from './views/FormView';
 import FormListView from './views/FormListView';
 import EditFormView from './views/EditFormView';
 
@@ -27,6 +28,19 @@ router.route('form/:id/entry', 'form', function (id, params) {
         events.trigger('g:navigateTo', EditFormView, {
             model: item,
             initialValues: entry
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('forms', {trigger: true, replace: true});
+    });
+});
+
+router.route('form/:id', 'form', function (id) {
+    const item = new FormModel({_id: id});
+    item.fetch().done(() => {
+        events.trigger('g:navigateTo', FormView, {
+            model: item
         }, {
             renderNow: true
         });

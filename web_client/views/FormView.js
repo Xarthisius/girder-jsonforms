@@ -1,0 +1,70 @@
+import View from 'girder/views/View';
+import AccessWidget from 'girder/views/widgets/AccessWidget';
+import router from 'girder/router';
+import { cancelRestRequests } from 'girder/rest';
+import { renderMarkdown } from 'girder/misc';
+
+import EntriesWidget from './widgets/EntriesWidget';
+import FormModel from '../models/FormModel';
+import FormTemplate from '../templates/formTemplate.pug';
+
+import '../stylesheets/formView.styl';
+
+var FormView = View.extend({
+    events: {
+        'click .g-new-entry': function (event) {
+            console.log('new entry');
+            router.navigate('form/' + this.model.get('_id') + '/entry', {
+                trigger: true
+            });
+        },
+        'click .g-edit-access': 'editAccess'
+    },
+    initialize: function (settings) {
+        cancelRestRequests('fetch');
+
+        if (settings.form) {
+            this.model = settings.form;
+            this.render();
+        } else if (settings.id) {
+            this.model = new FormModel();
+            this.model.set('_id', settings.id);
+
+            this.model.on('g:fetched', function () {
+                this.render();
+            }, this).fetch();
+        }
+    },
+
+    render: function () {
+        this.$el.html(FormTemplate({
+            form: this.model,
+            renderMarkdown: renderMarkdown
+        }));
+
+        if (!this.entriesView) {
+            this.entriesView = new EntriesWidget({
+                el: this.$('.g-form-entries-container'),
+                parentView: this,
+                parentModel: this.model
+            });
+        } else {
+            this.entriesView.setElement(this.$('.g-form-entries-container')).render();
+        }
+        return this;
+    },
+
+    editAccess: function () {
+        new AccessWidget({
+            el: $('#g-dialog-container'),
+            model: this.model,
+            modelType: 'form',
+            parentView: this
+        }).on('g:accessListSaved', function (params) {
+            console.log(params);
+            console.log('Should change access to folderId');
+        }, this).render();
+    }
+});
+
+export default FormView;
