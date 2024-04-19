@@ -7,16 +7,18 @@ from girder import events
 from girder.constants import AccessType
 from girder.models.folder import Folder
 from girder.models.item import Item
-from girder.models.model_base import AccessControlledModel
+from girder.models.model_base import Model
 from girder.models.upload import Upload
-from girder.utility import JsonEncoder, RequestBodyStream
+from girder.utility import acl_mixin, JsonEncoder, RequestBodyStream
 
 
-class FormEntry(AccessControlledModel):
+class FormEntry(acl_mixin.AccessControlMixin, Model):
     def initialize(self):
         global GDRIVE_SERVICE
         self.name = "entry"
-        self.ensureIndices(["formId"])
+        self.ensureIndices(["formId", "data.sampleId"])
+        self.resourceColl = "form"
+        self.resourceParent = "formId"
 
         self.exposeFields(
             level=AccessType.READ,
