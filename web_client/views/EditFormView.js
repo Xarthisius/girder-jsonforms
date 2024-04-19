@@ -80,7 +80,15 @@ const EditFormView = View.extend({
                 this.form.root.showValidationErrors(errors);
                 return;
             }
-            if (this.initialValues) {
+            new FormEntryModel({
+                formId: this.model.id,
+                data: JSON.stringify(this.form.getValue()),
+                sourceId: this.tempFolder.id,
+                destinationId: this.destFolder.id
+            }).save().done(() => {
+                router.navigate('forms', {trigger: true});
+            });
+            /* if (this.initialValues) {
                 this.initialValues.set('data', this.form.getValue());
                 this.initialValues.save().done(() => {
                     router.navigate('forms', {trigger: true});
@@ -94,7 +102,7 @@ const EditFormView = View.extend({
                 }).save().done(() => {
                     router.navigate('forms', {trigger: true});
                 });
-            }
+            } */
         }
     },
 

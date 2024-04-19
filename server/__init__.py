@@ -39,7 +39,7 @@ def upload_to_gdrive(event):
     info = event.info
     file = info["file"]
 
-    with File().open(info["file"]) as fh:
+    with File().open(file) as fh:
         gdrive_file_id = upload_file_to_gdrive(
             GDRIVE_SERVICE,
             info["gdriveFolderId"],
@@ -48,7 +48,7 @@ def upload_to_gdrive(event):
             mimetype=file["mimeType"],
         )
     parent = Item().load(
-        info["file"]["itemId"], level=AccessType.WRITE, user=info["currentUser"]
+        file["itemId"], level=AccessType.WRITE, user=info["currentUser"]
     )
     Item().setMetadata(parent, {"gdriveFileId": gdrive_file_id})
 

@@ -9,7 +9,7 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.model_base import AccessControlledModel
 from girder.models.upload import Upload
-from girder.utility import JsonEncoder
+from girder.utility import JsonEncoder, RequestBodyStream
 
 
 class FormEntry(AccessControlledModel):
@@ -50,18 +50,31 @@ class FormEntry(AccessControlledModel):
 
     def create(self, form, data, source, destination, creator):
         now = datetime.datetime.utcnow()
-
         entry = {
             "formId": form["_id"],
             "data": data,
             "created": now,
             "updated": now,
-            "folderId": None,
+            "folderId": destination["_id"],
             "files": [],
             "folders": [],
         }
 
-        entry["folderId"] = destination["_id"]
+        if existing := self.findOne(
+            {
+                "formId": form["_id"],
+                "data.sampleId": data["sampleId"],
+            }
+        ):
+            # Update the existing entry
+            entry.update(
+                {
+                    "_id": existing["_id"],
+                    "created": existing["created"],
+                    "files": existing["files"],
+                    "folders": existing["folders"],
+                }
+            )
 
         # Move from temp to destination
         path = entry["data"].get("targetPath")
@@ -128,28 +141,54 @@ class FormEntry(AccessControlledModel):
                     "targetPath": path,
                     "gdriveFolderId": form.get("gdriveFolderId"),
                 }
-                obj = Upload().uploadFromFile(
-                    f,
-                    f.getbuffer().nbytes,
-                    form["entryFileName"],
-                    parentType="folder",
-                    parent=target,
-                    reference=json.dumps(reference),
-                    mimeType="application/json",
+                size = f.getbuffer().nbytes
+                upload = self._get_upload_for_entry(
+                    form["entryFileName"], target, creator, size, reference
                 )
+                # not really chunking here as JSON is small
+                upload = Upload().handleChunk(upload, RequestBodyStream(f, size))
                 if form.get("gdriveFolderId"):
                     events.daemon.trigger(
                         "gdrive.upload",
                         {
-                            "file": obj,
+                            "file": upload,
                             "gdriveFolderId": form["gdriveFolderId"],
-                            "path": os.path.join(path, obj["name"]),
+                            "gdriveFileId": reference.get("gdriveFileId"),
+                            "path": os.path.join(path, upload["name"]),
                             "currentUser": creator,
                         },
                     )
             processed.add(target["_id"])
 
         return self.save(entry)
+
+    @staticmethod
+    def _get_upload_for_entry(fname, target, creator, size, reference):
+        if existing_item := Item().findOne({"name": fname, "folderId": target["_id"]}):
+            file = Item().childFiles(existing_item)[0]
+            if "gdriveFileId" in existing_item.get("meta", {}):
+                reference["gdriveFileId"] = existing_item["meta"]["gdriveFileId"]
+            reference["itemId"] = existing_item["_id"]
+            serialized_reference = json.dumps(
+                reference, sort_keys=True, allow_nan=False, cls=JsonEncoder
+            )
+            upload = Upload().createUploadToFile(
+                file=file, user=creator, size=size, reference=serialized_reference
+            )
+        else:
+            serialized_reference = json.dumps(
+                reference, sort_keys=True, allow_nan=False, cls=JsonEncoder
+            )
+            upload = Upload().createUpload(
+                user=creator,
+                name=fname,
+                parentType="folder",
+                parent=target,
+                size=size,
+                mimeType="application/json",
+                reference=serialized_reference,
+            )
+        return upload
 
     @staticmethod
     def get_destination_folder(path, root, user):
