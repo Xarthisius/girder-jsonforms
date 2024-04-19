@@ -6,7 +6,7 @@ from google.auth.transport.requests import Request
 
 # from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload, MediaIoBaseUpload
+from googleapiclient.http import MediaIoBaseUpload
 
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://www.googleapis.com/auth/drive"]
@@ -94,14 +94,13 @@ def upload_file_to_gdrive(service, folder_id, path, file_handle, mimetype="text/
     query = f"'{folder_id}' in parents and name='{file_name}' and trashed=false"
     response = service.files().list(q=query, fields="files(id)").execute()
     existing_files = response.get("files", [])
+    media = MediaIoBaseUpload(file_handle, mimetype=mimetype)
     if existing_files:
         file_id = existing_files[0]["id"]
-        media = MediaFileUpload(file_handle.name, mimetype=mimetype)
         file_result = service.files().update(fileId=file_id, media_body=media).execute()
         logprint.error(f'File {file_name} updated with ID: {file_result["id"]}')
     else:
         file_metadata = {"name": file_name, "parents": [folder_id]}
-        media = MediaIoBaseUpload(file_handle, mimetype=mimetype)
         file_result = (
             service.files()
             .create(body=file_metadata, media_body=media, fields="id")
