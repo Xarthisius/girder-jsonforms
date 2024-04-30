@@ -290,6 +290,7 @@ const EditFormView = View.extend({
             form: this.model,
             level: this.model.getAccessLevel(),
             AccessType: AccessType,
+            destFolder: this.destFolder,
             destFolderPath: this.destFolderPath
         }));
         const formContainer = this.$('.g-form-container');
