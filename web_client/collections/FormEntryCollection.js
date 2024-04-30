@@ -5,7 +5,9 @@ import FormEntryModel from '../models/FormEntryModel';
 var FormEntryCollection = Collection.extend({
     resourceName: 'entry',
     model: FormEntryModel,
-    pageLimit: 100
+    pageLimit: 16,
+    sortField: 'data.sampleId',
+    sortDir: -1
 });
 
 export default FormEntryCollection;
