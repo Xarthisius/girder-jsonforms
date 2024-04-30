@@ -24,6 +24,12 @@ class Form(Resource):
     @autoDescribeRoute(
         Description("List all forms")
         .param(
+            "entryFileName",
+            "Pass to lookup a form by exact entry filename match.",
+            required=False,
+            dataType="string",
+        )
+        .param(
             "level",
             "The minimum access level to filter the forms by",
             dataType="integer",
@@ -34,9 +40,13 @@ class Form(Resource):
         .pagingParams(defaultSort="name", defaultSortDir=SortDir.ASCENDING)
     )
     @filtermodel(model="form", plugin="jsonforms")
-    def listForm(self, level, limit, offset, sort):
+    def listForm(self, entryFileName, level, limit, offset, sort):
+        query = {}
+        if entryFileName is not None:
+            query["entryFileName"] = entryFileName
+
         return FormModel().findWithPermissions(
-            query={},
+            query=query,
             offset=offset,
             limit=limit,
             sort=sort,
