@@ -13,6 +13,7 @@ class FormEntry(Resource):
         super(FormEntry, self).__init__()
         self.resourceName = "entry"
         self.route("GET", (), self.listFormEntry)
+        self.route("GET", ("search",), self.searchFormEntry)
         self.route("GET", (":id",), self.getFormEntry)
         self.route("POST", (), self.createFormEntry)
         self.route("DELETE", (":id",), self.deleteFormEntry)
@@ -42,6 +43,26 @@ class FormEntry(Resource):
             level=AccessType.READ,
             limit=limit,
             offset=offset,
+        )
+        return iter(cursor)
+
+    @access.public
+    @autoDescribeRoute(
+        Description("Search entries")
+        .param("query", "Regex for Sample Id", dataType="string", required=True)
+        .pagingParams(defaultSort="data.sampleId")
+    )
+    @filtermodel(model=FormEntryModel, plugin="jsonforms")
+    def searchFormEntry(self, query, limit, offset, sort):
+        print(query)
+        q = {"data.sampleId": {"$regex": query}}
+        cursor = FormEntryModel().findWithPermissions(
+            q,
+            user=self.getCurrentUser(),
+            level=AccessType.READ,
+            limit=limit,
+            offset=offset,
+            sort=sort,
         )
         return iter(cursor)
 
