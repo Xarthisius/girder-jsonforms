@@ -124,6 +124,9 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 entry["files"].append(child["_id"])
             Folder().remove(source)
 
+        if not form.get("serialize", False):
+            return self.save(entry)
+
         # Dump the entry into json file, by creating bytes buffer from json dump and
         # Upload().uploadFromFile will create a file in each destination folder
         if len(known_targets) > 1:

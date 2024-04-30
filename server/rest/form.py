@@ -101,6 +101,13 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
+        .param(
+            "serialize",
+            "Store the form schema as a serialized JSON string",
+            required=False,
+            dataType="boolean",
+            default=False,
+        )
     )
     @filtermodel(model="form", plugin="jsonforms")
     def createForm(
@@ -112,6 +119,7 @@ class Form(Resource):
         pathTemplate,
         entryFileName,
         gdriveFolderId,
+        serialize,
     ):
         return FormModel().create(
             name,
@@ -122,6 +130,7 @@ class Form(Resource):
             pathTemplate=pathTemplate,
             entryFileName=entryFileName,
             gdriveFolderId=gdriveFolderId or None,
+            serialize=serialize,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -163,6 +172,12 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
+        .param(
+            "serialize",
+            "Store the form schema as a serialized JSON string",
+            required=False,
+            dataType="boolean",
+        )
         .responseClass("Form")
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
@@ -177,6 +192,7 @@ class Form(Resource):
         pathTemplate,
         entryFileName,
         gdriveFolderId,
+        serialize,
     ):
         if name is not None:
             form["name"] = name
@@ -195,6 +211,8 @@ class Form(Resource):
                 form["pathTemplate"] = pathTemplate
         if gdriveFolderId:
             form["gdriveFolderId"] = gdriveFolderId
+        if serialize is not None:
+            form["serialize"] = serialize
         return FormModel().save(form)
 
     @access.user
