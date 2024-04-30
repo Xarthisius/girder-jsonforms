@@ -92,7 +92,7 @@ class FormEntry(Resource):
         .modelParam(
             "sourceId",
             "The folder ID of uploaded data",
-            required=True,
+            required=False,
             model=Folder,
             paramType="query",
             destName="source",

@@ -17,7 +17,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
         global GDRIVE_SERVICE
         self.name = "entry"
         self.ensureIndices(["formId", "data.sampleId"])
-        self.resourceColl = "form"
+        self.resourceColl = ("form", "jsonforms")
         self.resourceParent = "formId"
 
         self.exposeFields(
@@ -86,42 +86,43 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 entry["data"].get("sampleId"),
             )
         }
-        for child in Folder().childFolders(source, "folder", user=creator):
-            path = child.get("meta", {}).get("targetPath")
-            try:
-                target, _ = known_targets[path]
-            except KeyError:
-                target = self.get_destination_folder(path, destination, creator)
-                known_targets[path] = target, child.get("meta", {}).get("sampleId")
-            child = self.unique(child, target)
-            Folder().move(child, target, "folder")
-            # TODO upload to GDrive
-            entry["folders"].append(child["_id"])
+        if source is not None:
+            for child in Folder().childFolders(source, "folder", user=creator):
+                path = child.get("meta", {}).get("targetPath")
+                try:
+                    target, _ = known_targets[path]
+                except KeyError:
+                    target = self.get_destination_folder(path, destination, creator)
+                    known_targets[path] = target, child.get("meta", {}).get("sampleId")
+                child = self.unique(child, target)
+                Folder().move(child, target, "folder")
+                # TODO upload to GDrive
+                entry["folders"].append(child["_id"])
 
-        for child in Folder().childItems(source):
-            path = child.get("meta", {}).get("targetPath")
-            try:
-                target, _ = known_targets[path]
-            except KeyError:
-                target = self.get_destination_folder(path, destination, creator)
-                known_targets[path] = target, child.get("meta", {}).get("sampleId")
-            child = self.unique(child, target)
-            child = Item().move(child, target)
-            for file in Item().childFiles(child):
-                # Upload to GDrive
-                gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
-                if gdrive_folder_id:
-                    events.daemon.trigger(
-                        "gdrive.upload",
-                        {
-                            "file": file,
-                            "gdriveFolderId": gdrive_folder_id,
-                            "path": os.path.join(path, file["name"]),
-                            "currentUser": creator,
-                        },
-                    )
-            entry["files"].append(child["_id"])
-        Folder().remove(source)
+            for child in Folder().childItems(source):
+                path = child.get("meta", {}).get("targetPath")
+                try:
+                    target, _ = known_targets[path]
+                except KeyError:
+                    target = self.get_destination_folder(path, destination, creator)
+                    known_targets[path] = target, child.get("meta", {}).get("sampleId")
+                child = self.unique(child, target)
+                child = Item().move(child, target)
+                for file in Item().childFiles(child):
+                    # Upload to GDrive
+                    gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
+                    if gdrive_folder_id:
+                        events.daemon.trigger(
+                            "gdrive.upload",
+                            {
+                                "file": file,
+                                "gdriveFolderId": gdrive_folder_id,
+                                "path": os.path.join(path, file["name"]),
+                                "currentUser": creator,
+                            },
+                        )
+                entry["files"].append(child["_id"])
+            Folder().remove(source)
 
         # Dump the entry into json file, by creating bytes buffer from json dump and
         # Upload().uploadFromFile will create a file in each destination folder
