@@ -152,13 +152,22 @@ const EditFormView = View.extend({
             }
         });
 
-        this.schema = JSON.parse(this.model.get('schema'));
-        /*
-        if ("code" in this.schema) {
-            // You gotta be fucking kidding me....
-            eval(this.schema.code);
+        // schema is either a json string or http link. If it is a link, fetch it.
+        this.schema = null;
+        if (this.model.get('schema').startsWith('http')) {
+            const view = this;
+            $.ajax({
+                url: this.model.get('schema'),
+                async: false,
+                success: function (data) {
+                    view.schema = JSON.parse(data);
+                    view.render();
+                }
+            });
+        } else {
+            this.schema = JSON.parse(this.model.get('schema'));
         }
-        */
+
         const destFolderId = this.model.get('folderId');
         this.destFolder = null;
         if (destFolderId) {
@@ -284,30 +293,32 @@ const EditFormView = View.extend({
             destFolderPath: this.destFolderPath
         }));
         const formContainer = this.$('.g-form-container');
-        this.form = new JSONEditor(formContainer[0], {
-            schema: this.schema,
-            theme: 'bootstrap3',
-            template: 'handlebars',
-            disable_edit_json: true,
-            disable_properties: true,
-            disable_collapse: true,
-            show_errors: 'always'
-        });
-        if (this.model.get('folderId')) {
-            this.$('#g-folder-data-id').attr('objId', this.model.get('folderId'));
-            this.$('#g-folder-data-id').val(this.model.get('folderId'));
+        if (this.schema) {
+            this.form = new JSONEditor(formContainer[0], {
+                schema: this.schema,
+                theme: 'bootstrap3',
+                template: 'handlebars',
+                disable_edit_json: true,
+                disable_properties: true,
+                disable_collapse: true,
+                show_errors: 'always'
+            });
+            if (this.model.get('folderId')) {
+                this.$('#g-folder-data-id').attr('objId', this.model.get('folderId'));
+                this.$('#g-folder-data-id').val(this.model.get('folderId'));
+            }
+            const view = this;
+            $.when(this.form.promise).done(() => {
+                if (view.initialValues) {
+                    view.form.setValue(view.initialValues.get('data'));
+                }
+                if (view.destFolder === null) {
+                    view.form.disable();
+                } else {
+                    view.form.enable();
+                }
+            });
         }
-        const view = this;
-        $.when(this.form.promise).done(() => {
-            if (view.initialValues) {
-                view.form.setValue(view.initialValues.get('data'));
-            }
-            if (view.destFolder === null) {
-                view.form.disable();
-            } else {
-                view.form.enable();
-            }
-        });
         return this;
     },
 
