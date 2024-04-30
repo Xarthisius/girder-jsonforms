@@ -1,7 +1,13 @@
 import os
 import pickle
 
-from girder import logger, logprint
+try:
+    from girder import logger, logprint
+except (ImportError, ModuleNotFoundError):
+    import logging
+
+    logger = logging.getLogger("google_drive")
+    logprint = logger
 from google.auth.transport.requests import Request
 
 # from google_auth_oauthlib.flow import InstalledAppFlow
@@ -62,7 +68,16 @@ def create_folders(service, folder_id, path):
         if folder:
             # Check if folder already exists
             query = f"'{current_folder_id}' in parents and mimeType='application/vnd.google-apps.folder' and name='{folder}' and trashed=false"
-            response = service.files().list(q=query, fields="files(id)").execute()
+            response = (
+                service.files()
+                .list(
+                    q=query,
+                    fields="files(id)",
+                    includeItemsFromAllDrives=True,
+                    supportsAllDrives=True,
+                )
+                .execute()
+            )
             existing_folders = response.get("files", [])
             if existing_folders:
                 logprint.error(f"Folder '{folder}' already exists")
@@ -76,7 +91,12 @@ def create_folders(service, folder_id, path):
                     "parents": [current_folder_id],
                 }
                 folder_result = (
-                    service.files().create(body=file_metadata, fields="id").execute()
+                    service.files()
+                    .create(body=file_metadata, fields="id", supportsAllDrives=True)
+                    .execute()
+                )
+                logprint.error(
+                    f"Folder '{folder}' created with ID: {folder_result['id']}"
                 )
                 current_folder_id = folder_result["id"]
 
@@ -89,30 +109,52 @@ def upload_file_to_gdrive(service, folder_id, path, file_handle, mimetype="text/
         return
     file_path, file_name = os.path.split(path)
     folder_id = create_folders(service, folder_id, file_path)
+    logprint.error(f"Uploading file '{file_name}' to folder '{folder_id}'")
 
     # Check if file already exists in the folder
     query = f"'{folder_id}' in parents and name='{file_name}' and trashed=false"
-    response = service.files().list(q=query, fields="files(id)").execute()
+    response = (
+        service.files()
+        .list(
+            q=query,
+            fields="files(id)",
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+        )
+        .execute()
+    )
     existing_files = response.get("files", [])
     media = MediaIoBaseUpload(file_handle, mimetype=mimetype)
     if existing_files:
         file_id = existing_files[0]["id"]
-        file_result = service.files().update(fileId=file_id, media_body=media).execute()
+        file_result = (
+            service.files()
+            .update(fileId=file_id, media_body=media, supportsAllDrives=True)
+            .execute()
+        )
         logprint.error(f'File {file_name} updated with ID: {file_result["id"]}')
     else:
         file_metadata = {"name": file_name, "parents": [folder_id]}
         file_result = (
             service.files()
-            .create(body=file_metadata, media_body=media, fields="id")
+            .create(
+                body=file_metadata,
+                media_body=media,
+                fields="id",
+                supportsAllDrives=True,
+            )
             .execute()
         )
-        logprint.error(f'File {file_metadata["name"]} uploaded with ID: {file_result["id"]}')
+        logprint.error(
+            f'File {file_metadata["name"]} uploaded with ID: {file_result["id"]}'
+        )
     return file_result["id"]
 
 
 # Example usage
 if __name__ == "__main__":
-    folder_id = "1WgY3HJ0bxzQc-IA_dBdiwb9Hvq6ho3HS"  # Replace with the actual folder ID
+    # folder_id = "1WgY3HJ0bxzQc-IA_dBdiwb9Hvq6ho3HS"  # Replace with the actual folder ID
+    folder_id = "13u4Citrr09FETrPDn2gJmBHWeaO0ylji"
     path = "subfolder/subfolder2/subfolder4/file.txt"
     file_handle = open("file.txt", "rb")  # Replace 'file.txt' with the actual file path
     service = authenticate_gdrive()
