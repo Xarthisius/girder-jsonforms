@@ -22,6 +22,7 @@ class Form(AccessControlledModel):
                 "folderId",
                 "serialize",
                 "pathTemplate",
+                "uniqueField",
             ),
         )
 
@@ -39,6 +40,7 @@ class Form(AccessControlledModel):
         entryFileName=None,
         gdriveFolderId=None,
         serialize=False,
+        uniqueField=None,
     ):
         now = datetime.datetime.utcnow()
 
@@ -53,6 +55,7 @@ class Form(AccessControlledModel):
             "serialize": serialize,
             "created": now,
             "updated": now,
+            "uniqueField": uniqueField or "sampleId",
         }
         if folder:
             form["folderId"] = folder["_id"]
@@ -70,6 +73,7 @@ class Form(AccessControlledModel):
         entryFileName=None,
         gdriveFolderId=None,
         serialize=None,
+        uniqueField=None,
     ):
         now = datetime.datetime.utcnow()
 
@@ -92,5 +96,8 @@ class Form(AccessControlledModel):
 
         if serialize is not None:
             form["serialize"] = serialize
+
+        if uniqueField:
+            form["uniqueField"] = uniqueField
 
         return self.save(form)

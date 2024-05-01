@@ -25,12 +25,12 @@ def annotate_uploads(event):
     except (ValueError, TypeError):
         return
 
-    if "sampleId" in reference:
+    if reference.get("annotate"):
         parent = Item().load(
             info["file"]["itemId"], level=AccessType.WRITE, user=info["currentUser"]
         )
-
         reference.pop("file", None)
+        reference.pop("annotate", None)
         Item().setMetadata(parent, reference)
 
 
