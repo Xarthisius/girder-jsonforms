@@ -30,7 +30,6 @@ class FormEntry(Resource):
         )
         .pagingParams(defaultSort="created")
     )
-    @filtermodel(model=FormEntryModel, plugin="jsonforms")
     def listFormEntry(self, form, limit, offset, sort):
         q = {}
         if form:
@@ -44,7 +43,7 @@ class FormEntry(Resource):
             limit=limit,
             offset=offset,
         )
-        return iter(cursor)
+        return list(cursor)
 
     @access.public
     @autoDescribeRoute(
@@ -52,7 +51,6 @@ class FormEntry(Resource):
         .param("query", "Regex for Sample Id", dataType="string", required=True)
         .pagingParams(defaultSort="data.sampleId")
     )
-    @filtermodel(model=FormEntryModel, plugin="jsonforms")
     def searchFormEntry(self, query, limit, offset, sort):
         print(query)
         q = {"data.sampleId": {"$regex": query}}
@@ -64,7 +62,7 @@ class FormEntry(Resource):
             offset=offset,
             sort=sort,
         )
-        return iter(cursor)
+        return list(cursor)
 
     @access.public
     @autoDescribeRoute(

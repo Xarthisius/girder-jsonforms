@@ -108,6 +108,13 @@ class Form(Resource):
             dataType="boolean",
             default=False,
         )
+        .param(
+            "uniqueField",
+            "The field name used as an unique index",
+            required=True,
+            dataType="string",
+            default="sampleId",
+        )
     )
     @filtermodel(model="form", plugin="jsonforms")
     def createForm(
@@ -120,6 +127,7 @@ class Form(Resource):
         entryFileName,
         gdriveFolderId,
         serialize,
+        uniqueField,
     ):
         return FormModel().create(
             name,
@@ -131,6 +139,7 @@ class Form(Resource):
             entryFileName=entryFileName,
             gdriveFolderId=gdriveFolderId or None,
             serialize=serialize,
+            uniqueField=uniqueField,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -178,6 +187,12 @@ class Form(Resource):
             required=False,
             dataType="boolean",
         )
+        .param(
+            "uniqueField",
+            "The field name used as an unique index",
+            required=False,
+            dataType="string",
+        )
         .responseClass("Form")
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
@@ -193,6 +208,7 @@ class Form(Resource):
         entryFileName,
         gdriveFolderId,
         serialize,
+        uniqueField,
     ):
         if name is not None:
             form["name"] = name
@@ -213,6 +229,8 @@ class Form(Resource):
             form["gdriveFolderId"] = gdriveFolderId
         if serialize is not None:
             form["serialize"] = serialize
+        if uniqueField is not None:
+            form["uniqueField"] = uniqueField
         return FormModel().save(form)
 
     @access.user

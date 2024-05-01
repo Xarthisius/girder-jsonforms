@@ -2,14 +2,14 @@
   table.g-entries-widget
     thead
       tr
-        th Sample ID
+        th Entry ID
         th Created
         th Updated
     tbody
       each entry in entries
         tr(g-entry-id=entry.id)
           td
-            a.g-edit-entry(cid=entry.cid)= entry.get("data").sampleId
+            a.g-edit-entry(cid=entry.cid)= entry.get("data")[uniqueField]
           td= formatDate(entry.get("created"), DATE_DAY)
           td= formatDate(entry.get("updated"), DATE_DAY)
 

@@ -22,6 +22,7 @@ var EntriesWidget = View.extend({
         this.parentModel = settings.parentModel;
         this.collection = new FormEntryCollection();
         this.collection.params = {formId: this.parentModel.id};
+        this.collection.sortField = `data.${this.parentModel.get('uniqueField', 'sampleId')}`;
         this.collection.on('g:changed', function () {
             this.render();
         }, this).fetch({}, true);
@@ -32,14 +33,14 @@ var EntriesWidget = View.extend({
     },
 
     render: function () {
+        const uniqueField = this.parentModel.get('uniqueField', 'sampleId');
         this.$el.html(EntriesWidgetTemplate({
             entries: this.collection.toArray(),
             parentModel: this.parentModel,
+            uniqueField: uniqueField,
             formatDate: formatDate,
             DATE_DAY: DATE_DAY
         }));
-
-        console.log('this.collection', this.collection.toArray());
 
         if (this.collection.isEmpty()) {
             this.$('.g-main-content,.g-entries-pagination').hide();

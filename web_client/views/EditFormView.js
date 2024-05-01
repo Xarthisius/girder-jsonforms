@@ -159,8 +159,9 @@ const EditFormView = View.extend({
             $.ajax({
                 url: this.model.get('schema'),
                 async: false,
+                dataType: 'json',
                 success: function (data) {
-                    view.schema = JSON.parse(data);
+                    view.schema = data;
                     view.render();
                 }
             });
@@ -250,6 +251,18 @@ const EditFormView = View.extend({
             onlyFolders = true;
         }
         const value = jseditor.parent.getValue();
+        const uniqueField = this.model.get('uniqueField', 'sampleId');
+        var reference = {
+            [uniqueField]: value[uniqueField],
+            annotate: true
+        }
+        if (value.targetPath) {
+            reference.targetPath = value.targetPath;
+        }
+        if (this.model.get('gdriveFolderId')) {
+            reference.gdriveFolderId = this.model.get('gdriveFolderId');
+        }
+
         new UploadWidget({
             el: $('#g-dialog-container'),
             parentView: this,
@@ -264,11 +277,7 @@ const EditFormView = View.extend({
             parent: this.tempFolder,
             parentType: 'folder',
             otherParams: {
-                reference: JSON.stringify({
-                    gdriveFolderId: this.model.get('gdriveFolderId'),
-                    sampleId: value.sampleId,
-                    targetPath: value.targetPath
-                })
+                reference: JSON.stringify(reference)
             }
         }).on('g:uploadFinished', function (info) {
             var ids = '';

@@ -16,7 +16,8 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
     def initialize(self):
         global GDRIVE_SERVICE
         self.name = "entry"
-        self.ensureIndices(["formId", "data.sampleId"])
+        # TODO: create indices for all pairs?
+        # self.ensureIndices(["formId", "data.sampleId"])
         self.resourceColl = ("form", "jsonforms")
         self.resourceParent = "formId"
 
@@ -52,6 +53,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
 
     def create(self, form, data, source, destination, creator):
         now = datetime.datetime.utcnow()
+        unique_field = form.get("uniqueField")
         entry = {
             "formId": form["_id"],
             "data": data,
@@ -65,7 +67,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
         if existing := self.findOne(
             {
                 "formId": form["_id"],
-                "data.sampleId": data["sampleId"],
+                f"data.{unique_field}": data[unique_field],
             }
         ):
             # Update the existing entry
@@ -83,7 +85,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
         known_targets = {
             None: (
                 self.get_destination_folder(path, destination, creator),
-                entry["data"].get("sampleId"),
+                entry["data"].get(unique_field),
             )
         }
         if source is not None:
@@ -93,7 +95,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                     target, _ = known_targets[path]
                 except KeyError:
                     target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = target, child.get("meta", {}).get("sampleId")
+                    known_targets[path] = target, child.get("meta", {}).get(unique_field)
                 child = self.unique(child, target)
                 Folder().move(child, target, "folder")
                 # TODO upload to GDrive
@@ -105,7 +107,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                     target, _ = known_targets[path]
                 except KeyError:
                     target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = target, child.get("meta", {}).get("sampleId")
+                    known_targets[path] = target, child.get("meta", {}).get(unique_field)
                 child = self.unique(child, target)
                 child = Item().move(child, target)
                 for file in Item().childFiles(child):
@@ -133,7 +135,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             known_targets.pop(None)
 
         processed = set()
-        for path, (target, sampleId) in known_targets.items():
+        for path, (target, uniqueId) in known_targets.items():
             if target["_id"] in processed:
                 continue
             path = path or entry["data"].get("targetPath")
@@ -143,7 +145,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 ).encode("utf-8")
             ) as f:
                 reference = {
-                    "sampleId": sampleId,
+                    f"{unique_field}": uniqueId,
                     "targetPath": path,
                     "gdriveFolderId": form.get("gdriveFolderId"),
                 }
