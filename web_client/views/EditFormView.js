@@ -152,23 +152,7 @@ const EditFormView = View.extend({
             }
         });
 
-        // schema is either a json string or http link. If it is a link, fetch it.
-        this.schema = null;
-        if (this.model.get('schema').startsWith('http')) {
-            const view = this;
-            $.ajax({
-                url: this.model.get('schema'),
-                async: false,
-                dataType: 'json',
-                success: function (data) {
-                    view.schema = data;
-                    view.render();
-                }
-            });
-        } else {
-            this.schema = JSON.parse(this.model.get('schema'));
-        }
-
+        this.schema = this.model.get('schema');
         const destFolderId = this.model.get('folderId');
         this.destFolder = null;
         if (destFolderId) {

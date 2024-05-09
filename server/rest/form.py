@@ -62,7 +62,7 @@ class Form(Resource):
     )
     @filtermodel(model="form", plugin="jsonforms")
     def getForm(self, form):
-        return form
+        return FormModel().materialize(form, self.getCurrentUser())
 
     @access.user
     @autoDescribeRoute(

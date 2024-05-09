@@ -1,6 +1,11 @@
 import datetime
+import json
+
+import requests
 from girder.constants import AccessType
 from girder.models.model_base import AccessControlledModel
+
+from ..lib.jq import find_key_paths, get_value, set_value
 
 
 class Form(AccessControlledModel):
@@ -101,3 +106,44 @@ class Form(AccessControlledModel):
             form["uniqueField"] = uniqueField
 
         return self.save(form)
+
+    def materialize(self, form, user):
+        from .entry import FormEntry
+
+        if form["schema"].startswith("http"):
+            form["schema"] = self._loadRemoteSchema(form["schema"])
+        else:
+            form["schema"] = json.loads(form["schema"])
+
+        for keyPath in find_key_paths(form["schema"], "enumSource"):
+            value = get_value(form["schema"], keyPath)
+            if isinstance(value, str) and value.startswith("girder.formId:"):
+                formId = value.split(":")[1]
+                source_form = self.load(
+                    formId, level=AccessType.READ, user=user, exc=True
+                )
+                enum_source = {
+                    "source": [],
+                    "title": "{{item.title}}",
+                    "value": "{{item.value}}",
+                }
+                for entry in (
+                    FormEntry()
+                    .find(
+                        {"formId": source_form["_id"]},
+                        fields={"_id": 1, source_form["uniqueField"]: 1, "data": 1},
+                    )
+                    .sort([(source_form["uniqueField"], 1)])
+                ):
+                    enum_source["source"].append(
+                        {
+                            "value": str(entry["_id"]),
+                            "title": entry["data"][source_form["uniqueField"]],
+                        }
+                    )
+                    set_value(form["schema"], keyPath, [enum_source])
+
+        return form
+
+    def _loadRemoteSchema(self, url):
+        return requests.get(url).json()
