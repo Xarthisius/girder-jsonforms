@@ -75,9 +75,13 @@ const EditFormView = View.extend({
         },
         'submit #g-form': function (event) {
             event.preventDefault();
+            this.$('.g-validation-failed-message').empty();
             var errors = this.form.validate();
             if (errors.length) {
                 this.form.root.showValidationErrors(errors);
+                this.$('.g-validation-failed-message').html('<ul>' + errors.map(function (err) {
+                    return `<li> Path ${err.path}: ${err.message} (${err.property})</li>`;
+                }).join('') + '</ul>');
                 return;
             }
             new FormEntryModel({
@@ -239,7 +243,7 @@ const EditFormView = View.extend({
         var reference = {
             [uniqueField]: value[uniqueField],
             annotate: true
-        }
+        };
         if (value.targetPath) {
             reference.targetPath = value.targetPath;
         }
