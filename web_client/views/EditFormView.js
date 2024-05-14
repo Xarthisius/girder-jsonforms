@@ -224,8 +224,13 @@ const EditFormView = View.extend({
 
     _fetchFolderToRoot: function (folder) {
         folder.getRootPath().done((path) => {
-            let rootType = path[0].type;
-            this.destFolderPath = `/${rootType}/${path.map((obj) => obj.object.name).join('/')}/${folder.name()}`;
+            var rootType = path[0].type;
+            if (rootType === 'user') {
+                rootType = `/user/${path[0].object.login}/${path.slice(1).map((obj) => obj.object.name).join('/')}`.replace(/\/$/g, '');
+            } else {
+                rootType = `/${rootType}/${path.map((obj) => obj.object.name).join('/')}`;
+            }
+            this.destFolderPath = `${rootType}/${folder.name()}`;
             this.destFolder = folder;
             this.render();
         });
