@@ -1,8 +1,17 @@
+import cherrypy
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import Resource, filtermodel
-from girder.constants import AccessType, TokenScope, SortDir
+from girder.api.rest import (
+    Resource,
+    filtermodel,
+    iterBody,
+    setRawResponse,
+    setResponseHeader,
+)
+from girder.constants import AccessType, SortDir, TokenScope
+from girder.exceptions import RestException
 from girder.models.folder import Folder
+from girder.utility import RequestBodyStream
 from girder.utility.progress import noProgress
 
 from ..models.form import Form as FormModel
@@ -19,6 +28,8 @@ class Form(Resource):
         self.route("DELETE", (":id",), self.deleteForm)
         self.route("GET", (":id", "access"), self.getFromAccess)
         self.route("PUT", (":id", "access"), self.updateFromAccess)
+        self.route("GET", (":id", "export"), self.exportForm)
+        self.route("POST", (":id", "import"), self.importForm)
 
     @access.public
     @autoDescribeRoute(
@@ -53,6 +64,67 @@ class Form(Resource):
             user=self.getCurrentUser(),
             level=level,
         )
+
+    @access.user(scope=TokenScope.DATA_WRITE)
+    @autoDescribeRoute(
+        Description("Import form entries from a file")
+        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.WRITE)
+        .param(
+            "dryRun",
+            "Whether to perform import or return description of what would happen",
+            required=False,
+            dataType="boolean",
+            default=True,
+        )
+        .errorResponse("ID was invalid.")
+        .errorResponse("Invalid file format", 400)
+        .errorResponse("Write access was denied on the form.", 403)
+    )
+    def importForm(self, form, dryRun):
+        content_type = cherrypy.request.headers.get("Content-Type")
+        if content_type not in (
+            "application/csv",
+            "application/vnd.ms-excel",
+        ):
+            raise RestException("Invalid file format")
+        content_length = cherrypy.request.headers.get("Content-Length")
+        if content_length is None or not content_length.isdigit():
+            raise RestException("Content-Length header is required")
+        content_length = int(content_length)
+        if content_length < 1:
+            raise RestException("File is empty")
+        file_obj = RequestBodyStream(cherrypy.request.body)
+        file_type = "csv" if content_type == "application/csv" else "xlsx"
+        return FormModel().import_entries(form, file_obj, file_type, dry_run=dryRun)
+
+    @access.cookie
+    @access.public(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description("Export form entries as a table")
+        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.READ)
+        .param(
+            "exportFormat",
+            "The format to export the entries as",
+            required=False,
+            default="csv",
+            enum=["csv", "xlsx"],
+        )
+        .errorResponse("ID was invalid.")
+        .errorResponse("Read access was denied on the form.", 403)
+    )
+    def exportForm(self, form, exportFormat):
+        export = FormModel().export(form, exportFormat)
+        setResponseHeader("Content-Length", export.getbuffer().nbytes)
+        content_type = (
+            "text/csv" if exportFormat == "csv" else "application/vnd.ms-excel"
+        )
+        setResponseHeader("Content-Type", content_type)
+        setResponseHeader(
+            "Content-Disposition",
+            f"attachment; filename={form['name']}." + exportFormat,
+        )
+        setRawResponse()
+        return export.getvalue()
 
     @access.public
     @autoDescribeRoute(
