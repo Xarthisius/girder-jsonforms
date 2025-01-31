@@ -1,14 +1,15 @@
 // Description: This file contains the EntriesWidget class.
 // This class is responsible for rendering the entries widget.
-import View from 'girder/views/View';
-import router from 'girder/router';
-import PaginateWidget from 'girder/views/widgets/PaginateWidget';
-import { formatDate, DATE_DAY } from 'girder/misc';
-
+import $ from 'jquery';
 import FormEntryCollection from '../../collections/FormEntryCollection';
 import EntriesWidgetTemplate from '../../templates/entriesWidgetTemplate.pug';
 
 import '../../stylesheets/entriesWidget.styl';
+
+const View = girder.views.View;
+const router = girder.router;
+const PaginateWidget = girder.views.widgets.PaginateWidget;
+const { formatDate, DATE_DAY } = girder.misc;
 
 var EntriesWidget = View.extend({
     events: {

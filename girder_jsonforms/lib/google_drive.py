@@ -1,19 +1,15 @@
 import os
 import pickle
+import logging
 
-try:
-    from girder import logger, logprint
-except (ImportError, ModuleNotFoundError):
-    import logging
-
-    logger = logging.getLogger("google_drive")
-    logprint = logger
 from google.auth.transport.requests import Request
 
 # from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
+logger = logging.getLogger("google_drive")
+logprint = logger
 # If modifying these scopes, delete the file token.pickle.
 SCOPES = ["https://www.googleapis.com/auth/drive"]
 

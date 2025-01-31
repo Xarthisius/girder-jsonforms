@@ -97,8 +97,7 @@ class Form(Resource):
         file_type = "csv" if content_type == "application/csv" else "xlsx"
         return FormModel().import_entries(form, file_obj, file_type, dry_run=dryRun)
 
-    @access.cookie
-    @access.public(scope=TokenScope.DATA_READ)
+    @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
         Description("Export form entries as a table")
         .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.READ)

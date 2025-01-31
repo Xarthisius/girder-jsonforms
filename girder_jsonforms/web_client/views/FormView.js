@@ -1,14 +1,14 @@
-import View from 'girder/views/View';
-import AccessWidget from 'girder/views/widgets/AccessWidget';
-import router from 'girder/router';
-import { cancelRestRequests } from 'girder/rest';
-import { renderMarkdown } from 'girder/misc';
-
 import EntriesWidget from './widgets/EntriesWidget';
 import FormModel from '../models/FormModel';
 import FormTemplate from '../templates/formTemplate.pug';
 
 import '../stylesheets/formView.styl';
+
+const View = girder.views.View;
+const AccessWidget = girder.views.widgets.AccessWidget;
+const router = girder.router;
+const { cancelRestRequests } = girder.rest;
+const { renderMarkdown } = girder.misc;
 
 var FormView = View.extend({
     events: {

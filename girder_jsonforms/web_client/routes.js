@@ -1,11 +1,12 @@
-import router from 'girder/router';
-import events from 'girder/events';
-
+import $ from 'jquery';
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
 import FormView from './views/FormView';
 import FormListView from './views/FormListView';
 import EditFormView from './views/EditFormView';
+
+const router = girder.router;
+const events = girder.events;
 
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);

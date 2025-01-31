@@ -1,6 +1,6 @@
-import View from 'girder/views/View';
-
 import PaginateFormsWidget from './PaginateFormsWidget';
+
+const View = girder.views.View;
 
 var FormListView = View.extend({
     initialize: function () {

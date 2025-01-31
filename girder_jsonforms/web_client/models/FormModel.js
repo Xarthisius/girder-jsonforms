@@ -1,5 +1,5 @@
-import AccessControlledModel from 'girder/models/AccessControlledModel';
-import { getApiRoot } from 'girder/rest';
+const AccessControlledModel = girder.models.AccessControlledModel;
+const { getApiRoot } = girder.rest;
 
 var FormModel = AccessControlledModel.extend({
     resourceName: 'form',

@@ -1,10 +1,11 @@
-import View from 'girder/views/View';
-import PaginateWidget from 'girder/views/widgets/PaginateWidget';
-import router from 'girder/router';
-
+import $ from 'jquery';
 import FormCollection from '../collections/FormCollection';
 import template from '../templates/paginateFormsWidget.pug';
 import '../stylesheets/paginateFormsWidget.styl';
+
+const View = girder.views.View;
+const PaginateWidget = girder.views.widgets.PaginateWidget;
+const router = girder.router;
 
 var PaginateFormsWidget = View.extend({
     events: {

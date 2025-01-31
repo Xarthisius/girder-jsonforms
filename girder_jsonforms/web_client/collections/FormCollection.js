@@ -1,6 +1,6 @@
-import Collection from 'girder/collections/Collection';
-
 import FormModel from '../models/FormModel';
+
+const Collection = girder.collections.Collection;
 
 var FormCollection = Collection.extend({
     resourceName: 'form',

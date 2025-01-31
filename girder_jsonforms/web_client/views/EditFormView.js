@@ -1,12 +1,14 @@
+import $ from 'jquery';
 import _ from 'underscore';
-import AccessWidget from 'girder/views/widgets/AccessWidget';
-import FolderModel from 'girder/models/FolderModel';
-import BrowserWidget from 'girder/views/widgets/BrowserWidget';
-import View from 'girder/views/View';
-import router from 'girder/router';
-import UploadWidget from 'girder/views/widgets/UploadWidget';
-import { getCurrentUser } from 'girder/auth';
-import { AccessType } from 'girder/constants';
+
+const AccessWidget = girder.views.widgets.AccessWidget;
+const FolderModel = girder.models.FolderModel;
+const BrowserWidget = girder.views.widgets.BrowserWidget;
+const View = girder.views.View;
+const router = girder.router;
+const UploadWidget = girder.views.widgets.UploadWidget;
+const { getCurrentUser } = girder.auth;
+const { AccessType } = girder.constants;
 
 import '../stylesheets/editFormView.styl';
 

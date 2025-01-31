@@ -1,6 +1,6 @@
-import Collection from 'girder/collections/Collection';
-
 import FormEntryModel from '../models/FormEntryModel';
+
+const Collection = girder.collections.Collection;
 
 var FormEntryCollection = Collection.extend({
     resourceName: 'entry',
