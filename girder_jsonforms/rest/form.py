@@ -4,7 +4,6 @@ from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import (
     Resource,
     filtermodel,
-    iterBody,
     setRawResponse,
     setResponseHeader,
 )
