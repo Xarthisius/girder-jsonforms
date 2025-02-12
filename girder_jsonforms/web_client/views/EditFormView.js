@@ -118,11 +118,21 @@ const EditFormView = View.extend({
         Handlebars.registerHelper('divide', function (a, b) { return a / b; });
         Handlebars.registerHelper('add', function (a, b) { return a + b; });
         Handlebars.registerHelper('subtract', function (a, b) { return a - b; });
+        Handlebars.registerHelper('replace', function (string, search, replacement) {
+            return (string !== undefined && string !== null) ? string.replace(search, replacement) : '';
+        });
+        Handlebars.registerHelper('replaceAll', function (string, search, replacement) {
+            return (string !== undefined && string !== null) ? string.replaceAll(search, replacement) : '';
+        });
         Handlebars.registerHelper('substr', function (string, from, length) {
-            return string !== undefined ? string.substr(from, length) : '';
+            return (string !== undefined && string !== null) ? string.substr(from, length) : '';
         });
         Handlebars.registerHelper('split', function (string, separator, index) {
-            return string.split(separator)[index];
+            try {
+                return string.split(separator)[index];
+            } catch (e) {
+                return '';
+            }
         });
         Handlebars.registerHelper('join', function (a, b, separator) {
             return `${a}${separator}${b}`;
