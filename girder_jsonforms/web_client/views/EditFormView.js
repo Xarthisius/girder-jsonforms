@@ -127,6 +127,20 @@ const EditFormView = View.extend({
         Handlebars.registerHelper('join', function (a, b, separator) {
             return `${a}${separator}${b}`;
         });
+        Handlebars.registerHelper("padNumber", function (number, width) {
+            if (number === null || number === undefined || number === '') {
+                return '';
+            }
+            let numStr = number.toString();
+            return numStr.padStart(width, "0");
+        });
+        Handlebars.registerHelper('joinarray', function (a, sep, prefix=false) {
+            const result = a.join(sep);
+            if (result !== '' && prefix) {
+                return `${sep}${result}`;
+            }
+            return result;
+        });
         Handlebars.registerHelper('tamupath', function TAMUPath(sampleId, wagon = false) {
             if (sampleId === undefined || sampleId === null || sampleId === '' || (Array.isArray(sampleId) && sampleId.length === 1 && sampleId[0] === '')) {
                 return '';
