@@ -25,8 +25,8 @@ class Form(Resource):
         self.route("POST", (), self.createForm)
         self.route("PUT", (":id",), self.updateForm)
         self.route("DELETE", (":id",), self.deleteForm)
-        self.route("GET", (":id", "access"), self.getFromAccess)
-        self.route("PUT", (":id", "access"), self.updateFromAccess)
+        self.route("GET", (":id", "access"), self.getFormAccess)
+        self.route("PUT", (":id", "access"), self.updateFormAccess)
         self.route("GET", (":id", "export"), self.exportForm)
         self.route("POST", (":id", "import"), self.importForm)
 
@@ -319,7 +319,7 @@ class Form(Resource):
             "id", "The ID of the form", model=FormModel, level=AccessType.ADMIN
         )
     )
-    def getFromAccess(self, form):
+    def getFormAccess(self, form):
         return FormModel().getFullAccessList(form)
 
     @access.user(scope=TokenScope.DATA_OWN)
@@ -344,7 +344,7 @@ class Form(Resource):
         .errorResponse("ID was invalid.")
         .errorResponse("Admin access was denied for the form.", 403)
     )
-    def updateFromAccess(self, form, access, publicFlags, public):
+    def updateFormAccess(self, form, access, publicFlags, public):
         user = self.getCurrentUser()
         if form["folderId"]:
             folder = Folder().load(form["folderId"], force=True)
