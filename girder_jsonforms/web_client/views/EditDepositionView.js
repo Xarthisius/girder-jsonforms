@@ -7,13 +7,50 @@ import AddCreatorDialog from './widgets/AddCreatorDialog';
 import '../stylesheets/editDepositionView.styl';
 import template from '../templates/editDepositionView.pug';
 
+function isDefined(value) {
+  return value !== null && value !== undefined && value !== '';
+}
+
 const EditDepositionView = View.extend({
   events: {
+    'click #g-deposition-cancel': function () {
+      girder.router.navigate(`depositions`, { trigger: true });
+    },
     'submit #g-deposition-form': function (event) {
-        console.log('submitted !!!!!');
+      event.preventDefault();
+      const formData = $(event.currentTarget).serializeArray();
+      const metadata = {};
+      formData.forEach((item) => {
+        metadata[item.name] = item.value;
+      });
+      metadata["materialSubtype"] = isDefined(metadata["materialSubtype"]) ? metadata["materialSubtype"] : 'X';
+      metadata["governorLab"] = isDefined(metadata["governorLab"]) ? metadata["governorLab"] : 'X';
+      const data = {
+        prefix: `${metadata.governor}${metadata.governorLab}${metadata.material}${metadata.materialSubtype}`,
+        metadata: JSON.stringify({
+          title: metadata.title,
+          description: metadata.description,
+          creators: this.creators,
+        })
+      };
+      restRequest({
+        method: 'POST',
+        url: 'deposition',
+        data: data,
+      }).done((resp) => {
+        this.trigger('g:alert', {
+          text: 'Deposition updated successfully',
+          type: 'success',
+        });
+        girder.router.navigate(`item/${this.settings.itemId}`, { trigger: true });
+      }).fail((resp) => {
+        this.trigger('g:alert', {
+          text: resp.responseJSON.message,
+          type: 'danger',
+        });
+      });
     },
     'click #g-deposition-addCreator': function () {
-      console.log('add creator');
       new AddCreatorDialog({
         el: $('#g-dialog-container'),
         parentView: this,

@@ -13,11 +13,13 @@ from girder.plugin import GirderPlugin, registerPluginStaticContent
 from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
+from .models.deposition import Deposition as DepositionModel
+from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
+from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
-from .settings import PluginSettings
 
 GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
@@ -68,8 +70,12 @@ class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
     def load(self, info):
-        ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
+        ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
+        ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
+        ModelImporter.registerModel(
+            "prefixcounter", PrefixCounterModel, plugin="jsonforms"
+        )
         global GDRIVE_SERVICE
         if Setting().get(PluginSettings.GOOGLE_DRIVE_ENABLED):
             try:
@@ -78,6 +84,7 @@ class JSONFormsPlugin(GirderPlugin):
                 logger.exception("Failed to authenticate with Google Drive")
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
+        info["apiRoot"].deposition = Deposition()
         events.bind("data.process", "jsonforms", annotate_uploads)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)

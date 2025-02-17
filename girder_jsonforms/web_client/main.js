@@ -13,4 +13,9 @@ wrap(GlobalNavView, 'initialize', function (initialize) {
         icon: 'icon-doc',
         target: 'forms'
     });
+    this.defaultNavItems.push({
+        name: 'Depositions',
+        icon: 'icon-barcode',
+        target: 'depositions'
+    });
 });

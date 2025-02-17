@@ -45,7 +45,8 @@ class PrefixCounter(Model):
         if material not in materials.keys():
             raise ValidationException(f"Invalid material {material}")
         submaterial = prefix[5]
-        if submaterial not in materials[material]["subcategories"].keys():
+        subcategories = materials[material].get("subcategories", {"X": "empty"})
+        if submaterial not in subcategories.keys():
             raise ValidationException(f"Invalid submaterial {submaterial}")
         return doc
 
@@ -77,7 +78,6 @@ class Deposition(AccessControlledModel):
                 "parentId",
                 "state",
                 "submitted",
-                "title",
                 "updated",
             ),
         )
@@ -93,27 +93,15 @@ class Deposition(AccessControlledModel):
         self,
         metadata,
         creator,
-        governor=None,
-        governor_lab="X",
-        material=None,
-        material_subtype="X",
-        parentId=None,
+        prefix,
+        parent=None,
     ):
-        if not governor or len(governor) != 2:
-            raise ValidationException(f"Invalid {governor=}")
-        if not material or len(material) != 2:
-            raise ValidationException(f"Invalid {material=}")
-        try:
-            parent_deposition = self.load(parentId, user=creator, level=AccessType.WRITE, exc=True)
-        except ValidationException:
-            parent_deposition = {"_id": None}
-        except Exception:
-            raise
+        if not parent:
+            parent = {"_id": None}
 
         now = datetime.datetime.utcnow()
         metadata = metadata or {}
 
-        prefix = f"{governor}{governor_lab}{material}{material_subtype}"
         igsn = PrefixCounter().get_next(prefix)
 
         deposition = {
@@ -121,10 +109,9 @@ class Deposition(AccessControlledModel):
             "creatorId": creator["_id"],
             "igsn": igsn,
             "metadata": metadata,
-            "parentId": parent_deposition["_id"],
+            "parentId": parent["_id"],
             "state": "draft",
             "submitted": False,
-            "title": metadata.get("title", ""),
             "updated": now,
         }
 
@@ -132,7 +119,6 @@ class Deposition(AccessControlledModel):
 
     def update(self, deposition, metadata):
         deposition["metadata"] = metadata
-        deposition["title"] = metadata.get("title", "")
         deposition["updated"] = datetime.datetime.utcnow()
 
         return self.save(deposition)

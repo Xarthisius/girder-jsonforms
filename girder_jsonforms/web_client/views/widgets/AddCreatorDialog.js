@@ -10,7 +10,6 @@ const View = girder.views.View;
 var AddCreatorDialog = View.extend({
   events: {
     'submit #g-add-creator': function (event) {
-      console.log('add creator submit');
       event.preventDefault();
       this._addCreator();
     }
@@ -19,8 +18,6 @@ var AddCreatorDialog = View.extend({
   initialize: function (settings) {
     this.settings = settings;
     this.creators = settings.creators || [];
-    console.log('add creator dialog');
-    console.log(settings);
   },
 
   render: function () {
