@@ -1,3 +1,5 @@
+import re
+
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import (
@@ -5,6 +7,8 @@ from girder.api.rest import (
     filtermodel,
 )
 from girder.constants import AccessType, SortDir
+
+from ..models.deposition import Deposition as DepositionModel
 
 
 class Deposition(Resource):
@@ -39,8 +43,18 @@ class Deposition(Resource):
     )
     @filtermodel(model="deposition", plugin="jsonforms")
     def list_deposition(self, igsnPrefix, level, limit, offset, sort):
-        # Logic to list all depositions
-        pass
+        query = {}
+        if igsnPrefix is not None:
+            query["igsn"] = re.compile(f"^{igsnPrefix}.*$")
+
+        return DepositionModel().findWithPermissions(
+            query=query,
+            offset=offset,
+            limit=limit,
+            sort=sort,
+            user=self.getCurrentUser(),
+            level=level,
+        )
 
     @access.public
     def get_deposition(self, id):
@@ -50,18 +64,29 @@ class Deposition(Resource):
     @access.user
     @autoDescribeRoute(
         Description("Create a new deposition")
-        .param("name", "The name of the form", required=True, dataType="string")
+        .param("prefix", "The prefix for IGSN", required=True, dataType="string")
         .jsonParam(
             "metadata",
             "JSON object with Datacite fields",
             requireObject=True,
             required=True,
         )
+        .modelParam(
+            "parentId",
+            "The parent deposition ID.",
+            model=DepositionModel,
+            destName="parent",
+            required=False,
+            paramType="query",
+            level=AccessType.WRITE,
+        )
     )
     @filtermodel(model="deposition", plugin="jsonforms")
-    def create_deposition(self, params):
+    def create_deposition(self, prefix, metadata, parent):
         # Logic to create a new deposition
-        pass
+        return DepositionModel().create(
+            metadata, self.getCurrentUser(), prefix, parent=parent
+        )
 
     @access.public
     def update_deposition(self, id, params):

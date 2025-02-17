@@ -1,4 +1,5 @@
 import $ from 'jquery';
+import DepositionListView from './views/DepositionListView';
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
 import FormView from './views/FormView';
@@ -13,7 +14,11 @@ router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
 });
 
-router.route('deposition', 'deposition', function () {
+router.route('depositions', 'depositions', function () {
+    events.trigger('g:navigateTo', DepositionListView);
+});
+
+router.route('newdeposition', 'deposition', function () {
     events.trigger('g:navigateTo', EditDepositionView);
 });
 

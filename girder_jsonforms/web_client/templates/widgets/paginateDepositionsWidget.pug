@@ -1,0 +1,15 @@
+.g-deposition-list-header
+  .g-deposition-pagination
+
+  .g-deposition-actions
+    button.g-deposition-create-button.btn.btn-sm.btn-success
+      i.icon-plus
+      | Create New Deposition
+
+.list-group.g-deposition-list-container
+  each deposition in depositions
+    a.list-group-item.g-execute-deposition-link(
+        href=depositionUrlFunc && depositionUrlFunc(deposition),
+        data-deposition-id=deposition.id)
+      h4.list-group-item-heading.g-execute-deposition-link-header= deposition.attributes.igsn
+      .list-group-item-text.g-execute-deposition-link-body= deposition.attributes.metadata.description
