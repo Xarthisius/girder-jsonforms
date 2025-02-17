@@ -14,7 +14,7 @@ import '../stylesheets/editFormView.styl';
 
 import flatpickr from 'flatpickr'; // eslint-disable-line no-unused-vars
 import Handlebars from 'handlebars';
-import { JSONEditor } from '@json-editor/json-editor';
+import '@json-editor/json-editor';
 
 import template from '../templates/editFormView.pug';
 import FormEntryModel from '../models/FormEntryModel';

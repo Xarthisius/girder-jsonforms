@@ -4,12 +4,17 @@ import FormEntryModel from './models/FormEntryModel';
 import FormView from './views/FormView';
 import FormListView from './views/FormListView';
 import EditFormView from './views/EditFormView';
+import EditDepositionView from './views/EditDepositionView';
 
 const router = girder.router;
 const events = girder.events;
 
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
+});
+
+router.route('deposition', 'deposition', function () {
+    events.trigger('g:navigateTo', EditDepositionView);
 });
 
 router.route('form/:id/entry', 'form', function (id, params) {
