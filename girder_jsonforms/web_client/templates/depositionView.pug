@@ -1,0 +1,28 @@
+.g-deposition-container
+  h1.g-deposition-title
+    | Deposition
+
+  .g-deposition-content
+    .g-deposition-content-header
+      .g-deposition-content-header-left
+        h2.g-deposition-content-header-title
+          = metadata.title
+      .g-deposition-content-header-right
+        .g-deposition-content-header-right-item
+          a(href="#/depositions")
+            i(class="fa-solid fa-arrow-left")
+            | Back to Depositions
+
+    .g-deposition-content-body
+      .g-deposition-content-body-left
+        .g-deposition-content-body-left-item
+          h3.g-deposition-content-body-left-item-title
+            | Description
+          p.g-deposition-content-body-left-item-description
+            = metadata.description 
+      .g-deposition-content-body-right
+        .g-deposition-content-body-right-item(v-if="isAdmin")
+          h3.g-deposition-content-body-right-item-title
+            | Admin Actions
+          button.g-button(@click="deleteDeposition")
+            | Delete Deposition
