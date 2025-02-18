@@ -13,6 +13,47 @@ function isDefined(value) {
 
 const EditDepositionView = View.extend({
   events: {
+    'dragstart .g-identifiers-list li': function (event) {
+        this.draggedItem = event.currentTarget;
+        $(event.currentTarget).addClass('dragging');
+        event.originalEvent.dataTransfer.effectAllowed = 'move';
+    },
+    'dragend .g-identifiers-list li': function (event) {
+        $(event.currentTarget).removeClass('dragging');
+    },
+    'dragover .g-identifiers-list': function (event) {
+        event.preventDefault();
+    },
+    'drop .g-identifiers-list': function (event) {
+        event.preventDefault();
+        if (this.draggedItem) {
+            let target = event.target.closest('li');
+            if (target && target !== this.draggedItem) {
+                let list = $(".g-identifiers-list");
+                let items = list.children("li").toArray();
+                let draggedIndex = items.indexOf(this.draggedItem);
+                let targetIndex = items.indexOf(target);
+
+                if (draggedIndex < targetIndex) {
+                    $(target).after(this.draggedItem);
+                } else {
+                    $(target).before(this.draggedItem);
+                }
+            }
+        }
+        this._updateIdentifiers();
+    },
+    'click #g-deposition-addIdentifier': function () {
+      console.log("Adding identifier");
+      this.identifiers.push({"type": "local", "value": ""});
+      this.render();
+    },
+    'click #g-deposition-removeIdentifier': function (event) {
+      let item = $(event.currentTarget).closest('li').get(0);
+      let index = this.$('.g-identifiers-list li').index(item);
+      this.identifiers.splice(index, 1);
+      this.render();
+    },
     'click #g-deposition-cancel': function () {
       girder.router.navigate(`depositions`, { trigger: true });
     },
@@ -42,7 +83,7 @@ const EditDepositionView = View.extend({
           text: 'Deposition updated successfully',
           type: 'success',
         });
-        girder.router.navigate(`item/${this.settings.itemId}`, { trigger: true });
+        girder.router.navigate('depositions', { trigger: true });
       }).fail((resp) => {
         this.trigger('g:alert', {
           text: resp.responseJSON.message,
@@ -99,6 +140,7 @@ const EditDepositionView = View.extend({
     },
   },
   initialize: function (settings) {
+    this.draggedItem = null;
     restRequest({
       method: 'GET',
       url: 'system/setting',
@@ -111,17 +153,29 @@ const EditDepositionView = View.extend({
       this.igsnMaterials = resp['jsonforms.igsn_materials'];
       this.settings = settings;
       this.creators = settings.creators || [];
+      this.identifiers = settings.identifiers || [];
       this.render();
     });
   },
   render: function () {
     this.$el.html(template({
       institutions: this.igsnInstitutions,
+      identifiers: this.identifiers,
       materials: Object.entries(this.igsnMaterials),
       creators: this.creators
     }));
     return this;
   },
+  _updateIdentifiers: function () {
+      let items = this.$('.g-identifiers-list li').toArray();
+      this.identifiers = items.map((item) => {
+          return {
+              type: $(item).find('.g-identifier-type').val(),
+              value: $(item).find('.g-identifier-value').val()
+          };
+      });
+      this.render();
+  }
 });
 
 export default EditDepositionView;

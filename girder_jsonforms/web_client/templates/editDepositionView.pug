@@ -51,6 +51,25 @@ form#g-deposition-form(role="form")
       textarea.form-control(id="g-deposition-description" rows="3" name="description")
       small.form-text.text-muted
         | A description of the sample.
-
-    button#g-deposition-cancel.btn.btn-secondary(type="button") Cancel
+    .form-group
+      label(for="g-alternate-identifiers") Alternate Identifiers
+      button.btn.btn-sm.btn-success.g-button(type="button" id="g-deposition-addIdentifier") Add Identifier
+      .g-identifiers-container
+        ul.g-identifiers-list(name="identifiers").list-group
+          each identifier in identifiers
+            li(draggable="true").g-identifier-item.list-group-item
+              .input-group.mb-3
+                span.input-group-btn
+                  button.btn.btn-sm.g-button(type="button" disabled)
+                    i.icon-move
+                select.form-control.g-identifier-type(name="type").list-group-item-action
+                  option(value="") Select a type
+                  option(value="local", selected=(identifier.type == "local")) Local
+                  option(value="doi", selected=(identifier.type == "doi")) DOI
+                span.input-group-btn(style="width:0px;")
+                input.form-control.g-identifier-value(type="text" name="value" required value=identifier.value)
+                span.input-group-btn
+                  button.btn.btn-sm.btn-danger.g-button(type="button" id="g-deposition-removeIdentifier")
+                    i.icon-trash
+  button#g-deposition-cancel.btn.btn-secondary(type="button") Cancel
     button#g-add-deposition-btn.btn.btn-primary(type="submit") Save

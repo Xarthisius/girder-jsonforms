@@ -57,9 +57,19 @@ class Deposition(Resource):
         )
 
     @access.public
-    def get_deposition(self, id):
-        # Logic to get a single deposition by ID
-        pass
+    @autoDescribeRoute(
+        Description("Get a single deposition").modelParam(
+            "id",
+            model=DepositionModel,
+            plugin="jsonforms",
+            paramType="path",
+            required=True,
+            level=AccessType.READ,
+        )
+    )
+    @filtermodel(model="deposition", plugin="jsonforms")
+    def get_deposition(self, deposition):
+        return deposition
 
     @access.user
     @autoDescribeRoute(

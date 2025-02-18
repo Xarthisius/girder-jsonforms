@@ -1,4 +1,6 @@
 import $ from 'jquery';
+import DepositionModel from './models/DepositionModel';
+import DepositionView from './views/DepositionView';
 import DepositionListView from './views/DepositionListView';
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
@@ -20,6 +22,19 @@ router.route('depositions', 'depositions', function () {
 
 router.route('newdeposition', 'deposition', function () {
     events.trigger('g:navigateTo', EditDepositionView);
+});
+
+router.route('deposition/:id', 'deposition', function (id) {
+    const deposition = new DepositionModel({_id: id});
+    deposition.fetch().done(() => {
+      events.trigger('g:navigateTo', DepositionView, {
+            model: deposition
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('depositions', {trigger: true, replace: true});
+    });
 });
 
 router.route('form/:id/entry', 'form', function (id, params) {
