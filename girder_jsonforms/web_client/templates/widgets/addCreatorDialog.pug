@@ -1,6 +1,6 @@
 .modal-dialog
   .modal-content
-    form#g-add-creator.modal-form(role="form")
+    form#g-add-creator-form.modal-form(role="form")
       .modal-header
         button.close(type="button" data-dismiss="modal")
           span &times;
@@ -11,20 +11,18 @@
             | Person
             input(type="radio" name="creatorType" value="organization")
             | Organization
-        if person == "person"
-          .form-group
-            label(for="firstName") First Name
-            input.form-control(type="text" id="firstName" name="firstName" required)
-          .form-group
-            label(for="lastName") Last Name
-            input.form-control(type="text" id="lastName" name="lastName" required)
-        if organization
-          .form-group
-            label(for="organizationName") Name
-            input.form-control(type="text" id="organizationName" name="organizationName" required)
+        .form-group(hidden=(creatorType != "person")).person-fields
+          label(for="firstName") First Name
+          input.form-control(type="text" id="firstName" name="firstName" required)
+        .form-group(hidden=(creatorType != "person")).person-fields
+          label(for="lastName") Last Name
+          input.form-control(type="text" id="lastName" name="lastName" required)
+        .form-group(hidden=(creatorType != "organization")).org-fields
+          label(for="organizationName") Organization Name
+          input.form-control(type="text" id="organizationName" name="organizationName" required)
         .form-group
-          label(for="identifiers") Indentifiers
-          input.form-control(type="text" id="indentifiers" name="indentifiers")
+          label(for="identifiers") Identifiers
+          input.form-control(type="text" id="indentifiers" name="identifiers")
         .form-group
           label(for="affiliations") Affilations
           input.form-control(type="text" id="affiliations" name="affilations")
@@ -34,6 +32,6 @@
             option(value="") Select a role
       .modal-footer
         button.btn.btn-default(type="button" data-dismiss="modal") Close
-        button#g-add-creator-btn.btn.btn-primary(type="submit") Save
+        button.g-add-creator-btn.btn.btn-primary(type="button") Save
 
 .g-validation-failed-message
