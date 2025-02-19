@@ -11,6 +11,15 @@
             | Person
             input(type="radio" name="creatorType" value="organization")
             | Organization
+        .form-group
+          label(for="autocomplete") Search for a person or organization
+          select.basicModalAutoSelect.form-control(
+            id="autocomplete"
+            name="autocomplete"
+            placeholder="Search for a person or organization"
+            autocomplete="off"
+          )
+          code.basicModalAutoSelectSelected
         .form-group(hidden=(creatorType != "person")).person-fields
           label(for="firstName") First Name
           input.form-control(type="text" id="firstName" name="firstName" required)
@@ -25,11 +34,12 @@
           input.form-control(type="text" id="indentifiers" name="identifiers")
         .form-group
           label(for="affiliations") Affilations
-          input.form-control(type="text" id="affiliations" name="affilations")
+          input.form-control(type="text" id="affiliations" name="affiliations")
         .form-group
           label(for="role") Role
           select.form-control(id="role" name="role")
             option(value="") Select a role
+            option(value="author") Author
       .modal-footer
         button.btn.btn-default(type="button" data-dismiss="modal") Close
         button.g-add-creator-btn.btn.btn-primary(type="button") Save

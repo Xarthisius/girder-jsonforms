@@ -35,12 +35,26 @@ form#g-deposition-form(role="form")
       label(for="g-deposition-creators") Creators
       button.btn.btn-sm.btn-success.g-button(type="button" id="g-deposition-addCreator") Add Creator
       .g-creators-container
-        ul.g-creators-list(name="creators")
+        ul.g-creators-list(name="creators").list-group
           each creator in creators
-            li.g-creator-item
-              span.g-creator-name= creator
-              button.btn.btn-sm.btn-danger.g-button(type="button" data-id=creator.id)
-                i.icon-trash
+            li(draggable="true").list-group-item.g-creator-item(
+              data-creator-firstName=creator.firstName
+              data-creator-lastName=creator.lastName
+              data-creator-identifiers=creator.identifiers
+              data-creator-affiliations=creator.affiliations
+              data-creator-role=creator.role
+            )
+              .row
+                .col-xs-10
+                  h5
+                    | #{creator.firstName} #{creator.lastName} (#{creator.identifiers})
+                  p.small
+                    | #{creator.affiliations}
+                    span.g-creator-role.text-muted
+                      | / #{creator.role}
+                .col-xs-2.text-right
+                  button.btn.btn-danger.btn-sm.g-delete-creator(type="button" id="g-deposition-removeCreator")
+                    i.icon-trash
     .form-group
       label(for="g-deposition-name") Sample Name
       input.form-control(type="text" id="g-deposition-title" name="title" required)
