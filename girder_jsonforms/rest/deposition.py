@@ -1,4 +1,6 @@
 import re
+import urllib.parse
+import requests
 
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
@@ -7,8 +9,38 @@ from girder.api.rest import (
     filtermodel,
 )
 from girder.constants import AccessType, SortDir
-
+from girder.models.setting import Setting
 from ..models.deposition import Deposition as DepositionModel
+
+
+orcid_headers = None
+
+
+def get_orcid_headers():
+    global orcid_headers
+    if orcid_headers is None:
+        # ORCID API endpoint
+        url = "https://pub.orcid.org/oauth/token"
+
+        # Headers and payload
+        data = {
+            "client_id": Setting().get("oauth.orcid_client_id"),
+            "client_secret": Setting().get("oauth.orcid_client_secret"),
+            "grant_type": "client_credentials",
+            "scope": "/read-public",
+        }
+        headers = {"Accept": "application/json"}
+
+        # Make the POST request
+        token_response = requests.post(url, headers=headers, data=data)
+        token_response.raise_for_status()
+
+        orcid_headers = {
+            "Accept": "application/vnd.orcid+json",
+            "Authorization": "Bearer " + token_response.json()["access_token"],
+        }
+
+    return orcid_headers
 
 
 class Deposition(Resource):
@@ -21,6 +53,7 @@ class Deposition(Resource):
         self.route("PUT", (":id",), self.update_deposition)
         self.route("GET", (":id", "access"), self.get_access)
         self.route("PUT", (":id", "access"), self.update_access)
+        self.route("GET", ("autocomplete",), self.autocomplete)
 
     @access.public
     @autoDescribeRoute(
@@ -112,3 +145,49 @@ class Deposition(Resource):
     def update_access(self, id, params):
         # Logic to update access information for a deposition
         pass
+
+    @access.public
+    @autoDescribeRoute(
+        Description("Autocomplete ORCID")
+        .param("query", "The query to search for", required=True, dataType="string")
+        .param(
+            "limit",
+            "The maximum number of results to return",
+            required=False,
+            dataType="integer",
+            default=10,
+        )
+    )
+    def autocomplete(self, query, limit):
+        url = (
+            "https://pub.orcid.org/v3.0/expanded-search/?q="
+            + urllib.parse.quote(query)
+            + f"&start=0&rows={limit}"
+        )
+        response = requests.get(
+            url,
+            headers=get_orcid_headers(),
+        )
+        if (
+            response.status_code != 200
+            or "expanded-result" not in response.json()
+            or not response.json()["expanded-result"]
+        ):
+            return []
+
+        def get_last_inst(institutions):
+            if institutions:
+                return institutions[-1]
+            else:
+                return ""
+
+        return [
+            {
+                "value": i + 1,
+                "text": (
+                    f"{_['family-names']}, {_['given-names']} "
+                    f"({_['orcid-id']}) - {get_last_inst(_['institution-name'])}"
+                ),
+            }
+            for i, _ in enumerate(response.json()["expanded-result"])
+        ]
