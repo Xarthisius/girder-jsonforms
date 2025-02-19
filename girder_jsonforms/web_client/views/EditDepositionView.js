@@ -13,38 +13,21 @@ function isDefined(value) {
 
 const EditDepositionView = View.extend({
   events: {
-    'dragstart .g-identifiers-list li': function (event) {
-        this.draggedItem = event.currentTarget;
-        $(event.currentTarget).addClass('dragging');
-        event.originalEvent.dataTransfer.effectAllowed = 'move';
-    },
-    'dragend .g-identifiers-list li': function (event) {
-        $(event.currentTarget).removeClass('dragging');
-    },
-    'dragover .g-identifiers-list': function (event) {
-        event.preventDefault();
-    },
+    'dragstart .g-identifiers-list li': 'addDragging',
+    'dragend .g-identifiers-list li': 'removeDragging',
+    'dragover .g-identifiers-list': 'dragOver',
+    'dragstart .g-creators-list li': 'addDragging',
+    'dragend .g-creators-list li': 'removeDragging',
+    'dragover .g-creators-list': 'dragOver',
     'drop .g-identifiers-list': function (event) {
-        event.preventDefault();
-        if (this.draggedItem) {
-            let target = event.target.closest('li');
-            if (target && target !== this.draggedItem) {
-                let list = $(".g-identifiers-list");
-                let items = list.children("li").toArray();
-                let draggedIndex = items.indexOf(this.draggedItem);
-                let targetIndex = items.indexOf(target);
-
-                if (draggedIndex < targetIndex) {
-                    $(target).after(this.draggedItem);
-                } else {
-                    $(target).before(this.draggedItem);
-                }
-            }
-        }
+        this.drop(event, '.g-identifiers-list');
         this._updateIdentifiers();
     },
+    'drop .g-creators-list': function (event) {
+        this.drop(event, '.g-creators-list');
+        this._updateCreators();
+    },
     'click #g-deposition-addIdentifier': function () {
-      console.log("Adding identifier");
       this.identifiers.push({"type": "local", "value": ""});
       this.render();
     },
@@ -175,7 +158,52 @@ const EditDepositionView = View.extend({
           };
       });
       this.render();
-  }
+  },
+  _updateCreators: function () {
+      console.log("Updating creators");
+      let items = this.$('.g-creators-list li').toArray();
+      this.creators = items.map((item) => {
+          console.log("Item", item.attributes );
+          const creator = {};
+          for (let i = 0; i < item.attributes.length; i++) {
+              const attribute = item.attributes[i];
+              if (attribute.name.startsWith('data-creator')) {
+                  const key = attribute.name.replace('data-creator-', '').replace('name', 'Name');
+                  creator[key] = attribute.value;
+              }
+          }
+          return creator;
+      });
+  },  
+  addDragging: function (event) {
+    this.draggedItem = event.currentTarget;
+    $(event.currentTarget).addClass('dragging');
+    event.originalEvent.dataTransfer.effectAllowed = 'move';
+  },
+  removeDragging: function (event) {
+    $(event.currentTarget).removeClass('dragging');
+  },
+  dragOver: function (event) {
+    event.preventDefault();
+  },
+  drop: function (event, target) {
+    event.preventDefault();
+    if (this.draggedItem) {
+        let target = event.target.closest('li');
+        if (target && target !== this.draggedItem) {
+            let list = $(target);
+            let items = list.children("li").toArray();
+            let draggedIndex = items.indexOf(this.draggedItem);
+            let targetIndex = items.indexOf(target);
+
+            if (draggedIndex < targetIndex) {
+                $(target).after(this.draggedItem);
+            } else {
+                $(target).before(this.draggedItem);
+            }
+        }
+    }
+  },
 });
 
 export default EditDepositionView;
