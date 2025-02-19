@@ -4,44 +4,45 @@
     "description": "JSON-editor forms in Girder",
     "homepage": "https://github.com/Xarthisius/girder-jsonforms",
     "bugs": {
-      "url": "https://github.com/Xarthisius/girder-jsonforms/issues"
+        "url": "https://github.com/Xarthisius/girder-jsonforms/issues"
     },
     "repository": {
-      "type": "git",
-      "url": "git+https://github.com/Xarthisius/girder-jsonforms.git"
+        "type": "git",
+        "url": "git+https://github.com/Xarthisius/girder-jsonforms.git"
     },
     "type": "module",
     "files": [
-      "dist",
-      "package.json"
+        "dist",
+        "package.json"
     ],
     "main": "./dist/girder-plugin-jsonforms.umd.js",
     "module": "./dist/girder-plugin-jsonforms.js",
     "exports": {
-      ".": {
-        "import": "./dist/girder-plugin-jsonforms.js",
-        "require": "./dist/girder-plugin-jsonforms.umd.js"
-      },
-      "./package.json": "./package.json",
-      "./styles.css": "./dist/styles.css"
+        ".": {
+            "import": "./dist/girder-plugin-jsonforms.js",
+            "require": "./dist/girder-plugin-jsonforms.umd.js"
+        },
+        "./package.json": "./package.json",
+        "./styles.css": "./dist/styles.css"
     },
     "scripts": {
-      "build": "vite build",
-      "dev": "vite build --watch"
+        "build": "vite build",
+        "dev": "vite build --watch"
     },
     "author": "Kacper Kowalik",
     "license": "BSD-3",
     "dependencies": {
-      "@girder/core": "*",
-      "@json-editor/json-editor": "^2.15.1",
-      "flatpickr": "^4.6.13",
-      "handlebars": "^4.0.11"
+        "@girder/core": "*",
+        "@json-editor/json-editor": "^2.15.1",
+        "bootstrap-autocomplete": "^2.3.7",
+        "flatpickr": "^4.6.13",
+        "handlebars": "^4.0.11"
     },
     "devDependencies": {
-      "pug": "^3.0.2",
-      "stylus": "^0.54.8",
-      "vite": "^4.3.9",
-      "vite-plugin-istanbul": "^4.1.0",
-      "@rollup/plugin-inject": "^5.0.3"
+        "@rollup/plugin-inject": "^5.0.3",
+        "pug": "^3.0.2",
+        "stylus": "^0.54.8",
+        "vite": "^4.3.9",
+        "vite-plugin-istanbul": "^4.1.0"
     }
 }
