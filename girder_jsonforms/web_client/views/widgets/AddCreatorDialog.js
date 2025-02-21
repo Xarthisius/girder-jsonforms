@@ -100,7 +100,9 @@ var AddCreatorDialog = View.extend({
     console.log('Creator:', creator);
     if (creator) {
       this.creators.push(creator);
-      this.settings.parentView.render();
+      this.trigger('g:creatorAdded', {creator: creator});
+      this.settings.parentView.trigger('g:creatorAdded', {creator: creator});
+      // this.settings.parentView.render();
     }
     this.$el.modal('hide');
   },
