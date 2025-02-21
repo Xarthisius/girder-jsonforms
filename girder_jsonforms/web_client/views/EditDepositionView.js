@@ -4,6 +4,8 @@ const { restRequest } = girder.rest;
 const View = girder.views.View;
 
 import AddCreatorDialog from './widgets/AddCreatorDialog';
+import CreatorsWidget from './widgets/CreatorsWidget';
+import IdentifiersWidget from './widgets/IdentifiersWidget';
 import '../stylesheets/editDepositionView.styl';
 import template from '../templates/editDepositionView.pug';
 
@@ -13,29 +15,12 @@ function isDefined(value) {
 
 const EditDepositionView = View.extend({
   events: {
-    'dragstart .g-identifiers-list li': 'addDragging',
-    'dragend .g-identifiers-list li': 'removeDragging',
-    'dragover .g-identifiers-list': 'dragOver',
     'dragstart .g-creators-list li': 'addDragging',
     'dragend .g-creators-list li': 'removeDragging',
     'dragover .g-creators-list': 'dragOver',
-    'drop .g-identifiers-list': function (event) {
-        this.drop(event, '.g-identifiers-list');
-        this._updateIdentifiers();
-    },
     'drop .g-creators-list': function (event) {
         this.drop(event, '.g-creators-list');
         this._updateCreators();
-    },
-    'click #g-deposition-addIdentifier': function () {
-      this.identifiers.push({"type": "local", "value": ""});
-      this.render();
-    },
-    'click #g-deposition-removeIdentifier': function (event) {
-      let item = $(event.currentTarget).closest('li').get(0);
-      let index = this.$('.g-identifiers-list li').index(item);
-      this.identifiers.splice(index, 1);
-      this.render();
     },
     'click #g-deposition-cancel': function () {
       girder.router.navigate(`depositions`, { trigger: true });
@@ -49,13 +34,18 @@ const EditDepositionView = View.extend({
       });
       metadata["materialSubtype"] = isDefined(metadata["materialSubtype"]) ? metadata["materialSubtype"] : 'X';
       metadata["governorLab"] = isDefined(metadata["governorLab"]) ? metadata["governorLab"] : 'X';
+      this.identifiersWidget._updateIdentifiers();  // Saves state
+      const alternateIdentifiers = this.identifiersWidget.identifiers.map((item) => {
+        return { alternateIdentifier: item.value, alternateIdentifierType: item.type };
+      });
       const data = {
         prefix: `${metadata.governor}${metadata.governorLab}${metadata.material}${metadata.materialSubtype}`,
         metadata: JSON.stringify({
           title: metadata.title,
           description: metadata.description,
           creators: this.creators,
-        })
+          attributes: {alternateIdentifiers: alternateIdentifiers},
+        }),
       };
       restRequest({
         method: 'POST',
@@ -79,7 +69,10 @@ const EditDepositionView = View.extend({
         el: $('#g-dialog-container'),
         parentView: this,
         creators: this.creators,
-      }).render();
+      }).on('g:creatorAdded', function (params) {
+        this.creatorsWidget.creators.push(params.creator);
+        this.creatorsWidget.render();
+      }, this).render();
     },
     'change #g-deposition-governor': function (event) {
       const selectedInstitution = $(event.currentTarget).val();
@@ -124,6 +117,7 @@ const EditDepositionView = View.extend({
   },
   initialize: function (settings) {
     this.draggedItem = null;
+    this.form = null;
     restRequest({
       method: 'GET',
       url: 'system/setting',
@@ -136,34 +130,23 @@ const EditDepositionView = View.extend({
       this.igsnMaterials = resp['jsonforms.igsn_materials'];
       this.settings = settings;
       this.creators = settings.creators || [];
-      this.identifiers = settings.identifiers || [];
       this.render();
     });
+    this.creatorsWidget = new CreatorsWidget({creators: this.creators, parentView: this})
+    this.identifiersWidget = new IdentifiersWidget({parentView: this})
   },
   render: function () {
-    this.$el.html(template({
+    this.form = this.$el.html(template({
       institutions: this.igsnInstitutions,
-      identifiers: this.identifiers,
       materials: Object.entries(this.igsnMaterials),
-      creators: this.creators
     }));
+    this.creatorsWidget.setElement(this.$('.g-creators-container')).render();
+    this.identifiersWidget.setElement(this.$('.g-identifiers-container')).render();
     return this;
   },
-  _updateIdentifiers: function () {
-      let items = this.$('.g-identifiers-list li').toArray();
-      this.identifiers = items.map((item) => {
-          return {
-              type: $(item).find('.g-identifier-type').val(),
-              value: $(item).find('.g-identifier-value').val()
-          };
-      });
-      this.render();
-  },
   _updateCreators: function () {
-      console.log("Updating creators");
       let items = this.$('.g-creators-list li').toArray();
       this.creators = items.map((item) => {
-          console.log("Item", item.attributes );
           const creator = {};
           for (let i = 0; i < item.attributes.length; i++) {
               const attribute = item.attributes[i];
