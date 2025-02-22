@@ -9,17 +9,20 @@ const router = girder.router;
 const UploadWidget = girder.views.widgets.UploadWidget;
 const { getCurrentUser } = girder.auth;
 const { AccessType } = girder.constants;
+const { restRequest } = girder.rest;
 
 import '../stylesheets/editFormView.styl';
 
 import flatpickr from 'flatpickr'; // eslint-disable-line no-unused-vars
 import Handlebars from 'handlebars';
 import '@json-editor/json-editor';
+import Autocomplete from '@trevoreyre/autocomplete-js';
 
 import template from '../templates/editFormView.pug';
 import FormEntryModel from '../models/FormEntryModel';
 
 import 'flatpickr/dist/flatpickr.min.css';
+import '@trevoreyre/autocomplete-js/dist/style.css';
 
 function makeid(length) {
     let result = '';
@@ -114,6 +117,7 @@ const EditFormView = View.extend({
 
     initialize: function (settings) {
         window.Handlebars = Handlebars; // Otherwise the helper is not available in the template
+        window.Autocomplete = Autocomplete; // Otherwise the helper is not available in the template
         Handlebars.registerHelper('multiply', function (a, b) { return a * b; });
         Handlebars.registerHelper('divide', function (a, b) { return a / b; });
         Handlebars.registerHelper('add', function (a, b) { return a + b; });
@@ -237,6 +241,35 @@ const EditFormView = View.extend({
         window.addEventListener('beforeunload', function (e) {
             view.tempFolder.destroy();
         });
+        JSONEditor.defaults.callbacks.autocomplete = {
+            'search_deposition': function (editor, input) {
+                if (input.length < 3) {
+                    return [];
+                }
+
+                return restRequest({
+                    url: 'deposition',
+                    method: 'GET',
+                    data: {
+                        q: input,
+                        limit: 10
+                    }
+                })
+            },
+            'render_deposition': function (editor, result, props) {
+                try {
+                  const localId = result.metadata.attributes.alternateIdentifiers.find(
+                      (id) => id.alternateIdentifierType === 'local'
+                  );
+                  return `<li ${props}> ${result.igsn} (localId: ${localId.alternateIdentifier})</li>`;
+                } catch (e) {
+                  return `<li ${props}> ${result.igsn} (title: ${result.metadata.title})</li>`;
+                }
+            },
+            'get_deposition_value': function (editor, result) {
+                return result._id;
+            }
+        };
 
         JSONEditor.defaults.callbacks.button = {
             'button1CB': function (jseditor, element) {
