@@ -34,6 +34,7 @@
     "dependencies": {
         "@girder/core": "*",
         "@json-editor/json-editor": "^2.15.1",
+        "@trevoreyre/autocomplete-js": "^3.0.3",
         "bootstrap-autocomplete": "^2.3.7",
         "flatpickr": "^4.6.13",
         "handlebars": "^4.0.11"

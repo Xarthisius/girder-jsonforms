@@ -65,6 +65,12 @@ class Deposition(Resource):
             dataType="string",
         )
         .param(
+            "q",
+            "The query to search for on selected fields (title, igsn, alternateIdentifier)",
+            required=False,
+            dataType="string",
+        )
+        .param(
             "level",
             "The minimum access level to filter the forms by",
             dataType="integer",
@@ -75,10 +81,21 @@ class Deposition(Resource):
         .pagingParams(defaultSort="igsn", defaultSortDir=SortDir.ASCENDING)
     )
     @filtermodel(model="deposition", plugin="jsonforms")
-    def list_deposition(self, igsnPrefix, level, limit, offset, sort):
+    def list_deposition(self, igsnPrefix, q, level, limit, offset, sort):
         query = {}
         if igsnPrefix is not None:
             query["igsn"] = re.compile(f"^{igsnPrefix}.*$")
+        elif q is not None:
+            query["$or"] = [
+                {"metadata.title": {"$regex": q, "$options": "i"}},
+                {"igsn": {"$regex": q, "$options": "i"}},
+                {
+                    "metadata.attributes.alternateIdentifiers.alternateIdentifier": {
+                        "$regex": q,
+                        "$options": "i",
+                    }
+                },
+            ]
 
         return DepositionModel().findWithPermissions(
             query=query,
