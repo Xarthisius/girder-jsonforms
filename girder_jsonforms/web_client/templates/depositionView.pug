@@ -16,10 +16,34 @@
     .g-deposition-content-body
       .g-deposition-content-body-left
         .g-deposition-content-body-left-item
-          h3.g-deposition-content-body-left-item-title
-            | Description
-          p.g-deposition-content-body-left-item-description
-            = metadata.description 
+          .g-deposition-info-line
+            i.icon-doc
+            span.test-muted= 'IGSN: '
+            span.g-info-type= deposition.get("igsn")
+          .g-deposition-info-line
+            i.icon-doc
+            span.test-muted= 'Description: '
+            span.g-info-type= metadata.description
+          if metadata.creators.length > 0
+            .g-deposition-info-line
+              h3
+                | Creators:
+            for creator in metadata.creators
+              .g-deposition-info-line
+                i.icon-user
+                span.test-muted= creator.role + ': '
+                span.g-info-type= creator.firstName + ' ' + creator.lastName + ' (' + creator.identifiers + ')'
+          if metadata.attributes.alternateIdentifiers.length > 0
+            .g-deposition-info-line
+              h3
+                | Alternate Identifiers:
+            for identifier in metadata.attributes.alternateIdentifiers
+              .g-deposition-info-line
+                i.icon-doc
+                span.test-muted= identifier.alternateIdentifierType + ': '
+                span.g-info-type= identifier.alternateIdentifier
+        .g-deposition-content-body-left-item
+
       .g-deposition-content-body-right
         .g-deposition-content-body-right-item(v-if="isAdmin")
           h3.g-deposition-content-body-right-item-title
