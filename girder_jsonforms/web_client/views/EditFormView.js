@@ -93,7 +93,7 @@ const EditFormView = View.extend({
                 formId: this.model.id,
                 data: JSON.stringify(this.form.getValue()),
                 sourceId: this.tempFolder.id,
-                destinationId: this.destFolder.id
+                destinationId: this.destFolder !== null ? this.destFolder.id : null,
             }).save().done(() => {
                 router.navigate('forms', {trigger: true});
             });
@@ -118,7 +118,32 @@ const EditFormView = View.extend({
     initialize: function (settings) {
         window.Handlebars = Handlebars; // Otherwise the helper is not available in the template
         window.Autocomplete = Autocomplete; // Otherwise the helper is not available in the template
+        this.otherEntries = {};
+        const view = this;
+        Handlebars.registerHelper('entryField', function (entryId, field) {
+            var entryPromise = null;
+            if (view.otherEntries[entryId] === undefined) {
+                new FormEntryModel({_id: entryId}).fetch().done((result) => {
+                    view.otherEntries[entryId] = result["data"];
+                });
+            } 
+            if (view.otherEntries[entryId]) {
+                return view.otherEntries[entryId][field];
+            }
+        });
         Handlebars.registerHelper('multiply', function (a, b) { return a * b; });
+        Handlebars.registerHelper('aimd-target', function (target) {
+            if (target === undefined || target === null || target.length === 0) {
+                return '';
+            }
+            const elements = new Set();
+            for (const obj of target) {
+              if (obj.hasOwnProperty('element')) {
+                elements.add(obj.element);
+              }
+            }
+            return Array.from(elements).join('');
+        });
         Handlebars.registerHelper('divide', function (a, b) { return a / b; });
         Handlebars.registerHelper('add', function (a, b) { return a + b; });
         Handlebars.registerHelper('subtract', function (a, b) { return a - b; });
@@ -133,7 +158,7 @@ const EditFormView = View.extend({
         });
         Handlebars.registerHelper('split', function (string, separator, index) {
             try {
-                return string.split(separator)[index];
+                return string.split(separator)[index].trim();
             } catch (e) {
                 return '';
             }
@@ -188,6 +213,7 @@ const EditFormView = View.extend({
 
         this.schema = this.model.get('schema');
         const destFolderId = this.model.get('folderId');
+        this.serialize = this.model.get('serialize');
         this.destFolder = null;
         if (destFolderId) {
             var folder = new FolderModel({_id: destFolderId}).once('g:fetched', function (val) {
@@ -219,7 +245,6 @@ const EditFormView = View.extend({
             this.tempFolder.addMetadata('formId', this.model.id);
         });
 
-        const view = this;
         window.addEventListener('beforeunload', function (e) {
             view.tempFolder.destroy();
         });
@@ -249,7 +274,7 @@ const EditFormView = View.extend({
                 }
             },
             'get_deposition_value': function (editor, result) {
-                return result._id;
+                return `${result.igsn} - ${result._id}`;
             }
         };
 
@@ -352,7 +377,8 @@ const EditFormView = View.extend({
             level: this.model.getAccessLevel(),
             AccessType: AccessType,
             destFolder: this.destFolder,
-            destFolderPath: this.destFolderPath
+            destFolderPath: this.destFolderPath,
+            serialize: this.serialize,
         }));
         const formContainer = this.$('.g-form-container');
         if (this.schema) {
@@ -374,7 +400,7 @@ const EditFormView = View.extend({
                 if (view.initialValues) {
                     view.form.setValue(view.initialValues.get('data'));
                 }
-                if (view.destFolder === null) {
+                if (view.destFolder === null && view.serialize) {
                     view.form.disable();
                 } else {
                     view.form.enable();

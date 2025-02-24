@@ -33,7 +33,7 @@
                 i.icon-user
                 span.test-muted= creator.role + ': '
                 span.g-info-type= creator.firstName + ' ' + creator.lastName + ' (' + creator.identifiers + ')'
-          if metadata.attributes.alternateIdentifiers.length > 0
+          if metadata.attributes && metadata.attributes.alternateIdentifiers.length > 0
             .g-deposition-info-line
               h3
                 | Alternate Identifiers:
@@ -42,6 +42,23 @@
                 i.icon-doc
                 span.test-muted= identifier.alternateIdentifierType + ': '
                 span.g-info-type= identifier.alternateIdentifier
+          if metadata.relatedIdentifiers.length > 0
+            .g-deposition-info-line
+              h3
+                | Related Identifiers:
+            for identifier in metadata.relatedIdentifiers
+              .g-deposition-info-line
+                i.icon-doc
+                span.test-muted= identifier.relationType + ': '
+                a(href=identifier.relatedIdentifier)
+                  span.g-info-type= identifier.relatedIdentifier
+              if identifier.relatedMetadataScheme
+                .g-deposition-info-line
+                  i.icon-doc-text
+                  span.test-muted
+                    | Schema: 
+                  a(href=identifier.relatedMetadataScheme)
+                    span.g-info-type= identifier.relatedMetadataScheme
         .g-deposition-content-body-left-item
 
       .g-deposition-content-body-right
