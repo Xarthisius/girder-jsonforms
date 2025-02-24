@@ -1,6 +1,8 @@
 import datetime
 import string
 
+from girder import events
+from girder.api.rest import getApiUrl
 from girder.constants import AccessType
 from girder.exceptions import ValidationException
 from girder.models.model_base import AccessControlledModel, Model
@@ -81,6 +83,26 @@ class Deposition(AccessControlledModel):
                 "updated",
             ),
         )
+        events.bind("model.entry.save.created", "jsonforms", self.updateRelations)
+
+    def updateRelations(self, event: events.Event) -> None:
+        formId = event.info.get("formId")
+        data = event.info.get("data")
+        if not data.get("depositionId") or not formId:
+            return
+        deposition = self.load(data["depositionId"], force=True)
+        if not deposition:
+            return
+        relatedIdentifier = {
+            "relationType": "HasMetadata",
+            "relatedIdentifier": "/".join((getApiUrl(), "entry", str(event.info["_id"]))),
+            "relatedIdentifierType": "URL",
+            "relatedMetadataScheme": "/".join((getApiUrl(), "form", str(formId), "schema")),
+        }
+        if "relatedIdentifiers" not in deposition["metadata"]:
+            deposition["metadata"]["relatedIdentifiers"] = []
+        deposition["metadata"]["relatedIdentifiers"].append(relatedIdentifier)
+        self.update(deposition, deposition["metadata"])
 
     def validate(self, doc):
         return doc
