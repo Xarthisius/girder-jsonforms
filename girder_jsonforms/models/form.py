@@ -128,7 +128,17 @@ class Form(AccessControlledModel):
         for keyPath in find_key_paths(form["schema"], "enumSource"):
             value = get_value(form["schema"], keyPath)
             if isinstance(value, str) and value.startswith("girder.formId:"):
-                formId = value.split(":")[1]
+                command = value.split(":")
+                formId = command[1]
+                try:
+                    enum_value = command[2]
+                except IndexError:
+                    enum_value = "{entry[_id]}"
+                try:
+                    enum_title = command[3]
+                except IndexError:
+                    enum_title = None
+
                 source_form = self.load(
                     formId, level=AccessType.READ, user=user, exc=True
                 )
@@ -145,10 +155,14 @@ class Form(AccessControlledModel):
                     )
                     .sort([(source_form["uniqueField"], 1)])
                 ):
+                    if enum_title:
+                        title = enum_title.format(entry=entry)
+                    else:
+                        title = entry["data"][source_form["uniqueField"]]
                     enum_source["source"].append(
                         {
-                            "value": str(entry["_id"]),
-                            "title": entry["data"][source_form["uniqueField"]],
+                            "value": enum_value.format(entry=entry),
+                            "title": title,
                         }
                     )
                     set_value(form["schema"], keyPath, [enum_source])
