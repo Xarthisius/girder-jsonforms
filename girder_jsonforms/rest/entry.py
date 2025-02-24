@@ -100,7 +100,7 @@ class FormEntry(Resource):
         .modelParam(
             "destinationId",
             "The folder ID of destination",
-            required=True,
+            required=False,
             model=Folder,
             paramType="query",
             destName="destination",

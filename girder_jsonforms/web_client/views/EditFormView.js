@@ -89,12 +89,17 @@ const EditFormView = View.extend({
                 }).join('') + '</ul>');
                 return;
             }
-            new FormEntryModel({
+            var params = {
                 formId: this.model.id,
                 data: JSON.stringify(this.form.getValue()),
-                sourceId: this.tempFolder.id,
-                destinationId: this.destFolder !== null ? this.destFolder.id : null,
-            }).save().done(() => {
+            }
+            if (this.tempFolder) {
+                params.sourceId = this.tempFolder.id;
+            }
+            if (this.destFolder) {
+                params.destinationId = this.destFolder.id;
+            }
+            new FormEntryModel(params).save().done(() => {
                 router.navigate('forms', {trigger: true});
             });
             /* if (this.initialValues) {
