@@ -28,6 +28,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 "formId",
                 "folderId",
                 "data",
+                "creatorId",
                 "created",
                 "updated",
                 "files",
@@ -54,12 +55,17 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
     def create_entry(self, form, data, source, destination, creator):
         now = datetime.datetime.utcnow()
         unique_field = form.get("uniqueField")
+        if destination is None:
+            destination_id = None
+        else:
+            destination_id = destination["_id"]
         entry = {
             "formId": form["_id"],
             "data": data,
+            "creatorId": creator["_id"],
             "created": now,
             "updated": now,
-            "folderId": destination["_id"],
+            "folderId": destination_id,
             "files": [],
             "folders": [],
         }
