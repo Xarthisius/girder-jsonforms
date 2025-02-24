@@ -49,6 +49,7 @@ class Deposition(Resource):
         self.resourceName = "deposition"
         self.route("GET", (), self.list_deposition)
         self.route("GET", (":id",), self.get_deposition)
+        self.route("DELETE", (":id",), self.delete_deposition)
         self.route("POST", (), self.create_deposition)
         self.route("PUT", (":id",), self.update_deposition)
         self.route("GET", (":id", "access"), self.get_access)
@@ -208,3 +209,19 @@ class Deposition(Resource):
             }
             for i, _ in enumerate(response.json()["expanded-result"])
         ]
+
+    @access.admin
+    @autoDescribeRoute(
+        Description("Delete a deposition")
+        .modelParam(
+            "id",
+            model=DepositionModel,
+            plugin="jsonforms",
+            paramType="path",
+            required=True,
+            level=AccessType.ADMIN,
+        )
+    )
+    def delete_deposition(self, deposition):
+        # Logic to delete a deposition
+        DepositionModel().remove(deposition)
