@@ -99,7 +99,7 @@ class Form(Resource):
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
         Description("Export form entries as a table")
-        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.READ)
+        .modelParam("id", model=FormModel, level=AccessType.READ)
         .param(
             "exportFormat",
             "The format to export the entries as",

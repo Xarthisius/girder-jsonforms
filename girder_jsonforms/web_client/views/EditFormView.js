@@ -150,7 +150,15 @@ const EditFormView = View.extend({
             return Array.from(elements).join('');
         });
         Handlebars.registerHelper('divide', function (a, b) { return a / b; });
-        Handlebars.registerHelper('add', function (a, b) { return a + b; });
+        Handlebars.registerHelper('add', function (a, b) {
+          if (a === undefined || a === null ) {
+            a = 0;
+          }
+          if (b === undefined || b === null ) {
+            b = 0;
+          }
+          return a + b;
+        });
         Handlebars.registerHelper('subtract', function (a, b) { return a - b; });
         Handlebars.registerHelper('replace', function (string, search, replacement) {
             return (string !== undefined && string !== null) ? string.replace(search, replacement) : '';
