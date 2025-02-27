@@ -29,6 +29,7 @@ setup(
         "google-api-python-client",
         "google-auth-oauthlib",
         "pandas",
+        "openpyxl",
     ],
     entry_points={"girder.plugin": ["jsonforms = girder_jsonforms:JSONFormsPlugin"]},
     zip_safe=False,
