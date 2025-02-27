@@ -1,3 +1,4 @@
 pytest
 pytest-cov
+pytest-mock
 pytest-girder>=5.0.0a5.dev0
