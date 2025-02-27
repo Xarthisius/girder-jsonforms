@@ -8,6 +8,7 @@ from girder import events
 from girder.constants import AccessType
 from girder.models.file import File
 from girder.models.item import Item
+from girder.models.setting import Setting
 from girder.plugin import GirderPlugin, registerPluginStaticContent
 from girder.utility.model_importer import ModelImporter
 
@@ -16,6 +17,7 @@ from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
 from .rest.entry import FormEntry
 from .rest.form import Form
+from .settings import PluginSettings
 
 GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
@@ -42,6 +44,9 @@ def annotate_uploads(event):
 
 def upload_to_gdrive(event):
     global GDRIVE_SERVICE
+    if GDRIVE_SERVICE is None:
+        logger.error("Google Drive integration is not enabled.")
+        return
     info = event.info
     file = info["file"]
 
@@ -66,14 +71,16 @@ class JSONFormsPlugin(GirderPlugin):
         ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
         global GDRIVE_SERVICE
-        try:
-            GDRIVE_SERVICE = authenticate_gdrive()
-        except ValueError:
-            logger.exception("Failed to authenticate with Google Drive")
+        if Setting().get(PluginSettings.GOOGLE_DRIVE_ENABLED):
+            try:
+                GDRIVE_SERVICE = authenticate_gdrive()
+            except ValueError:
+                logger.exception("Failed to authenticate with Google Drive")
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         events.bind("data.process", "jsonforms", annotate_uploads)
-        events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
+        if GDRIVE_SERVICE is not None:
+            events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         registerPluginStaticContent(
             plugin="jsonforms",
             css=["/style.css"],
