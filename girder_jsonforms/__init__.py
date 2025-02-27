@@ -20,6 +20,7 @@ from .models.form import Form as FormModel
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
+from .settings import PluginSettings
 
 GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
