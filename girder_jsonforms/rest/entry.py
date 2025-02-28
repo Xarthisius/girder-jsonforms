@@ -108,7 +108,7 @@ class FormEntry(Resource):
     )
     @filtermodel(model=FormEntryModel, plugin="jsonforms")
     def createFormEntry(self, form, data, source, destination):
-        return FormEntryModel().create(
+        return FormEntryModel().create_entry(
             form,
             data,
             source,

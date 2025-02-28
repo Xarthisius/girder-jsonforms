@@ -44,7 +44,7 @@ class Form(AccessControlledModel):
     def validate(self, doc):
         return doc
 
-    def create(
+    def create_form(
         self,
         name,
         description,
@@ -77,7 +77,7 @@ class Form(AccessControlledModel):
 
         return self.save(form)
 
-    def update(
+    def update_form(
         self,
         form,
         name,
@@ -155,7 +155,7 @@ class Form(AccessControlledModel):
 
         return form
 
-    def export(self, form, export_format):
+    def export_form(self, form, export_format):
         from .entry import FormEntry
 
         entries = [
