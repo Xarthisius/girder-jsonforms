@@ -51,7 +51,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             print("Error:", e)
             return None
 
-    def create(self, form, data, source, destination, creator):
+    def create_entry(self, form, data, source, destination, creator):
         now = datetime.datetime.utcnow()
         unique_field = form.get("uniqueField")
         entry = {

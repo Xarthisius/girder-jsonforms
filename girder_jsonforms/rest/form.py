@@ -111,7 +111,7 @@ class Form(Resource):
         .errorResponse("Read access was denied on the form.", 403)
     )
     def exportForm(self, form, exportFormat):
-        export = FormModel().export(form, exportFormat)
+        export = FormModel().export_form(form, exportFormat)
         setResponseHeader("Content-Length", export.getbuffer().nbytes)
         content_type = (
             "text/csv" if exportFormat == "csv" else "application/vnd.ms-excel"
@@ -199,7 +199,7 @@ class Form(Resource):
         serialize,
         uniqueField,
     ):
-        return FormModel().create(
+        return FormModel().create_form(
             name,
             description,
             schema,
