@@ -145,7 +145,7 @@ class Deposition(Resource):
     @filtermodel(model="deposition", plugin="jsonforms")
     def create_deposition(self, prefix, metadata, parent):
         # Logic to create a new deposition
-        return DepositionModel().create(
+        return DepositionModel().create_deposition(
             metadata, self.getCurrentUser(), prefix, parent=parent
         )
 

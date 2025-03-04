@@ -102,7 +102,7 @@ class Deposition(AccessControlledModel):
         if "relatedIdentifiers" not in deposition["metadata"]:
             deposition["metadata"]["relatedIdentifiers"] = []
         deposition["metadata"]["relatedIdentifiers"].append(relatedIdentifier)
-        self.update(deposition, deposition["metadata"])
+        self.update_deposition(deposition, deposition["metadata"])
 
     def validate(self, doc):
         return doc
@@ -111,7 +111,7 @@ class Deposition(AccessControlledModel):
     def compute_identifier(metadata, root=True):
         return metadata.get("title", "")
 
-    def create(
+    def create_deposition(
         self,
         metadata,
         creator,
@@ -139,7 +139,7 @@ class Deposition(AccessControlledModel):
 
         return self.save(deposition)
 
-    def update(self, deposition, metadata):
+    def update_deposition(self, deposition, metadata):
         deposition["metadata"] = metadata
         deposition["updated"] = datetime.datetime.utcnow()
 
