@@ -15,7 +15,6 @@ const { renderMarkdown } = girder.misc;
 var FormView = View.extend({
     events: {
         'click .g-new-entry': function (event) {
-            console.log('new entry');
             router.navigate('form/' + this.model.get('_id') + '/entry', {
                 trigger: true
             });

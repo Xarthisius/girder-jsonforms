@@ -10,6 +10,48 @@ class PluginSettings:
     IGSN_INSTITUTIONS = "jsonforms.igsn_institutions"
     IGSN_MATERIALS = "jsonforms.igsn_materials"
     GOOGLE_DRIVE_ENABLED = "jsonforms.google_drive_enabled"
+    IGSN_PUBLISHER = "jsonforms.igsn_publisher"
+    IGSN_CLIENT_ID = "jsonforms.igsn_client_id"
+    IGSN_PROVIDER_ID = "jsonforms.igsn_provider_id"
+
+
+@setting_utilities.validator(
+    {
+        PluginSettings.IGSN_PUBLISHER,
+        PluginSettings.IGSN_CLIENT_ID,
+        PluginSettings.IGSN_PROVIDER_ID,
+    }
+)
+def validate_igsn_publisher(doc):
+    if not isinstance(doc["value"], str):
+        raise ValidationException(
+            "Setting must be a string.",
+            "value",
+        )
+
+
+@setting_utilities.default(PluginSettings.IGSN_CLIENT_ID)
+def default_igsn_client_id():
+    """
+    Default setting for IGSN client ID.
+    """
+    return "hemi.igsn"
+
+
+@setting_utilities.default(PluginSettings.IGSN_PROVIDER_ID)
+def default_igsn_provider_id():
+    """
+    Default setting for IGSN provider ID.
+    """
+    return "hemi"
+
+
+@setting_utilities.default(PluginSettings.IGSN_PUBLISHER)
+def default_igsn_publisher():
+    """
+    Default setting for IGSN publisher.
+    """
+    return "Hopkins Extreme Materials Institute"
 
 
 @setting_utilities.default(PluginSettings.IGSN_INSTITUTIONS)
@@ -28,7 +70,7 @@ def default_igsn_institutions():
         "SB": {
             "code": "SB",
             "name": "University of California, Santa Barbara",
-            "labs": [],
+            "labs": [""],
         },
     }
 

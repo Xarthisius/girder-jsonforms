@@ -41,9 +41,9 @@ const EditDepositionView = View.extend({
       const data = {
         prefix: `${metadata.governor}${metadata.governorLab}${metadata.material}${metadata.materialSubtype}`,
         metadata: JSON.stringify({
-          title: metadata.title,
-          description: metadata.description,
           creators: this.creators,
+          titles: [{title: metadata.title}],
+          description: metadata.description,
           attributes: {alternateIdentifiers: alternateIdentifiers},
         }),
       };

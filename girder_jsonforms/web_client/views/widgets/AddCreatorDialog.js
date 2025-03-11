@@ -54,7 +54,6 @@ var AddCreatorDialog = View.extend({
         },
         events: {
           searchPost: function (resultsFromServer, origJQElement) {
-            console.log('search:', resultsFromServer, origJQElement);
             $('ul.bootstrap-autocomplete').css("display", "block");
             return resultsFromServer;
           }
@@ -97,7 +96,6 @@ var AddCreatorDialog = View.extend({
       obj[item.name] = item.value;
       return obj;
     }, {});
-    console.log('Creator:', creator);
     if (creator) {
       this.creators.push(creator);
       this.trigger('g:creatorAdded', {creator: creator});

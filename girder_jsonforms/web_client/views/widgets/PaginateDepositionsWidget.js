@@ -34,7 +34,6 @@ var PaginateDepositionsWidget = View.extend({
     },
 
     render: function () {
-        console.log(this.collection.toArray())  ;
         this.$el.html(template({
             depositions: this.collection.toArray(),
             depositionUrlFunc: this.depositionUrlFunc
