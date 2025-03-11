@@ -1,5 +1,8 @@
 import datetime
+import itertools
+import logging
 import string
+import pprint
 
 from girder import events
 from girder.api.rest import getApiUrl
@@ -7,8 +10,11 @@ from girder.constants import AccessType
 from girder.exceptions import ValidationException
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
+from girder.models.user import User
 
 from ..settings import PluginSettings
+
+logger = logging.getLogger(__name__)
 
 
 class PrefixCounter(Model):
@@ -83,26 +89,94 @@ class Deposition(AccessControlledModel):
                 "updated",
             ),
         )
+        events.bind("model.entry.save", "jsonforms", self.register_deposition)
         events.bind("model.entry.save.created", "jsonforms", self.updateRelations)
+
+    def register_deposition(self, event: events.Event) -> None:
+        entry = event.info
+
+        data = entry.get("data")
+        if not data.get("igsn_request") or "_id" in entry:
+            logger.info("No IGSN request or entry already exists")
+            return
+
+        prefix = data["igsn_prefix"]
+        suffix = data["igsn_suffix"]
+        if suffix:
+            if self.findOne({"igsn": f"{prefix}{suffix}"}) is not None:
+                logger.info("IGSN already exists")
+                return
+
+        igsn = PrefixCounter().get_next(prefix)
+        suffix = igsn[len(prefix) :]
+        creator = User().load(entry["creatorId"], force=True)
+        igsn_metadata = data["igsn"]
+        logger.info(f"Creating master IGSN {igsn}")
+        master_metadata = {
+            "titles": [{"title": igsn_metadata["title"]}],
+        }
+        self.fill_metadata(master_metadata)
+        master_sample = self.create_deposition(
+            master_metadata,
+            creator,
+            igsn=igsn,
+        )
+        logger.info(f"Creating batch for {igsn}")
+        self.create_batch(
+            master_sample,
+            igsn_metadata,
+        )
+
+        data["igsn_suffix"] = suffix
+        data[data["igsn_field"]] = f"{prefix}{suffix}"
+        data["igsn_request"] = False
+        event.addResponse(entry)
 
     def updateRelations(self, event: events.Event) -> None:
         formId = event.info.get("formId")
-        data = event.info.get("data")
-        if not data.get("depositionId") or not formId:
-            return
-        deposition = self.load(data["depositionId"], force=True)
+        data = event.info.get("data", {})
+        igsn_suffix = data.get("igsn_suffix")
+        igsn_prefix = data.get("igsn_prefix")
+
+        logger.info(f"{igsn_suffix=}, {igsn_prefix=}")
+
+        errmsg = deposition = None
+        if deposition_id := data.get("depositionId"):
+            logger.info(f"Looking for {deposition_id=}")
+            deposition = self.load(deposition_id, force=True)
+            errmsg = f"[updateRelations] Deposition {deposition_id} not found (entry {event.info['_id']})"
+        elif igsn_suffix and igsn_prefix:
+            logger.info(f"Looking for IGSN: {igsn_prefix}{igsn_suffix}")
+            deposition = self.findOne({"igsn": f"{igsn_prefix}{igsn_suffix}"})
+            errmsg = f"[updateRelations] Deposition {igsn_prefix}{igsn_suffix} not found (entry {event.info['_id']})"
+
         if not deposition:
+            if errmsg:
+                logger.error(errmsg)
             return
+
         relatedIdentifier = {
             "relationType": "HasMetadata",
-            "relatedIdentifier": "/".join((getApiUrl(), "entry", str(event.info["_id"]))),
+            "relatedIdentifier": "/".join(
+                (getApiUrl(), "entry", str(event.info["_id"]))
+            ),
             "relatedIdentifierType": "URL",
-            "relatedMetadataScheme": "/".join((getApiUrl(), "form", str(formId), "schema")),
+            "relatedMetadataScheme": "/".join(
+                (getApiUrl(), "form", str(formId), "schema")
+            ),
         }
-        if "relatedIdentifiers" not in deposition["metadata"]:
-            deposition["metadata"]["relatedIdentifiers"] = []
-        deposition["metadata"]["relatedIdentifiers"].append(relatedIdentifier)
-        self.update_deposition(deposition, deposition["metadata"])
+
+        logger.info(f"Updating relations for {deposition['igsn']}")
+        self.collection.update_one(
+            {"_id": deposition["_id"]},
+            {"$addToSet": {"metadata.relatedIdentifiers": relatedIdentifier}},
+        )
+
+        logger.info(f"Updating relations for {deposition['igsn']}")
+        self.collection.update_many(
+            {"parentId": deposition["_id"]},
+            {"$addToSet": {"metadata.relatedIdentifiers": relatedIdentifier}},
+        )
 
     def validate(self, doc):
         return doc
@@ -111,20 +185,77 @@ class Deposition(AccessControlledModel):
     def compute_identifier(metadata, root=True):
         return metadata.get("title", "")
 
+    def fill_metadata(self, metadata):
+        if "types" not in metadata:
+            metadata["types"] = {
+                "schemaOrg": "CreativeWork",
+                "resourceType": "material sample",
+                "resourceTypeGeneral": "PhysicalObject",
+            }
+        if "publisher" not in metadata:
+            metadata["publisher"] = {
+                "name": Setting().get(PluginSettings.IGSN_PUBLISHER),
+            }
+        if "dates" not in metadata:
+            metadata["dates"] = [
+                {
+                    "date": datetime.datetime.utcnow().isoformat(),
+                    "dateType": "Submitted",
+                }
+            ]
+
+        if "publicationYear" not in metadata:
+            metadata["publicationYear"] = datetime.datetime.utcnow().year
+
+        for key in (
+            "creators",
+            "subjects",
+            "contributors",
+            "sizes",
+            "formats",
+            "rightsList",
+            "descriptions",
+            "geoLocations",
+            "fundingReferences",
+            "identifiers",
+            "relatedIdentifiers",
+            "relatedItems",
+        ):
+            if key not in metadata:
+                metadata[key] = []
+
+        if "schemaVersion" not in metadata:
+            metadata["schemaVersion"] = "http://datacite.org/schema/kernel-4"
+
+        if "agency" not in metadata:
+            metadata["agency"] = "datacite"
+
+        if "clientId" not in metadata:
+            metadata["clientId"] = Setting().get(PluginSettings.IGSN_CLIENT_ID)
+        if "providerId" not in metadata:
+            metadata["providerId"] = Setting().get(PluginSettings.IGSN_PROVIDER_ID)
+
     def create_deposition(
         self,
         metadata,
         creator,
-        prefix,
+        prefix=None,
+        igsn=None,
         parent=None,
     ):
+        if igsn is None and prefix is None:
+            raise ValidationException("Either IGSN or prefix must be provided")
+
         if not parent:
             parent = {"_id": None}
 
         now = datetime.datetime.utcnow()
         metadata = metadata or {}
+        self.fill_metadata(metadata)
 
-        igsn = PrefixCounter().get_next(prefix)
+        # TODO: better check for valid prefix
+        if not igsn:
+            igsn = PrefixCounter().get_next(prefix)
 
         deposition = {
             "created": now,
@@ -138,6 +269,54 @@ class Deposition(AccessControlledModel):
         }
 
         return self.save(deposition)
+
+    def create_batch(self, master_sample, igsn_metadata):
+        if (
+            not igsn_metadata.get("substrates")
+            or not igsn_metadata.get("subRows")
+            or not igsn_metadata.get("subCols")
+        ):
+            pprint.pprint(igsn_metadata)
+            logger.error("Missing required fields for batch creation")
+            return
+
+        indices = [
+            "S{}R{}C{}".format(*row)
+            for row in itertools.product(
+                igsn_metadata["substrates"],
+                range(1, igsn_metadata["subRows"] + 1),
+                range(1, igsn_metadata["subCols"] + 1),
+            )
+        ]
+
+        relatedIdentifier = {
+            "relationType": "IsPartOf",
+            "relatedIdentifier": master_sample["igsn"],
+            "relatedIdentifierType": "IGSN",
+        }
+
+        metadata = master_sample["metadata"].copy()
+        metadata["relatedIdentifiers"].append(relatedIdentifier)
+        titles = metadata.pop("titles")
+
+        samples = [
+            {
+                "created": master_sample["created"],
+                "creatorId": master_sample["creatorId"],
+                "igsn": f"{master_sample['igsn']}/{index}",
+                "metadata": {
+                    "titles": [{"title": f"{titles[0]['title']} - {index}"}],
+                    **metadata,
+                },
+                "parentId": master_sample["_id"],
+                "state": "draft",
+                "submitted": False,
+                "updated": master_sample["updated"],
+            }
+            for index in indices
+        ]
+        pprint.pprint(samples[0])
+        self.collection.insert_many(samples)
 
     def update_deposition(self, deposition, metadata):
         deposition["metadata"] = metadata
