@@ -26,6 +26,7 @@ class FormEntry(Resource):
             "The ID of the form",
             model=FormModel,
             level=AccessType.READ,
+            paramType="query",
             required=False,
         )
         .pagingParams(defaultSort="created")
