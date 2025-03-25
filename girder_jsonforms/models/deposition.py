@@ -10,6 +10,7 @@ from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
 from girder.models.user import User
 from girder.utility.progress import noProgress
+from girder_sample_tracker.models.sample import Sample
 
 from ..settings import PluginSettings
 
@@ -82,6 +83,8 @@ class Deposition(AccessControlledModel):
                 "state",
                 "submitted",
                 "updated",
+                "sampleId",
+                "track",
             ),
         )
         events.bind("model.entry.save", "jsonforms", self.register_deposition)
@@ -111,10 +114,12 @@ class Deposition(AccessControlledModel):
             "titles": [{"title": igsn_metadata["title"]}],
         }
         self.fill_metadata(master_metadata)
+        logger.info(f"Whether to track: {data.get('igsn_track', False)}")
         master_sample = self.create_deposition(
             master_metadata,
             creator,
             igsn=igsn,
+            track=data.get("igsn_track", False),
         )
         logger.info(f"Creating batch for {igsn}")
         self.create_batch(
@@ -237,6 +242,7 @@ class Deposition(AccessControlledModel):
         prefix=None,
         igsn=None,
         parent=None,
+        track=False,
     ):
         if igsn is None and prefix is None:
             raise ValidationException("Either IGSN or prefix must be provided")
@@ -261,6 +267,8 @@ class Deposition(AccessControlledModel):
             "state": "draft",
             "submitted": False,
             "updated": now,
+            "sampleId": None,
+            "track": track,
         }
 
         if creator is not None:
@@ -268,9 +276,13 @@ class Deposition(AccessControlledModel):
                 deposition, user=creator, level=AccessType.ADMIN, save=False
             )
 
+        if deposition["track"]:
+            sample = Sample().create(igsn, creator, access=deposition["access"])
+            deposition["sampleId"] = sample["_id"]
+
         return self.save(deposition)
 
-    def create_batch(self, master_sample, igsn_metadata):
+    def create_batch(self, main_deposition, igsn_metadata):
         if (
             not igsn_metadata.get("substrates")
             or not igsn_metadata.get("subRows")
@@ -290,34 +302,55 @@ class Deposition(AccessControlledModel):
 
         relatedIdentifier = {
             "relationType": "IsPartOf",
-            "relatedIdentifier": master_sample["igsn"],
+            "relatedIdentifier": main_deposition["igsn"],
             "relatedIdentifierType": "IGSN",
         }
 
-        metadata = master_sample["metadata"].copy()
+        metadata = main_deposition["metadata"].copy()
         metadata["relatedIdentifiers"].append(relatedIdentifier)
         titles = metadata.pop("titles")
 
-        samples = [
+        depositions = [
             {
-                "access": master_sample["access"],
-                "created": master_sample["created"],
-                "creatorId": master_sample["creatorId"],
-                "igsn": f"{master_sample['igsn']}/{index}",
+                "access": main_deposition["access"],
+                "created": main_deposition["created"],
+                "creatorId": main_deposition["creatorId"],
+                "igsn": f"{main_deposition['igsn']}/{index}",
                 "metadata": {
                     "titles": [{"title": f"{titles[0]['title']} - {index}"}],
                     **metadata,
                 },
-                "parentId": master_sample["_id"],
-                "public": master_sample.get("public"),
-                "publicFlags": master_sample.get("publicFlags", []),
+                "parentId": main_deposition["_id"],
+                "public": main_deposition.get("public"),
+                "publicFlags": main_deposition.get("publicFlags", []),
+                "sampleId": None,
                 "state": "draft",
                 "submitted": False,
-                "updated": master_sample["updated"],
+                "updated": main_deposition["updated"],
+                "track": main_deposition["track"],
             }
             for index in indices
         ]
-        self.collection.insert_many(samples)
+        if main_deposition["track"] and main_deposition["sampleId"]:
+            main_sample = Sample().load(main_deposition["sampleId"], force=True)
+            samples = [
+                {
+                    "access": main_sample["access"],
+                    "created": main_sample["created"],
+                    "creator": main_sample["creator"],
+                    "description": main_sample["description"],
+                    "eventTypes": main_sample["eventTypes"],
+                    "events": [],
+                    "name": f"{main_deposition['igsn']}/{index}",
+                    "updated": main_sample["updated"],
+                }
+                for index in indices
+            ]
+            sample_result = Sample().collection.insert_many(samples)
+            for deposition, sample_id in zip(depositions, sample_result.inserted_ids):
+                deposition["sampleId"] = sample_id
+
+        self.collection.insert_many(depositions)
 
     def update_deposition(self, deposition, metadata):
         deposition["metadata"] = metadata

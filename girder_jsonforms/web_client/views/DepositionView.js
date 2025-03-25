@@ -3,11 +3,19 @@ import DepositionTemplate from '../templates/depositionView.pug';
 
 import '../stylesheets/depositionView.styl';
 
+import QRCode from 'qrcode';
+
 const { AccessType } = girder.constants;
 const { renderMarkdown } = girder.misc;
 const { getApiRoot } = girder.rest;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const View = girder.views.View;
+
+const QRparams = {
+  'errorCorrectionLevel': 'H',
+  'version': 6,
+  'mode': 'alphanumeric'
+};
 
 var DepositionView = View.extend({
     events: {
@@ -42,6 +50,12 @@ var DepositionView = View.extend({
             relatedIdentifiers: relatedIdentifiers,
             level: this.model.getAccessLevel()
         }));
+        console.log(this.model.get("sampleId"));
+        if (this.model.get("sampleId")) {
+            console.log("HERE");
+            const addEventUrl = `${window.location.origin}/#sample/${this.model.get('sampleId')}/add`;
+            QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl.toUpperCase(), QRparams);
+        }
         return this;
     },
 
