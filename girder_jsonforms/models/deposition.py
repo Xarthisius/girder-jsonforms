@@ -13,6 +13,7 @@ from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
 
 from ..settings import PluginSettings
+from .form import Form
 
 logger = logging.getLogger(__name__)
 
@@ -121,6 +122,9 @@ class Deposition(AccessControlledModel):
             igsn=igsn,
             track=data.get("igsn_track", False),
         )
+        # Copy access policies from the form to the master sample
+        form = Form().load(entry["formId"], force=True)
+        self.copyAccessPolicies(src=form, dest=master_sample, save=True)
         logger.info(f"Creating batch for {igsn}")
         self.create_batch(
             master_sample,
@@ -270,6 +274,9 @@ class Deposition(AccessControlledModel):
             "sampleId": None,
             "track": track,
         }
+
+        if parent["_id"]:
+            self.copyAccessPolicies(src=parent, dest=deposition, save=False)
 
         if creator is not None:
             self.setUserAccess(
