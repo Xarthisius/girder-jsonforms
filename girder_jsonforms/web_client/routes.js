@@ -11,6 +11,7 @@ import EditDepositionView from './views/EditDepositionView';
 
 const router = girder.router;
 const events = girder.events;
+const { restRequest } = girder.rest;
 
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
@@ -35,6 +36,27 @@ router.route('deposition/:id', 'deposition', function (id) {
     }).fail(() => {
         router.navigate('depositions', {trigger: true, replace: true});
     });
+});
+
+router.route('igsn/:igsn', 'igsn', function (igsn) {
+  restRequest({
+    method: 'GET',
+    url: 'deposition',
+    data: {
+      igsnPrefix: igsn,
+      limit: 1
+    }
+  }).done((resp) => {
+    console.log(resp);
+    if (resp.length > 0) {
+      router.navigate('deposition/' + resp[0]._id, {trigger: true, replace: true});
+    } else {
+      router.navigate('depositions', {trigger: true, replace: true});
+    }
+  }).fail(() => {
+    router.navigate('depositions', {trigger: true, replace: true});
+  });
+  console.log(igsn);
 });
 
 router.route('form/:id/entry', 'form', function (id, params) {

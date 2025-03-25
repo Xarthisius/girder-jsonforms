@@ -1,17 +1,28 @@
 .g-deposition-container
+  .g-deposition-actions
+    button.g-back.btn.btn-sm.btn-primary(title="Back to depositions")
+      i.icon-left
+      | Back
+    if (level >= AccessType.WRITE)
+      button.g-edit-deposition.btn.btn-sm.btn-warning(title="Edit")
+        i.icon-pencil
+        | Edit
+    if (level >= AccessType.ADMIN)
+      button.g-access-deposition.g-edit-access.btn.btn-sm.btn-warning(title="Access control")
+        i.icon-lock
+        | Access control
+      button.g-delete-deposition.btn.btn-sm.btn-danger(title="Delete")
+        i.icon-trash
+        | Delete
+
   h1.g-deposition-title
-    | Deposition
+    | IGSN
 
   .g-deposition-content
     .g-deposition-content-header
       .g-deposition-content-header-left
         h2.g-deposition-content-header-title
           = metadata.titles[0]["title"]
-      .g-deposition-content-header-right
-        .g-deposition-content-header-right-item
-          a(href="#/depositions")
-            i(class="fa-solid fa-arrow-left")
-            | Back to Depositions
 
     .g-deposition-content-body
       .g-deposition-content-body-left
@@ -42,7 +53,7 @@
                 i.icon-doc
                 span.test-muted= identifier.alternateIdentifierType + ': '
                 span.g-info-type= identifier.alternateIdentifier
-          if metadata.relatedIdentifiers.length > 0
+          if relatedIdentifiers.length > 0
             .g-deposition-info-line
               h3
                 | Related Identifiers:
@@ -51,19 +62,18 @@
                 i.icon-doc
                 span.test-muted= identifier.relationType + ': '
                 a(href=identifier.relatedIdentifier)
-                  span.g-info-type= identifier.relatedIdentifier
+                  if identifier.relatedIdentifierTitle
+                    span.g-info-type= identifier.relatedIdentifierTitle
+                  else
+                    span.g-info-type= identifier.relatedIdentifier
               if identifier.relatedMetadataScheme
                 .g-deposition-info-line
                   i.icon-doc-text
                   span.test-muted
                     | Schema: 
                   a(href=identifier.relatedMetadataScheme)
-                    span.g-info-type= identifier.relatedMetadataScheme
+                    if identifier.relatedMetadataSchemeTitle
+                      span.g-info-type= identifier.relatedMetadataSchemeTitle
+                    else
+                      span.g-info-type= identifier.relatedMetadataScheme
         .g-deposition-content-body-left-item
-
-      .g-deposition-content-body-right
-        .g-deposition-content-body-right-item(v-if="isAdmin")
-          h3.g-deposition-content-body-right-item-title
-            | Admin Actions
-          button.g-button(@click="deleteDeposition")
-            | Delete Deposition

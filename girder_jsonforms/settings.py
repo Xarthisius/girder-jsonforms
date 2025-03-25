@@ -60,17 +60,24 @@ def default_igsn_institutions():
         "JH": {
             "code": "JH",
             "name": "Johns Hopkins University",
-            "labs": ["Hopkins Extreme Materials Institute", "Some other lab"],
+            "labs": {
+                "A": "Hopkins Extreme Materials Institute",
+                "B": "Weihs Group",
+                "X": "Other"
+            },
         },
         "TM": {
             "code": "TM",
             "name": "Texas A&M University",
-            "labs": ["MESAM", "Some other lab"],
+            "labs": {
+                "A": "MESAM",
+                "X": "Other"
+            },
         },
         "SB": {
             "code": "SB",
             "name": "University of California, Santa Barbara",
-            "labs": [""],
+            "labs": {"X": "Other"},
         },
     }
 
@@ -166,12 +173,8 @@ def validate_igsn_institutions(doc):
             raise ValidationException(f"Institution {inst} must be a JSON object.")
         if "name" not in inst_data or not isinstance(inst_data["name"], str):
             raise ValidationException(f"Institution {inst} must have a name.")
-        if "labs" not in inst_data or not isinstance(inst_data["labs"], list):
+        if "labs" not in inst_data or not isinstance(inst_data["labs"], dict):
             raise ValidationException(f"Institution {inst} must have labs.")
-        if len(inst_data["labs"]) > 23:
-            raise ValidationException(
-                f"Institution {inst} has too many labs. (Max is 23)"
-            )
 
 
 @setting_utilities.validator(PluginSettings.IGSN_MATERIALS)

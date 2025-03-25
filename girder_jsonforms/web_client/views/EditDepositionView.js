@@ -75,18 +75,17 @@ const EditDepositionView = View.extend({
       }, this).render();
     },
     'change #g-deposition-governor': function (event) {
-      const selectedInstitution = $(event.currentTarget).val();
+      const selectedInstitution = event.target.value;
       this.$('#g-deposition-governorLab').empty();
       this.$('#g-deposition-governorLab').append($('<option>', {
         value: 'X',
         text: 'Select a lab (or leave blank)',
       }));
       let currentChar = 64;
-      this.igsnInstitutions[selectedInstitution].labs.forEach((lab) => {
-        currentChar += 1;
+      Object.entries(this.igsnInstitutions[selectedInstitution].labs).forEach(([labCode, labName]) => {
         this.$('#g-deposition-governorLab').append($('<option>', {
-          value: String.fromCharCode(currentChar),
-          text: lab,
+          value: labCode,
+          text: labName,
         }));
       });
     },
@@ -120,14 +119,11 @@ const EditDepositionView = View.extend({
     this.form = null;
     restRequest({
       method: 'GET',
-      url: 'system/setting',
-      data: {
-        list: JSON.stringify(['jsonforms.igsn_institutions', 'jsonforms.igsn_materials'])
-      }
+      url: 'deposition/settings'
     }).done((resp) => {
-      this.igsnInstitutions = resp['jsonforms.igsn_institutions'];
+      this.igsnInstitutions = resp['igsn_institutions'];
 
-      this.igsnMaterials = resp['jsonforms.igsn_materials'];
+      this.igsnMaterials = resp['igsn_materials'];
       this.settings = settings;
       this.creators = settings.creators || [];
       this.render();

@@ -1,8 +1,6 @@
 import datetime
 import itertools
 import logging
-import string
-import pprint
 
 from girder import events
 from girder.api.rest import getApiUrl
@@ -11,6 +9,7 @@ from girder.exceptions import ValidationException
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
 from girder.models.user import User
+from girder.utility.progress import noProgress
 
 from ..settings import PluginSettings
 
@@ -41,11 +40,7 @@ class PrefixCounter(Model):
         if inst not in institutions.keys():
             raise ValidationException(f"Invalid institution {inst}")
         subinst = prefix[2]
-        target_sub = [
-            letter
-            for letter, _ in zip(string.ascii_uppercase, institutions[inst]["labs"])
-        ]
-        if subinst not in target_sub:
+        if subinst not in institutions[inst]["labs"]:
             raise ValidationException(f"Invalid subinstitution {subinst}")
 
         materials = Setting().get(PluginSettings.IGSN_MATERIALS)
@@ -268,6 +263,11 @@ class Deposition(AccessControlledModel):
             "updated": now,
         }
 
+        if creator is not None:
+            self.setUserAccess(
+                deposition, user=creator, level=AccessType.ADMIN, save=False
+            )
+
         return self.save(deposition)
 
     def create_batch(self, master_sample, igsn_metadata):
@@ -276,7 +276,6 @@ class Deposition(AccessControlledModel):
             or not igsn_metadata.get("subRows")
             or not igsn_metadata.get("subCols")
         ):
-            pprint.pprint(igsn_metadata)
             logger.error("Missing required fields for batch creation")
             return
 
@@ -301,6 +300,7 @@ class Deposition(AccessControlledModel):
 
         samples = [
             {
+                "access": master_sample["access"],
                 "created": master_sample["created"],
                 "creatorId": master_sample["creatorId"],
                 "igsn": f"{master_sample['igsn']}/{index}",
@@ -309,13 +309,14 @@ class Deposition(AccessControlledModel):
                     **metadata,
                 },
                 "parentId": master_sample["_id"],
+                "public": master_sample.get("public"),
+                "publicFlags": master_sample.get("publicFlags", []),
                 "state": "draft",
                 "submitted": False,
                 "updated": master_sample["updated"],
             }
             for index in indices
         ]
-        pprint.pprint(samples[0])
         self.collection.insert_many(samples)
 
     def update_deposition(self, deposition, metadata):
@@ -323,3 +324,50 @@ class Deposition(AccessControlledModel):
         deposition["updated"] = datetime.datetime.utcnow()
 
         return self.save(deposition)
+
+    def setAccessList(
+        self,
+        doc,
+        access,
+        save=True,
+        recurse=False,
+        user=None,
+        progress=noProgress,
+        setPublic=None,
+        publicFlags=None,
+        force=False,
+    ):
+        progress.update(increment=1, message=f"Updating deposition {doc['igsn']}")
+        if setPublic is not None:
+            self.setPublic(doc, setPublic, save=False)
+
+        if publicFlags is not None:
+            doc = self.setPublicFlags(
+                doc, publicFlags, user=user, save=False, force=force
+            )
+
+        doc = super().setAccessList(doc, access, user=user, save=save, force=force)
+
+        if recurse:
+            children = self.findWithPermissions(
+                {
+                    "parentId": doc["_id"],
+                },
+                user=user,
+                level=AccessType.ADMIN,
+                limit=0,
+            )
+            for child in children:
+                self.setAccessList(
+                    child,
+                    access,
+                    save=True,
+                    recurse=True,
+                    user=user,
+                    progress=progress,
+                    setPublic=setPublic,
+                    publicFlags=publicFlags,
+                    force=force,
+                )
+
+        return doc

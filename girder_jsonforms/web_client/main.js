@@ -4,6 +4,13 @@ import './routes';
 const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;
 const { getCurrentUser } = girder.auth;
+const eventStream = girder.utilities.eventStream;
+
+
+window.onbeforeunload = function () {
+  eventStream.close();
+  console.log('Event stream closed');
+};
 
 
 function createNavItem(navItem) {
@@ -46,7 +53,7 @@ wrap(GlobalNavView, 'render', function (render) {
             target: 'forms'
         });
         const depositionsNav = createNavItem({
-            name: 'Depositions',
+            name: 'IGSN',
             icon: 'icon-barcode',
             target: 'depositions'
         });

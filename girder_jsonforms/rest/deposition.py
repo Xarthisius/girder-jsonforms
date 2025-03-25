@@ -8,9 +8,11 @@ from girder.api.rest import (
     Resource,
     filtermodel,
 )
-from girder.constants import AccessType, SortDir
+from girder.constants import AccessType, SortDir, TokenScope
 from girder.models.setting import Setting
+from girder.utility.progress import noProgress
 from ..models.deposition import Deposition as DepositionModel
+from ..settings import PluginSettings
 
 
 orcid_headers = None
@@ -48,13 +50,14 @@ class Deposition(Resource):
         super(Deposition, self).__init__()
         self.resourceName = "deposition"
         self.route("GET", (), self.list_deposition)
-        self.route("GET", (":id",), self.get_deposition)
-        self.route("DELETE", (":id",), self.delete_deposition)
         self.route("POST", (), self.create_deposition)
-        self.route("PUT", (":id",), self.update_deposition)
-        self.route("GET", (":id", "access"), self.get_access)
-        self.route("PUT", (":id", "access"), self.update_access)
         self.route("GET", ("autocomplete",), self.autocomplete)
+        self.route("GET", ("settings",), self.get_settings)
+        self.route("DELETE", (":id",), self.delete_deposition)
+        self.route("GET", (":id",), self.get_deposition)
+        self.route("PUT", (":id",), self.update_deposition)
+        self.route("GET", (":id", "access"), self.get_deposition_access)
+        self.route("PUT", (":id", "access"), self.update_deposition_access)
 
     @access.public
     @autoDescribeRoute(
@@ -108,6 +111,14 @@ class Deposition(Resource):
         )
 
     @access.public
+    @autoDescribeRoute(Description("Get the settings for the depositions"))
+    def get_settings(self):
+        return {
+            "igsn_institutions": Setting().get(PluginSettings.IGSN_INSTITUTIONS),
+            "igsn_materials": Setting().get(PluginSettings.IGSN_MATERIALS),
+        }
+
+    @access.public
     @autoDescribeRoute(
         Description("Get a single deposition").modelParam(
             "id",
@@ -150,19 +161,75 @@ class Deposition(Resource):
         )
 
     @access.public
-    def update_deposition(self, id, params):
+    @autoDescribeRoute(
+        Description("Update an existing deposition")
+        .modelParam(
+            "id",
+            model=DepositionModel,
+            plugin="jsonforms",
+            paramType="path",
+            required=True,
+            level=AccessType.WRITE,
+        )
+        .jsonParam(
+            "metadata",
+            "JSON object with Datacite fields",
+            requireObject=True,
+            required=True,
+        )
+    )
+    def update_deposition(self, deposition, metadata):
         # Logic to update an existing deposition
-        pass
+        return DepositionModel().update_deposition(deposition, metadata)
 
-    @access.public
-    def get_access(self, id):
-        # Logic to get access information for a deposition
-        pass
+    @access.user(scope=TokenScope.DATA_OWN)
+    @autoDescribeRoute(
+        Description("Get the access control list for a deposition").modelParam(
+            "id",
+            "The ID of the deposition",
+            model=DepositionModel,
+            level=AccessType.ADMIN,
+        )
+    )
+    def get_deposition_access(self, deposition):
+        return DepositionModel().getFullAccessList(deposition)
 
-    @access.public
-    def update_access(self, id, params):
-        # Logic to update access information for a deposition
-        pass
+    @access.user(scope=TokenScope.DATA_OWN)
+    @autoDescribeRoute(
+        Description("Update the access control list for a deposition")
+        .modelParam(
+            "id", "The ID of the form", model=DepositionModel, level=AccessType.ADMIN
+        )
+        .jsonParam(
+            "access", "The JSON-encoded access control list.", requireObject=True
+        )
+        .jsonParam(
+            "publicFlags",
+            "JSON list of public access flags.",
+            requireArray=True,
+            required=False,
+        )
+        .param(
+            "public",
+            "Whether the form should be publicly visible.",
+            dataType="boolean",
+            required=False,
+        )
+        .errorResponse("ID was invalid.")
+        .errorResponse("Admin access was denied for the form.", 403)
+    )
+    def update_deposition_access(self, deposition, access, publicFlags, public):
+        user = self.getCurrentUser()
+        DepositionModel().setAccessList(
+            deposition,
+            access,
+            save=True,
+            recurse=True,
+            user=user,
+            progress=noProgress,
+            setPublic=public,
+            publicFlags=publicFlags,
+        )
 
     @access.public
     @autoDescribeRoute(
@@ -212,8 +279,7 @@ class Deposition(Resource):
 
     @access.admin
     @autoDescribeRoute(
-        Description("Delete a deposition")
-        .modelParam(
+        Description("Delete a deposition").modelParam(
             "id",
             model=DepositionModel,
             plugin="jsonforms",
