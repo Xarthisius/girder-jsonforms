@@ -24,7 +24,7 @@ const CreatorsWidget = View.extend({
 
   initialize: function (settings) {
     this.settings = settings;
-    this.creators = [];
+    this.creators = settings.creators || [];  // Expecting an array of creator objects
   },
 
   render: function () {

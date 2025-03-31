@@ -1,36 +1,41 @@
-.g-body-title Submit new sample
+.g-body-title
+  if igsn
+    Sample Information for IGSN #{igsn}
+  else
+    New Sample Submission
 form#g-deposition-form(role="form")
   .g-deposition-form-container
     h4 Basic Information
-    .row
-      .col-xs-12.col-md-6.col-lg-3
-        label(for="g-deposition-governor") Originating Institution
-        select.form-control(id="g-deposition-governor" name="governor" required)
-          option(value="") Select an institution
-          each institution in institutions
-            option(value=institution.code)= institution.name
-        small.form-text.text-muted
-          | The institution where the sample was manufactured or procured.
-      .col-xs-12.col-md-6.col-lg-3
-        label(for="g-deposition-governorLab") Originating Group
-        select.form-control(id="g-deposition-governorLab" name="governorLab")
-          option(value="") Select a group
-        small.form-text.text-muted
-          | The group within the institution. If not applicable, leave blank.
-      .col-xs-12.col-md-6.col-lg-3
-        label(for="g-deposition-material") Material Type
-        select.form-control(id="g-deposition-material" name="material" required)
-          option(value="") Select a material type
-          each material in materials
-            option(value=material[0])= material[1].name
-        small.form-text.text-muted
-          | The basic type of material following NIST guidelines.
-      .col-xs-12.col-md-6.col-lg-3
-        label(for="g-deposition-materialType") Material Subtype
-        select.form-control(id="g-deposition-materialType" name="materialSubtype" disabled)
-          option(value="") Select a material subtype
-        small.form-text.text-muted
-          | If subtypes are available, select one. Otherwise, leave blank.
+      if !igsn
+        .row
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-governor") Originating Institution
+            select.form-control(id="g-deposition-governor" name="governor" required)
+              option(value="") Select an institution
+              each institution in institutions
+                option(value=institution.code)= institution.name
+            small.form-text.text-muted
+              | The institution where the sample was manufactured or procured.
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-governorLab") Originating Group
+            select.form-control(id="g-deposition-governorLab" name="governorLab")
+              option(value="") Select a group
+            small.form-text.text-muted
+              | The group within the institution. If not applicable, leave blank.
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-material") Material Type
+            select.form-control(id="g-deposition-material" name="material" required)
+              option(value="") Select a material type
+              each material in materials
+                option(value=material[0])= material[1].name
+            small.form-text.text-muted
+              | The basic type of material following NIST guidelines.
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-materialType") Material Subtype
+            select.form-control(id="g-deposition-materialType" name="materialSubtype" disabled)
+              option(value="") Select a material subtype
+            small.form-text.text-muted
+              | If subtypes are available, select one. Otherwise, leave blank.
     .form-group
       .g-creators-container
     .form-group

@@ -7,12 +7,6 @@ const { getCurrentUser } = girder.auth;
 const eventStream = girder.utilities.eventStream;
 
 
-window.onbeforeunload = function () {
-  eventStream.close();
-  console.log('Event stream closed');
-};
-
-
 function createNavItem(navItem) {
     // Create the <li> element
     const li = document.createElement('li');

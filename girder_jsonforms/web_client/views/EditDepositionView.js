@@ -39,7 +39,6 @@ const EditDepositionView = View.extend({
         return { alternateIdentifier: item.value, alternateIdentifierType: item.type };
       });
       const data = {
-        prefix: `${metadata.governor}${metadata.governorLab}${metadata.material}${metadata.materialSubtype}`,
         metadata: JSON.stringify({
           creators: this.creators,
           titles: [{title: metadata.title}],
@@ -47,22 +46,27 @@ const EditDepositionView = View.extend({
           attributes: {alternateIdentifiers: alternateIdentifiers},
         }),
       };
-      restRequest({
-        method: 'POST',
-        url: 'deposition',
-        data: data,
-      }).done((resp) => {
-        this.trigger('g:alert', {
-          text: 'Deposition updated successfully',
-          type: 'success',
+      if (this.model) {
+        this.updateDeposition(data);
+      } else {
+        data.prefix = `${metadata.governor}${metadata.governorLab}${metadata.material}${metadata.materialSubtype}`;
+        restRequest({
+          method: 'POST',
+          url: 'deposition',
+          data: data,
+        }).done((resp) => {
+          this.trigger('g:alert', {
+            text: 'Deposition updated successfully',
+            type: 'success',
+          });
+          girder.router.navigate('depositions', { trigger: true });
+        }).fail((resp) => {
+          this.trigger('g:alert', {
+            text: resp.responseJSON.message,
+            type: 'danger',
+          });
         });
-        girder.router.navigate('depositions', { trigger: true });
-      }).fail((resp) => {
-        this.trigger('g:alert', {
-          text: resp.responseJSON.message,
-          type: 'danger',
-        });
-      });
+      }
     },
     'click #g-deposition-addCreator': function () {
       new AddCreatorDialog({
@@ -70,7 +74,7 @@ const EditDepositionView = View.extend({
         parentView: this,
         creators: this.creators,
       }).on('g:creatorAdded', function (params) {
-        this.creatorsWidget.creators.push(params.creator);
+        //this.creatorsWidget.creators.push(params.creator);
         this.creatorsWidget.render();
       }, this).render();
     },
@@ -117,28 +121,53 @@ const EditDepositionView = View.extend({
   initialize: function (settings) {
     this.draggedItem = null;
     this.form = null;
+    this.model = settings && settings.model ? settings.model : null;
+    this.creators = settings && settings.model ? settings.model.getFormCreators() : [];
+    this.identifiers = settings && settings.model ? settings.model.getFormIdentifiers() : [];
+    this.creatorsWidget = new CreatorsWidget({creators: this.creators, parentView: this})
+    this.identifiersWidget = new IdentifiersWidget({parentView: this, identifiers: this.identifiers});
     restRequest({
       method: 'GET',
       url: 'deposition/settings'
     }).done((resp) => {
       this.igsnInstitutions = resp['igsn_institutions'];
-
       this.igsnMaterials = resp['igsn_materials'];
-      this.settings = settings;
-      this.creators = settings.creators || [];
       this.render();
     });
-    this.creatorsWidget = new CreatorsWidget({creators: this.creators, parentView: this})
-    this.identifiersWidget = new IdentifiersWidget({parentView: this})
   },
   render: function () {
-    this.form = this.$el.html(template({
-      institutions: this.igsnInstitutions,
-      materials: Object.entries(this.igsnMaterials),
-    }));
+    if (this.model) {
+      this.form = this.$el.html(template({
+        igsn: this.model.get('igsn'),
+        institutions: [],
+        materials: [],
+      }));
+      this.$('#g-deposition-title').val(this.model.get('metadata').titles[0].title);
+      this.$('#g-deposition-description').val(this.model.get('metadata').description);
+    } else {
+      this.form = this.$el.html(template({
+        igsn: null,
+        institutions: this.igsnInstitutions,
+        materials: Object.entries(this.igsnMaterials),
+      }));
+    }
     this.creatorsWidget.setElement(this.$('.g-creators-container')).render();
     this.identifiersWidget.setElement(this.$('.g-identifiers-container')).render();
     return this;
+  },
+  updateDeposition: function(data) {
+      this.model.set({ metadata: data.metadata }).save().done(() => {
+          this.trigger('g:alert', {
+              text: 'Deposition updated successfully',
+              type: 'success',
+          });
+          girder.router.navigate('depositions', { trigger: true });
+      }).fail((resp) => {
+          this.trigger('g:alert', {
+              text: resp.responseJSON.message,
+              type: 'danger',
+          });
+      });
   },
   _updateCreators: function () {
       let items = this.$('.g-creators-list li').toArray();

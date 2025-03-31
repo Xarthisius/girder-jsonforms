@@ -360,7 +360,7 @@ class Deposition(AccessControlledModel):
         self.collection.insert_many(depositions)
 
     def update_deposition(self, deposition, metadata):
-        deposition["metadata"] = metadata
+        deposition["metadata"].update(metadata)
         deposition["updated"] = datetime.datetime.utcnow()
 
         return self.save(deposition)

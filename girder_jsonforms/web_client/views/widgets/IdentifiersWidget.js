@@ -30,7 +30,7 @@ const IdentifiersWidget = View.extend({
 
   initialize: function (settings) {
     this.settings = settings;
-    this.identifiers = [];
+    this.identifiers = settings.identifiers || [];  // Default to empty array if not provided
   },
 
   render: function () {

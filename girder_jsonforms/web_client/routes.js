@@ -25,6 +25,19 @@ router.route('newdeposition', 'deposition', function () {
     events.trigger('g:navigateTo', EditDepositionView);
 });
 
+router.route('deposition/:id/edit', 'editDeposition', function (id) {
+    const deposition = new DepositionModel({_id: id});
+    deposition.fetch().done(() => {
+        events.trigger('g:navigateTo', EditDepositionView, {
+            model: deposition,
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('depositions', {trigger: true, replace: true});
+    });
+});
+
 router.route('deposition/:id', 'deposition', function (id) {
     const deposition = new DepositionModel({_id: id});
     deposition.fetch().done(() => {
@@ -47,7 +60,6 @@ router.route('igsn/:igsn', 'igsn', function (igsn) {
       limit: 1
     }
   }).done((resp) => {
-    console.log(resp);
     if (resp.length > 0) {
       router.navigate('deposition/' + resp[0]._id, {trigger: true, replace: true});
     } else {
@@ -56,7 +68,6 @@ router.route('igsn/:igsn', 'igsn', function (igsn) {
   }).fail(() => {
     router.navigate('depositions', {trigger: true, replace: true});
   });
-  console.log(igsn);
 });
 
 router.route('form/:id/entry', 'form', function (id, params) {

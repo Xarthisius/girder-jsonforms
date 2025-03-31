@@ -20,6 +20,9 @@ const QRparams = {
 var DepositionView = View.extend({
     events: {
         'click .g-edit-access': 'editAccess',
+        'click .g-edit-deposition': function () {
+            girder.router.navigate(`deposition/${this.model.get('_id')}/edit`, {trigger: true});
+        },
         'click .g-back': function () {
             girder.router.navigate('depositions', {trigger: true});
         }
@@ -50,9 +53,7 @@ var DepositionView = View.extend({
             relatedIdentifiers: relatedIdentifiers,
             level: this.model.getAccessLevel()
         }));
-        console.log(this.model.get("sampleId"));
         if (this.model.get("sampleId")) {
-            console.log("HERE");
             const addEventUrl = `${window.location.origin}/#sample/${this.model.get('sampleId')}/add`;
             QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl.toUpperCase(), QRparams);
         }
@@ -60,15 +61,16 @@ var DepositionView = View.extend({
     },
 
     transformRelatedIdentifiers: function (relatedIdentifiers) {
+        if (!relatedIdentifiers || !Array.isArray(relatedIdentifiers)) {
+           return; // nothing to transform
+        }
         const apiRoot = getApiRoot();
         const origin = window.location.origin;
-        console.log("!!!!!!!");
         const entryRegex = new RegExp(`${origin}${apiRoot}/entry/(\\w+)`);
         const formRegex = new RegExp(`${origin}${apiRoot}/form/(\\w+)/schema`);
 
         for (let i = 0; i < relatedIdentifiers.length; i++) {
             const identifier = relatedIdentifiers[i];
-            console.log(identifier);
             if (identifier.relationType === "HasMetadata") {
                 const entryMatch = identifier.relatedIdentifier.match(entryRegex);
                 const formMatch = identifier.relatedMetadataScheme.match(formRegex);
