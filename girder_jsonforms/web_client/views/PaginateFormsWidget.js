@@ -1,8 +1,8 @@
-import $ from 'jquery';
 import FormCollection from '../collections/FormCollection';
 import template from '../templates/paginateFormsWidget.pug';
 import '../stylesheets/paginateFormsWidget.styl';
 
+const $ = girder.$;
 const View = girder.views.View;
 const PaginateWidget = girder.views.widgets.PaginateWidget;
 const router = girder.router;

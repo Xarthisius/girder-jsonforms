@@ -1,6 +1,5 @@
-import $ from 'jquery';
-import _ from 'underscore';
-
+const $ = girder.$;
+const _ = girder._;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const FolderModel = girder.models.FolderModel;
 const BrowserWidget = girder.views.widgets.BrowserWidget;

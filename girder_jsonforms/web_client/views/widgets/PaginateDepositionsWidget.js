@@ -1,8 +1,8 @@
-import $ from 'jquery';
 import DepositionCollection from '../../collections/DepositionCollection';
 import template from '../../templates/widgets/paginateDepositionsWidget.pug';
 import '../../stylesheets/paginateDepositionsWidget.styl';
 
+const $ = girder.$;
 const View = girder.views.View;
 const PaginateWidget = girder.views.widgets.PaginateWidget;
 const router = girder.router;

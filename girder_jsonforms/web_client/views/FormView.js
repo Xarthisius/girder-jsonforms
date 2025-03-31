@@ -1,11 +1,10 @@
-import $ from 'jquery';
-
 import EntriesWidget from './widgets/EntriesWidget';
 import FormModel from '../models/FormModel';
 import FormTemplate from '../templates/formTemplate.pug';
 
 import '../stylesheets/formView.styl';
 
+const $ = girder.$;
 const View = girder.views.View;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const router = girder.router;

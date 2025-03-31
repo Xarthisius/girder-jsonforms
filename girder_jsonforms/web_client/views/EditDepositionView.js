@@ -1,7 +1,6 @@
-import $ from 'jquery';
-
 const { restRequest } = girder.rest;
 const View = girder.views.View;
+const $ = girder.$;
 
 import AddCreatorDialog from './widgets/AddCreatorDialog';
 import CreatorsWidget from './widgets/CreatorsWidget';

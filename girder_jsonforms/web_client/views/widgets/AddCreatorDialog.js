@@ -1,5 +1,3 @@
-import $ from 'jquery';
-
 import '@girder/core/utilities/jquery/girderModal';
 import AddCreatorDialogTemplate from '../../templates/widgets/addCreatorDialog.pug';
 
@@ -8,6 +6,7 @@ import '../../stylesheets/addCreatorDialog.styl';
 import 'bootstrap-autocomplete';
 
 const View = girder.views.View;
+const $ = girder.$;
 
 var AddCreatorDialog = View.extend({
   events: {

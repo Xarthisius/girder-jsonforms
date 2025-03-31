@@ -1,4 +1,3 @@
-import $ from 'jquery';
 import DepositionModel from './models/DepositionModel';
 import DepositionView from './views/DepositionView';
 import DepositionListView from './views/DepositionListView';
@@ -12,6 +11,7 @@ import EditDepositionView from './views/EditDepositionView';
 const router = girder.router;
 const events = girder.events;
 const { restRequest } = girder.rest;
+const $ = girder.$;
 
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);

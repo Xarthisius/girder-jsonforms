@@ -1,8 +1,7 @@
-import $ from 'jquery';
-
 import CreatorsWidgetTemplate from '../../templates/widgets/creatorsWidget.pug';
 import AddCreatorDialog from './AddCreatorDialog';
 
+const $ = girder.$;  // Import jQuery from Girder
 const View = girder.views.View;
 
 const CreatorsWidget = View.extend({
