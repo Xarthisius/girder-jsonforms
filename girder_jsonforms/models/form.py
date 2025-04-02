@@ -75,6 +75,11 @@ class Form(AccessControlledModel):
         if folder:
             form["folderId"] = folder["_id"]
 
+        if creator is not None:
+            self.setUserAccess(
+                form, user=creator, level=AccessType.ADMIN, save=False
+            )
+
         return self.save(form)
 
     def update_form(
