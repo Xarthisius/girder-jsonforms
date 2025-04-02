@@ -11,7 +11,12 @@ from girder.models.setting import Setting
 from girder.models.user import User
 from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
+from pymongo import ReturnDocument
 
+from ..lib.project_helpers import (
+    batch_indices_imqcam,
+    batch_indices_weihs,
+)
 from ..settings import PluginSettings
 from .form import Form
 
@@ -61,7 +66,9 @@ class PrefixCounter(Model):
         return self.save({"prefix": prefix, "seq": 0})
 
     def increment(self, counter):
-        return self.collection.find_one_and_update(counter, {"$inc": {"seq": 1}})
+        return self.collection.find_one_and_update(
+            counter, {"$inc": {"seq": 1}}, return_document=ReturnDocument.AFTER
+        )
 
     def get_next(self, prefix):
         counter = self.get_counter(prefix)
@@ -290,22 +297,12 @@ class Deposition(AccessControlledModel):
         return self.save(deposition)
 
     def create_batch(self, main_deposition, igsn_metadata):
-        if (
-            not igsn_metadata.get("substrates")
-            or not igsn_metadata.get("subRows")
-            or not igsn_metadata.get("subCols")
-        ):
+        indices = batch_indices_weihs(main_deposition, igsn_metadata)
+        if not indices:
+            indices = batch_indices_imqcam(main_deposition, igsn_metadata)
+        if not indices:
             logger.error("Missing required fields for batch creation")
             return
-
-        indices = [
-            "S{}R{}C{}".format(*row)
-            for row in itertools.product(
-                igsn_metadata["substrates"],
-                range(1, igsn_metadata["subRows"] + 1),
-                range(1, igsn_metadata["subCols"] + 1),
-            )
-        ]
 
         relatedIdentifier = {
             "relationType": "IsPartOf",
@@ -317,14 +314,16 @@ class Deposition(AccessControlledModel):
         metadata["relatedIdentifiers"].append(relatedIdentifier)
         titles = metadata.pop("titles")
 
-        depositions = [
-            {
+        depositions = []
+        for index in indices:
+            igsn_index, local_index = index
+            deposition = {
                 "access": main_deposition["access"],
                 "created": main_deposition["created"],
                 "creatorId": main_deposition["creatorId"],
-                "igsn": f"{main_deposition['igsn']}/{index}",
+                "igsn": f"{main_deposition['igsn']}/{igsn_index}",
                 "metadata": {
-                    "titles": [{"title": f"{titles[0]['title']} - {index}"}],
+                    "titles": [{"title": f"{titles[0]['title']} - {igsn_index}"}],
                     **metadata,
                 },
                 "parentId": main_deposition["_id"],
@@ -336,8 +335,15 @@ class Deposition(AccessControlledModel):
                 "updated": main_deposition["updated"],
                 "track": main_deposition["track"],
             }
-            for index in indices
-        ]
+            if local_index:
+                deposition["alternateIdentifiers"] = [
+                    {
+                        "alternateIdentifier": local_index,
+                        "alternateIdentifierType": "Local",
+                    }
+                ]
+            depositions.append(deposition)
+
         if main_deposition["track"] and main_deposition["sampleId"]:
             main_sample = Sample().load(main_deposition["sampleId"], force=True)
             samples = [

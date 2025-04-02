@@ -26,6 +26,7 @@ setup(
     setup_requires=["setuptools-git"],
     install_requires=[
         "girder>=5.0.0a5.dev0",
+        "girder-sample-tracker>=2.0.0",  # Required for the sample tracker to test JSONForms
         "google-api-python-client",
         "google-auth-oauthlib",
         "pandas",
