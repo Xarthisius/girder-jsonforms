@@ -1,12 +1,13 @@
+import $ from 'jquery';
+import 'bootstrap-autocomplete';
+
 import '@girder/core/utilities/jquery/girderModal';
 import AddCreatorDialogTemplate from '../../templates/widgets/addCreatorDialog.pug';
 
 import '../../stylesheets/addCreatorDialog.styl';
 
-import 'bootstrap-autocomplete';
 
 const View = girder.views.View;
-const $ = girder.$;
 
 var AddCreatorDialog = View.extend({
   events: {
@@ -72,7 +73,14 @@ var AddCreatorDialog = View.extend({
   },
 
   _parseAutocomplete: function (item) {
+    if (!item) {
+      return {firstName: '', lastName: '', orcid: '', institution: ''}
+    }
+
     let text = item.text;
+    if (!text) {
+      return {firstName: '', lastName: '', orcid: '', institution: ''}
+    }
     let parts = text.split(' - ');
     let institution = parts[1];
     let namesId = parts[0].split(' (');
