@@ -7,6 +7,6 @@ global-prune *.yaml
 global-exclude *.yaml
 prune scripts
 exclude scripts
-exclude codecov.yml MANIFEST.in requirements-dev.txt tox.ini
-prune codecov.yml MANIFEST.in requirements-dev.txt tox.ini
+exclude codecov.yml MANIFEST.in requirements-dev.txt tox.ini .coveragerc
+prune codecov.yml MANIFEST.in requirements-dev.txt tox.ini .coveragerc
 include README.md
