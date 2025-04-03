@@ -99,7 +99,7 @@ const EditFormView = View.extend({
                 params.destinationId = this.destFolder.id;
             }
             new FormEntryModel(params).save().done(() => {
-                router.navigate('forms', {trigger: true});
+                router.navigate(`form/${params.formId}`, {trigger: true});
             });
             /* if (this.initialValues) {
                 this.initialValues.set('data', this.form.getValue());
@@ -186,6 +186,10 @@ const EditFormView = View.extend({
             return numStr.padStart(width, "0");
         });
         Handlebars.registerHelper('joinarray', function (a, sep, prefix=false) {
+            if (!a || !Array.isArray(a) || a.length === 0) {
+                // Handle empty or undefined array
+                return '';
+            }
             const result = a.join(sep);
             if (result !== '' && prefix) {
                 return `${sep}${result}`;
