@@ -79,6 +79,11 @@ def default_igsn_institutions():
             "name": "University of California, Santa Barbara",
             "labs": {"X": "Other"},
         },
+        "CM": {
+            "code": "CM",
+            "name": "Carnegie Mellon University",
+            "labs": {"X": "Other"},
+        }
     }
 
 

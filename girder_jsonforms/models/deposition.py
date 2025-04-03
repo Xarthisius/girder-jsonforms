@@ -98,6 +98,7 @@ class Deposition(AccessControlledModel):
         events.bind("model.entry.save.created", "jsonforms", self.updateRelations)
 
     def register_deposition(self, event: events.Event) -> None:
+        logger.info("Registering deposition from entry save event")
         entry = event.info
 
         data = entry.get("data")
@@ -132,10 +133,7 @@ class Deposition(AccessControlledModel):
         form = Form().load(entry["formId"], force=True)
         self.copyAccessPolicies(src=form, dest=master_sample, save=True)
         logger.info(f"Creating batch for {igsn}")
-        self.create_batch(
-            master_sample,
-            igsn_metadata,
-        )
+        self.create_batch(master_sample, data)
 
         data["igsn_suffix"] = suffix
         data[data["igsn_field"]] = f"{prefix}{suffix}"
@@ -295,10 +293,10 @@ class Deposition(AccessControlledModel):
 
         return self.save(deposition)
 
-    def create_batch(self, main_deposition, igsn_metadata):
-        indices = batch_indices_weihs(main_deposition, igsn_metadata)
+    def create_batch(self, main_deposition, form_data):
+        indices = batch_indices_weihs(main_deposition, form_data)
         if not indices:
-            indices = batch_indices_imqcam(main_deposition, igsn_metadata)
+            indices = batch_indices_imqcam(main_deposition, form_data)
         if not indices:
             logger.error("Missing required fields for batch creation")
             return
@@ -316,6 +314,10 @@ class Deposition(AccessControlledModel):
         depositions = []
         for index in indices:
             igsn_index, local_index = index
+            logger.info(
+                f"Creating deposition for {main_deposition['igsn']} with index {igsn_index} "
+                f"and local index {local_index}"
+            )
             deposition = {
                 "access": main_deposition["access"],
                 "created": main_deposition["created"],
@@ -335,7 +337,8 @@ class Deposition(AccessControlledModel):
                 "track": main_deposition["track"],
             }
             if local_index:
-                deposition["alternateIdentifiers"] = [
+                deposition["metadata"].setdefault("attributes", {})
+                deposition["metadata"]["attributes"]["alternateIdentifiers"] = [
                     {
                         "alternateIdentifier": local_index,
                         "alternateIdentifierType": "Local",
