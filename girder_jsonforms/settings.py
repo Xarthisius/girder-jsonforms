@@ -102,7 +102,7 @@ def default_igsn_materials():
             "name": "metals and alloys",
             "subcategories": {
                 "A": "Al-containing",
-                "B": "commercially puremetals",
+                "B": "commercially pure metals",
                 "C": "Cu-containing",
                 "D": "Fe-containing",
                 "E": "intermetallics",
