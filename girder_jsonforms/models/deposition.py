@@ -207,13 +207,13 @@ class Deposition(AccessControlledModel):
         if "dates" not in metadata:
             metadata["dates"] = [
                 {
-                    "date": datetime.datetime.utcnow().isoformat(),
+                    "date": datetime.datetime.now(datetime.UTC).isoformat(),
                     "dateType": "Submitted",
                 }
             ]
 
         if "publicationYear" not in metadata:
-            metadata["publicationYear"] = datetime.datetime.utcnow().year
+            metadata["publicationYear"] = datetime.datetime.now(datetime.UTC).year
 
         for key in (
             "creators",
@@ -258,7 +258,7 @@ class Deposition(AccessControlledModel):
         if not parent:
             parent = {"_id": None}
 
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         metadata = metadata or {}
         self.fill_metadata(metadata)
 
@@ -369,7 +369,7 @@ class Deposition(AccessControlledModel):
 
     def update_deposition(self, deposition, metadata):
         deposition["metadata"].update(metadata)
-        deposition["updated"] = datetime.datetime.utcnow()
+        deposition["updated"] = datetime.datetime.now(datetime.UTC)
 
         return self.save(deposition)
 

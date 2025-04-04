@@ -94,7 +94,9 @@ class Form(Resource):
             raise RestException("File is empty")
         file_obj = RequestBodyStream(cherrypy.request.body)
         file_type = "csv" if content_type == "application/csv" else "xlsx"
-        return FormModel().import_entries(form, file_obj, file_type, dry_run=dryRun)
+        return FormModel().import_entries(
+            form, file_obj, file_type, self.getCurrentUser(), dry_run=dryRun
+        )
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(

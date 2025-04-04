@@ -53,7 +53,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             return None
 
     def create_entry(self, form, data, source, destination, creator):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         unique_field = form.get("uniqueField")
         if destination is None:
             destination_id = None

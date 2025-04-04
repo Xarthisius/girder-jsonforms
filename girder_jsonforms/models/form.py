@@ -57,7 +57,7 @@ class Form(AccessControlledModel):
         serialize=False,
         uniqueField=None,
     ):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         form = {
             "name": name,
@@ -76,9 +76,7 @@ class Form(AccessControlledModel):
             form["folderId"] = folder["_id"]
 
         if creator is not None:
-            self.setUserAccess(
-                form, user=creator, level=AccessType.ADMIN, save=False
-            )
+            self.setUserAccess(form, user=creator, level=AccessType.ADMIN, save=False)
 
         return self.save(form)
 
@@ -95,7 +93,7 @@ class Form(AccessControlledModel):
         serialize=None,
         uniqueField=None,
     ):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         form["name"] = name
         form["description"] = description
@@ -125,10 +123,11 @@ class Form(AccessControlledModel):
     def materialize(self, form, user):
         from .entry import FormEntry
 
-        if form["schema"].startswith("http"):
-            form["schema"] = self._loadRemoteSchema(form["schema"])
-        else:
-            form["schema"] = json.loads(form["schema"])
+        if isinstance(form["schema"], str):
+            if form["schema"].startswith("http"):
+                form["schema"] = self._loadRemoteSchema(form["schema"])
+            else:
+                form["schema"] = json.loads(form["schema"])
 
         for keyPath in find_key_paths(form["schema"], "enumSource"):
             value = get_value(form["schema"], keyPath)
@@ -152,6 +151,7 @@ class Form(AccessControlledModel):
                     "title": "{{item.title}}",
                     "value": "{{item.value}}",
                 }
+
                 for entry in (
                     FormEntry()
                     .find(
@@ -202,7 +202,7 @@ class Form(AccessControlledModel):
         return ref_value
 
     def get_data_types(self, form):
-        schema = json.loads(form["schema"])
+        schema = form["schema"]  # Has to materialized
         types = self.infer_column_types(
             schema, definitions=schema.get("definitions", {})
         )
@@ -260,10 +260,10 @@ class Form(AccessControlledModel):
 
         return properties
 
-    def import_entries(self, form, file_obj, file_type, dry_run=True):
+    def import_entries(self, form, file_obj, file_type, user, dry_run=True):
         from .entry import FormEntry
+        form = self.materialize(form, user)  # Ensure the schema is materialized
 
-        schema = json.loads(form["schema"])
         io_buffer = io.BytesIO(file_obj.read())
         if file_type == "csv":
             entries = pd.read_csv(
@@ -283,7 +283,7 @@ class Form(AccessControlledModel):
         for row in parsed_entries:
             entry = row["data"]
             try:
-                jsonschema.Draft7Validator(schema).validate(entry)
+                jsonschema.Draft7Validator(form["schema"]).validate(entry)
             except jsonschema.ValidationError as e:
                 print(str(e))
                 failed += 1
@@ -293,13 +293,20 @@ class Form(AccessControlledModel):
             except KeyError:
                 failed += 1
                 continue
-            if existing_entry := FormEntry().findOne(
+            if FormEntry().findOne(
                 {"formId": form["_id"], f"data.{form['uniqueField']}": unique_id}
             ):
                 updated += 1
-                print("Updating entry", existing_entry["_id"])
             else:
                 new += 1
+            if not dry_run:
+                FormEntry().create_entry(
+                    form,
+                    entry,  # The actual data to insert
+                    None,
+                    None,
+                    user,
+                )
         return json.dumps({"new": new, "updated": updated, "failed": failed})
 
     def _loadRemoteSchema(self, url):
