@@ -120,7 +120,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                     # Upload to GDrive
                     gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
                     if gdrive_folder_id:
-                        events.daemon.trigger(
+                        events.trigger(
                             "gdrive.upload",
                             {
                                 "file": file,
@@ -162,7 +162,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 # not really chunking here as JSON is small
                 upload = Upload().handleChunk(upload, RequestBodyStream(f, size))
                 if form.get("gdriveFolderId"):
-                    events.daemon.trigger(
+                    events.trigger(
                         "gdrive.upload",
                         {
                             "file": upload,
