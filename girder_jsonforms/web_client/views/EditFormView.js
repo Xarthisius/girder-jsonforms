@@ -124,128 +124,15 @@ const EditFormView = View.extend({
         window.Autocomplete = Autocomplete; // Otherwise the helper is not available in the template
         this.otherEntries = {};
         const view = this;
-        Handlebars.registerHelper('entryField', function (entryId, field) {
-            var entryPromise = null;
-            if (view.otherEntries[entryId] === undefined) {
-                new FormEntryModel({_id: entryId}).fetch().done((result) => {
-                    view.otherEntries[entryId] = result["data"];
-                });
-            } 
-            if (view.otherEntries[entryId]) {
-                return view.otherEntries[entryId][field];
-            }
-        });
-        Handlebars.registerHelper('multiply', function (a, b) { return a * b; });
-        Handlebars.registerHelper('aimd-target', function (target) {
-            if (target === undefined || target === null || target.length === 0) {
-                return '';
-            }
-            const elements = new Set();
-            for (const obj of target) {
-              if (obj.hasOwnProperty('element')) {
-                elements.add(obj.element);
-              }
-            }
-            return Array.from(elements).join('');
-        });
-        Handlebars.registerHelper('divide', function (a, b) { return a / b; });
-        Handlebars.registerHelper('add', function (a, b) {
-          if (a === undefined || a === null ) {
-            a = 0;
-          }
-          if (b === undefined || b === null ) {
-            b = 0;
-          }
-          return a + b;
-        });
-        Handlebars.registerHelper('subtract', function (a, b) { return a - b; });
-        Handlebars.registerHelper('replace', function (string, search, replacement) {
-            return (string !== undefined && string !== null) ? string.replace(search, replacement) : '';
-        });
-        Handlebars.registerHelper('replaceAll', function (string, search, replacement) {
-            return (string !== undefined && string !== null) ? string.replaceAll(search, replacement) : '';
-        });
-        Handlebars.registerHelper('substr', function (string, from, length) {
-            return (string !== undefined && string !== null) ? string.substr(from, length) : '';
-        });
-        Handlebars.registerHelper('split', function (string, separator, index) {
-            try {
-                return string.split(separator)[index].trim();
-            } catch (e) {
-                return '';
-            }
-        });
-        Handlebars.registerHelper('join', function (a, b, separator) {
-            return `${a}${separator}${b}`;
-        });
-        Handlebars.registerHelper("padNumber", function (number, width) {
-            if (number === null || number === undefined || number === '') {
-                return '';
-            }
-            let numStr = number.toString();
-            return numStr.padStart(width, "0");
-        });
-        Handlebars.registerHelper('joinarray', function (a, sep, prefix=false) {
-            if (!a || !Array.isArray(a) || a.length === 0) {
-                // Handle empty or undefined array
-                return '';
-            }
-            const result = a.join(sep);
-            if (result !== '' && prefix) {
-                return `${sep}${result}`;
-            }
-            return result;
-        });
-        Handlebars.registerHelper('tamupath', function TAMUPath(sampleId, wagon = false) {
-            if (sampleId === undefined || sampleId === null || sampleId === '' || (Array.isArray(sampleId) && sampleId.length === 1 && sampleId[0] === '')) {
-                return '';
-            }
-            let campaign = sampleId.substr(0, 3);
-            let sampleNo = parseInt(sampleId.substr(3, 2));
-            let wagonId = Math.trunc(sampleNo / 8);
-            let wagonBegin = (wagonId * 8 + 1).toString().padStart(2, '0');
-            let wagonEnd = ((wagonId + 1) * 8).toString().padStart(2, '0');
-            let group = sampleId.split('_')[1];
-            let manufactureMethod = group.substr(0, 3);
-            let method = sampleId.split('_')[2];
-            if (method === 'EDS') {
-                method = manufactureMethod === 'VAM' ? 'SEM-EDS' : 'EDS-EBSD';
-            } else if (method === 'SHPB') {
-                method = `Compression (SHPB)/${sampleId.split('_')[3]}`;
-            } else if (method === 'Tensile' || method === 'SPT') {
-                method = `${method}/${sampleId.split('_')[3]}`;
-            }
-            if (manufactureMethod === 'VAM') {
-                return `${campaign}/${group}/${sampleId.split('_')[0]}/${method}`;
-            } else if (manufactureMethod === 'DED') {
-                let root = `${campaign}/${group}-${wagonBegin}-${wagonEnd}`;
-                if (wagon) {
-                    return `${root}/${method}`;
-                } else {
-                    return `${root}/${sampleId.split('_')[0]}/${method}`;
-                }
-            }
-        });
-        Handlebars.registerHelper('firstChar', function (str) {
-            if (typeof str !== 'string' || str.length === 0) {
-                return ''; // Return an empty string if the input is invalid
-            }
-            return str.charAt(0); // Return the first character of the string
-        });
-        
-        Handlebars.registerHelper('charToOrd', function (char) {
-            if (typeof char !== 'string' || char.length === 0) {
-                return ''; // Return an empty string if the input is invalid
-            }
-            const capitalChar = char.toUpperCase(); // Ensure the character is uppercase
-            const asciiCode = capitalChar.charCodeAt(0); // Get the ASCII code
-            if (asciiCode >= 65 && asciiCode <= 90) { // Check if it's a capital letter (A-Z)
-                return asciiCode - 64; // Return the position in the alphabet (A=1, B=2, ..., Z=26)
-            }
-            return ''; // Return an empty string if the character is not a capital letter
-        });
-
         this.schema = this.model.get('schema');
+        if (this.model.get('jsHelpers')) {
+            try {
+                eval(this.model.get('jsHelpers'));
+                console.log('JS helpers loaded');
+            } catch (e) {
+                console.log('Error loading JS helpers');
+            }
+        }
         const destFolderId = this.model.get('folderId');
         this.serialize = this.model.get('serialize');
         this.destFolder = null;
@@ -282,35 +169,6 @@ const EditFormView = View.extend({
         window.addEventListener('beforeunload', function (e) {
             view.tempFolder.destroy();
         });
-        JSONEditor.defaults.callbacks.autocomplete = {
-            'search_deposition': function (editor, input) {
-                if (input.length < 3) {
-                    return [];
-                }
-
-                return restRequest({
-                    url: 'deposition',
-                    method: 'GET',
-                    data: {
-                        q: input,
-                        limit: 10
-                    }
-                })
-            },
-            'render_deposition': function (editor, result, props) {
-                try {
-                  const localId = result.metadata.attributes.alternateIdentifiers.find(
-                      (id) => id.alternateIdentifierType === 'local'
-                  );
-                  return `<li ${props}> ${result.igsn} (localId: ${localId.alternateIdentifier})</li>`;
-                } catch (e) {
-                  return `<li ${props}> ${result.igsn} (title: ${result.metadata.title})</li>`;
-                }
-            },
-            'get_deposition_value': function (editor, result) {
-                return `${result.igsn} - ${result._id}`;
-            }
-        };
 
         JSONEditor.defaults.callbacks.button = {
             'button1CB': function (jseditor, element) {

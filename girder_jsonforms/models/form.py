@@ -31,6 +31,7 @@ class Form(AccessControlledModel):
                 "description",
                 "entryFileName",
                 "schema",
+                "jsHelpers",
                 "created",
                 "updated",
                 "gdriveFolderId",
@@ -50,6 +51,7 @@ class Form(AccessControlledModel):
         description,
         schema,
         creator,
+        jsHelpers=None,
         folder=None,
         pathTemplate=None,
         entryFileName=None,
@@ -63,6 +65,7 @@ class Form(AccessControlledModel):
             "name": name,
             "description": description,
             "schema": schema,
+            "jsHelpers": jsHelpers,
             "folderId": None,
             "gdriveFolderId": gdriveFolderId,
             "pathTemplate": pathTemplate,
@@ -87,6 +90,7 @@ class Form(AccessControlledModel):
         description,
         schema,
         folder=None,
+        jsHelpers=None,
         pathTemplate=None,
         entryFileName=None,
         gdriveFolderId=None,
@@ -109,6 +113,9 @@ class Form(AccessControlledModel):
         if entryFileName:
             form["entryFileName"] = entryFileName
 
+        if jsHelpers:
+            form["jsHelpers"] = jsHelpers
+
         if gdriveFolderId:
             form["gdriveFolderId"] = gdriveFolderId
 
@@ -128,6 +135,11 @@ class Form(AccessControlledModel):
                 form["schema"] = self._loadRemoteSchema(form["schema"])
             else:
                 form["schema"] = json.loads(form["schema"])
+
+        if isinstance(form.get("jsHelpers"), str) and form["jsHelpers"].startswith(
+            "http"
+        ):
+            form["jsHelpers"] = requests.get(form["jsHelpers"]).text
 
         for keyPath in find_key_paths(form["schema"], "enumSource"):
             value = get_value(form["schema"], keyPath)
@@ -262,6 +274,7 @@ class Form(AccessControlledModel):
 
     def import_entries(self, form, file_obj, file_type, user, dry_run=True):
         from .entry import FormEntry
+
         form = self.materialize(form, user)  # Ensure the schema is materialized
 
         io_buffer = io.BytesIO(file_obj.read())

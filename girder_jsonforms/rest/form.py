@@ -187,6 +187,12 @@ class Form(Resource):
             dataType="string",
             default="sampleId",
         )
+        .param(
+            "jsHelpers",
+            "The JavaScript helpers to use in the form (either string or url)",
+            required=False,
+            dataType="string",
+        )
     )
     @filtermodel(model="form", plugin="jsonforms")
     def createForm(
@@ -200,6 +206,7 @@ class Form(Resource):
         gdriveFolderId,
         serialize,
         uniqueField,
+        jsHelpers,
     ):
         return FormModel().create_form(
             name,
@@ -212,6 +219,7 @@ class Form(Resource):
             gdriveFolderId=gdriveFolderId or None,
             serialize=serialize,
             uniqueField=uniqueField,
+            jsHelpers=jsHelpers,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
