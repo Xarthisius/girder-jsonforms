@@ -124,6 +124,16 @@ const EditFormView = View.extend({
         window.Autocomplete = Autocomplete; // Otherwise the helper is not available in the template
         this.otherEntries = {};
         const view = this;
+        Handlebars.registerHelper('entryField', function (entryId, field) {
+            const dependencies = view.model.get('dependencies');
+            console.log(dependencies);
+            try {
+                return dependencies[entryId][`data.${field}`];
+            } catch (e) {
+                console.log('Error getting dependencies');
+                return undefined;
+            }
+        });
         this.schema = this.model.get('schema');
         if (this.model.get('jsHelpers')) {
             try {

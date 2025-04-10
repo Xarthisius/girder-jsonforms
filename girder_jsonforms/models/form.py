@@ -39,6 +39,7 @@ class Form(AccessControlledModel):
                 "serialize",
                 "pathTemplate",
                 "uniqueField",
+                "dependencies",
             ),
         )
 
@@ -140,6 +141,23 @@ class Form(AccessControlledModel):
             "http"
         ):
             form["jsHelpers"] = requests.get(form["jsHelpers"]).text
+
+        for keyPath in find_key_paths(form["schema"], "preload"):
+            value = get_value(form["schema"], keyPath)
+            if isinstance(value, str) and value.startswith("girder.formId:"):
+                formId = value.split(":")[1]
+                fields = value.split(":")[2:]
+                source_form = self.load(
+                    formId, level=AccessType.READ, user=user, exc=True
+                )
+                dependencies = {}
+                for dep in FormEntry().collection.find(
+                    {"formId": source_form["_id"]},
+                    projection={f"data.{_}": 1 for _ in fields},
+                ):
+                    dep_id = str(dep.pop("_id"))
+                    dependencies[dep_id] = convert_to_jq_notation(dep)
+                form["dependencies"] = dependencies
 
         for keyPath in find_key_paths(form["schema"], "enumSource"):
             value = get_value(form["schema"], keyPath)
