@@ -118,9 +118,11 @@ class Deposition(AccessControlledModel):
         creator = User().load(entry["creatorId"], force=True)
         igsn_metadata = data["igsn"]
         logger.info(f"Creating master IGSN {igsn}")
-        master_metadata = {
-            "titles": [{"title": igsn_metadata["title"]}],
-        }
+        master_metadata = {}
+        if "title" in igsn_metadata:
+            master_metadata["titles"] = [{"title": igsn_metadata["title"]}]
+        else:
+            master_metadata.update(data["igsn"])
         self.fill_metadata(master_metadata)
         logger.info(f"Whether to track: {data.get('igsn_track', False)}")
         master_sample = self.create_deposition(
