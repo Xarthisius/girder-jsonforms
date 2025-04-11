@@ -66,8 +66,8 @@ var DepositionView = View.extend({
         }
         const apiRoot = getApiRoot();
         const origin = window.location.origin;
-        const entryRegex = new RegExp(`${origin}${apiRoot}/entry/(\\w+)`);
-        const formRegex = new RegExp(`${origin}${apiRoot}/form/(\\w+)/schema`);
+        const entryRegex = new RegExp(`${apiRoot}/entry/(\\w+)`);
+        const formRegex = new RegExp(`${apiRoot}/form/(\\w+)/schema`);
 
         for (let i = 0; i < relatedIdentifiers.length; i++) {
             const identifier = relatedIdentifiers[i];
