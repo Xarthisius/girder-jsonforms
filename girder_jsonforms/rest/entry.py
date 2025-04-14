@@ -21,6 +21,14 @@ class FormEntry(Resource):
     @access.public
     @autoDescribeRoute(
         Description("List all entries")
+        .param("query", "Regex for Sample Id", dataType="string", required=False)
+        .param(
+            "field",
+            "Field to search",
+            dataType="string",
+            required=False,
+            default="sampleId",
+        )
         .modelParam(
             "formId",
             "The ID of the form",
@@ -31,10 +39,12 @@ class FormEntry(Resource):
         )
         .pagingParams(defaultSort="created")
     )
-    def listFormEntry(self, form, limit, offset, sort):
+    def listFormEntry(self, query, field, form, limit, offset, sort):
         q = {}
         if form:
             q = {"formId": form["_id"]}
+        if query:
+            q[f"data.{field}"] = {"$regex": query}
 
         cursor = FormEntryModel().findWithPermissions(
             q,
