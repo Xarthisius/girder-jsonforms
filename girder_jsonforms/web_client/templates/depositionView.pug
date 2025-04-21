@@ -34,10 +34,11 @@
             i.icon-doc
             span.test-muted= 'IGSN: '
             span.g-info-type= deposition.get("igsn")
-          .g-deposition-info-line
-            i.icon-doc
-            span.test-muted= 'Description: '
-            span.g-info-type= metadata.description
+          for d in metadata.descriptions
+            .g-deposition-info-line
+              i.icon-doc
+              span.test-muted= 'Description (' + d.descriptionType + '): '
+              span.g-info-type= d.description
           if metadata.creators.length > 0
             .g-deposition-info-line
               h3

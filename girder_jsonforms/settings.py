@@ -83,7 +83,12 @@ def default_igsn_institutions():
             "code": "CM",
             "name": "Carnegie Mellon University",
             "labs": {"X": "Other"},
-        }
+        },
+        "NW": {
+            "code": "NW",
+            "name": "Northwestern University",
+            "labs": {"X": "Other"},
+        },
     }
 
 

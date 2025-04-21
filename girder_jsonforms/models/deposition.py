@@ -12,10 +12,7 @@ from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
 from pymongo import ReturnDocument
 
-from ..lib.project_helpers import (
-    batch_indices_imqcam,
-    batch_indices_weihs,
-)
+from ..lib.project_helpers import batch_indices
 from ..settings import PluginSettings
 from .form import Form
 
@@ -98,16 +95,35 @@ class Deposition(AccessControlledModel):
         events.bind("model.entry.save.created", "jsonforms", self.updateRelations)
 
     def register_deposition(self, event: events.Event) -> None:
-        logger.info("Registering deposition from entry save event")
         entry = event.info
-
-        data = entry.get("data")
-        if not data.get("igsn_request") or "_id" in entry:
-            logger.info("No IGSN request or entry already exists")
+        if "_id" in entry:
+            logger.info("Entry already exists. Skipping IGSN registration")
             return
 
-        prefix = data["igsn_prefix"]
-        suffix = data["igsn_suffix"]
+        logger.info("Registering deposition from entry save event")
+        data = entry.get("data")
+        if "igsn_request" in data and not data["igsn_request"]:
+            logger.info("No IGSN request or entry already exists")
+            return
+        else:
+            request = data.get("igsn", {}).get("request", False)
+            if not request:
+                logger.info("No IGSN request or entry already exists")
+                return
+
+        if "igsn_prefix" in data:
+            prefix = data["igsn_prefix"]
+            suffix = data["igsn_suffix"]
+            track = data.get("igsn_track", False)
+            igsn_metadata = data["igsn"]
+        else:
+            prefix = data["igsn"]["prefix"]
+            suffix = data["igsn"]["suffix"]
+            track = data["igsn"].get("track", False)
+            igsn_metadata = data["igsnMeta"]
+
+        logger.info(f"Prefix: {prefix}, Suffix: {suffix}, Track: {track}")
+
         if suffix:
             if self.findOne({"igsn": f"{prefix}{suffix}"}) is not None:
                 logger.info("IGSN already exists")
@@ -116,20 +132,31 @@ class Deposition(AccessControlledModel):
         igsn = PrefixCounter().get_next(prefix)
         suffix = igsn[len(prefix) :]
         creator = User().load(entry["creatorId"], force=True)
-        igsn_metadata = data["igsn"]
         logger.info(f"Creating master IGSN {igsn}")
         master_metadata = {}
         if "title" in igsn_metadata:
-            master_metadata["titles"] = [{"title": igsn_metadata["title"]}]
-        else:
-            master_metadata.update(data["igsn"])
+            master_metadata["titles"] = [{"title": igsn_metadata.pop("title")}]
         self.fill_metadata(master_metadata)
-        logger.info(f"Whether to track: {data.get('igsn_track', False)}")
+        if "descriptionAbstract" in igsn_metadata:
+            master_metadata["descriptions"].append(
+                {
+                    "description": igsn_metadata.pop("descriptionAbstract"),
+                    "descriptionType": "Abstract",
+                }
+            )
+        if "descriptionMethods" in igsn_metadata:
+            master_metadata["descriptions"].append(
+                {
+                    "description": igsn_metadata.pop("descriptionMethods"),
+                    "descriptionType": "Methods",
+                }
+            )
+        logger.info(f"Whether to track: {track}")
         master_sample = self.create_deposition(
             master_metadata,
             creator,
             igsn=igsn,
-            track=data.get("igsn_track", False),
+            track=track,
         )
         # Copy access policies from the form to the master sample
         form = Form().load(entry["formId"], force=True)
@@ -137,16 +164,25 @@ class Deposition(AccessControlledModel):
         logger.info(f"Creating batch for {igsn}")
         self.create_batch(master_sample, data)
 
-        data["igsn_suffix"] = suffix
-        data[data["igsn_field"]] = f"{prefix}{suffix}"
-        data["igsn_request"] = False
+        if "igsn_prefix" in data:
+            data["igsn_suffix"] = suffix
+            data[data["igsn_field"]] = f"{prefix}{suffix}"
+            data["igsn_request"] = False
+        else:
+            data["igsn"]["suffix"] = suffix
+            data["igsn"]["request"] = False
+            data[data["igsn"]["field"]] = f"{prefix}{suffix}"
         event.addResponse(entry)
 
     def updateRelations(self, event: events.Event) -> None:
         formId = event.info.get("formId")
         data = event.info.get("data", {})
-        igsn_suffix = data.get("igsn_suffix")
-        igsn_prefix = data.get("igsn_prefix")
+        if "igsn_prefix" in data:
+            igsn_suffix = data.get("igsn_suffix")
+            igsn_prefix = data.get("igsn_prefix")
+        else:
+            igsn_suffix = data.get("igsn", {}).get("suffix")
+            igsn_prefix = data.get("igsn", {}).get("prefix")
 
         logger.info(f"{igsn_suffix=}, {igsn_prefix=}")
 
@@ -296,9 +332,8 @@ class Deposition(AccessControlledModel):
         return self.save(deposition)
 
     def create_batch(self, main_deposition, form_data):
-        indices = batch_indices_weihs(main_deposition, form_data)
-        if not indices:
-            indices = batch_indices_imqcam(main_deposition, form_data)
+        method = form_data.get("igsn", {}).get("batch", {}).get("method", "unknown")
+        indices = batch_indices(method, main_deposition, form_data)
         if not indices:
             logger.error("Missing required fields for batch creation")
             return

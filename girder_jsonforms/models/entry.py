@@ -1,7 +1,9 @@
 import datetime
 import io
 import json
+import logging
 import os
+import re
 
 from girder import events
 from girder.constants import AccessType
@@ -9,7 +11,34 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.model_base import Model
 from girder.models.upload import Upload
-from girder.utility import acl_mixin, JsonEncoder, RequestBodyStream
+from girder.utility import JsonEncoder, RequestBodyStream, acl_mixin
+
+
+logger = logging.getLogger(__name__)
+
+
+def _get_meta(entry, child_meta):
+    meta = {
+        "entryId": entry["_id"],
+    }
+    if "assignedIGSN" in entry["data"]:
+        meta["igsn"] = entry["data"]["assignedIGSN"]
+
+    path = child_meta.get("targetPath")
+    if batch_action := entry["data"].get("igsn", {}).get("batch", {}):
+        logger.info(f"Batch action: {batch_action}")
+        if batch_action.get("method") == "from_array" and child_meta.get("formField"):
+            logger.info(f"Form field: {child_meta['formField']}")
+            number = re.search(r"\d+", child_meta.pop("formField")).group()
+            logger.info(f"Number: {number}")
+            if "igsn" in meta:
+                meta["igsn"] = os.path.join(entry["data"]["assignedIGSN"], number)
+            if path:
+                path = os.path.join(path, number)
+            else:
+                path = number
+            meta["targetPath"] = path
+    return path, meta
 
 
 class FormEntry(acl_mixin.AccessControlMixin, Model):
@@ -86,6 +115,9 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 }
             )
 
+        # At this point we need to ensure we have _id and/or igsn was created
+        entry = self.save(entry)
+
         # Move from temp to destination
         path = entry["data"].get("targetPath")
         known_targets = {
@@ -96,24 +128,35 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
         }
         if source is not None:
             for child in Folder().childFolders(source, "folder", user=creator):
-                path = child.get("meta", {}).get("targetPath")
+                child_meta = child.get("meta", {})
+                path, meta = _get_meta(entry, child_meta)
+                logger.info(f"Moving {child['_id']} to {path}")
+                child = Folder().setMetadata(child, meta)
                 try:
                     target, _ = known_targets[path]
                 except KeyError:
                     target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = target, child.get("meta", {}).get(unique_field)
+                    known_targets[path] = (
+                        target,
+                        child.get("meta", {}).get(unique_field),
+                    )
                 child = self.unique(child, target)
                 Folder().move(child, target, "folder")
                 # TODO upload to GDrive
                 entry["folders"].append(child["_id"])
 
             for child in Folder().childItems(source):
-                path = child.get("meta", {}).get("targetPath")
+                child_meta = child.get("meta", {})
+                path, meta = _get_meta(entry, child_meta)
+                child = Item().setMetadata(child, meta)
                 try:
                     target, _ = known_targets[path]
                 except KeyError:
                     target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = target, child.get("meta", {}).get(unique_field)
+                    known_targets[path] = (
+                        target,
+                        child.get("meta", {}).get(unique_field),
+                    )
                 child = self.unique(child, target)
                 child = Item().move(child, target)
                 for file in Item().childFiles(child):

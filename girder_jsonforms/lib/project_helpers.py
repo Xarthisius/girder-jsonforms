@@ -4,6 +4,29 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def batch_indices(method, main_deposition, form_data):
+    if method == "from_array":
+        return batch_from_array(main_deposition, form_data)
+    elif method == "weihs":
+        return batch_indices_weihs(main_deposition, form_data)
+    elif method == "imqcam":
+        return batch_indices_imqcam(main_deposition, form_data)
+    else:
+        logger.warning(f"Unknown method: {method}")
+        return []
+
+
+def batch_from_array(main_deposition, form_data):
+    """
+    Generate batch indices from an array of substrates.
+    """
+    field = form_data["igsn"]["batch"]["field"]
+    igsn_indices = [f"{i+1}" for i, element in enumerate(form_data[field])]
+    local_indices = [None] * len(igsn_indices)  # Placeholder for local indices
+
+    return list(zip(igsn_indices, local_indices))
+
+
 def batch_indices_weihs(main_deposition, form_data):
     if not form_data.get("igsn"):
         """

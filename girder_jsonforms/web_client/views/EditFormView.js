@@ -233,7 +233,8 @@ const EditFormView = View.extend({
         const uniqueField = this.model.get('uniqueField', 'sampleId');
         var reference = {
             [uniqueField]: value[uniqueField],
-            annotate: true
+            annotate: true,
+            formField: field
         };
         if (value.targetPath) {
             reference.targetPath = value.targetPath;
@@ -259,15 +260,24 @@ const EditFormView = View.extend({
                 reference: JSON.stringify(reference)
             }
         }).on('g:uploadFinished', function (info) {
-            var ids = '';
+            var ids = jseditor.jsoneditor.getEditor(field).getValue();
             if (info.files.length === 0) {
                 return;
             } else if (info.files.length === 1) {
-                ids = info.files[0].id;
+                if (ids) {
+                    ids = `${ids},${info.files[0].id}`;
+                } else {
+                    ids = info.files[0].id;
+                }
             } else {
-                ids = Array.from(info.files).map(function (file) {
+                const newids = Array.from(info.files).map(function (file) {
                     return file.id;
                 }).join(',');
+                if (ids) {
+                    ids = `${ids},${newids}`;
+                } else {
+                    ids = newids;
+                }
             }
             setField(jseditor, field, ids);
         }, this).render();
