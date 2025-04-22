@@ -49,6 +49,7 @@ var DepositionView = View.extend({
             deposition: this.model,
             metadata: this.model.get("metadata"),
             renderMarkdown: renderMarkdown,
+            trackerUrl: `#sample/${this.model.get('sampleId')}`,
             AccessType: AccessType,
             relatedIdentifiers: relatedIdentifiers,
             level: this.model.getAccessLevel()
