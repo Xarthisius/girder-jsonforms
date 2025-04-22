@@ -12,4 +12,6 @@
         href=depositionUrlFunc && depositionUrlFunc(deposition),
         data-deposition-id=deposition.id)
       h4.list-group-item-heading.g-execute-deposition-link-header= deposition.attributes.igsn
-      .list-group-item-text.g-execute-deposition-link-body= deposition.attributes.metadata.description
+      each description in deposition.attributes.metadata.descriptions
+        if description.descriptionType === 'Abstract'
+          .list-group-item-text.g-execute-deposition-link-body= description.description

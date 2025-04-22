@@ -41,7 +41,7 @@ const EditDepositionView = View.extend({
         metadata: JSON.stringify({
           creators: this.creators,
           titles: [{title: metadata.title}],
-          description: metadata.description,
+          descriptions: [{description: metadata.description, descriptionType: 'Abstract'}],
           attributes: {alternateIdentifiers: alternateIdentifiers},
         }),
       };
@@ -142,7 +142,7 @@ const EditDepositionView = View.extend({
         materials: [],
       }));
       this.$('#g-deposition-title').val(this.model.get('metadata').titles[0].title);
-      this.$('#g-deposition-description').val(this.model.get('metadata').description);
+      this.$('#g-deposition-description').val(this._getAbstract(this.model.get('metadata')));
     } else {
       this.form = this.$el.html(template({
         igsn: null,
@@ -167,6 +167,13 @@ const EditDepositionView = View.extend({
               type: 'danger',
           });
       });
+  },
+  _getAbstract: function (metadata) {
+      if (!metadata || !metadata.descriptions) {
+          return '';
+      }
+      const desc = metadata.descriptions.find((desc) => desc.descriptionType === 'Abstract');
+      return desc ? desc.description : '';
   },
   _updateCreators: function () {
       let items = this.$('.g-creators-list li').toArray();
