@@ -5,11 +5,17 @@ import '../stylesheets/depositionView.styl';
 
 import QRCode from 'qrcode';
 
+const _ = girder._;
 const { AccessType } = girder.constants;
 const { renderMarkdown } = girder.misc;
 const { getApiRoot } = girder.rest;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const View = girder.views.View;
+const { restRequest } = girder.rest;
+const SearchPaginateWidget = girder.views.widgets.SearchPaginateWidget;
+
+import SearchResultsTypeTemplate from '@girder/core/templates/body/searchResultsType.pug';
+
 
 const QRparams = {
   'errorCorrectionLevel': 'H',
@@ -29,6 +35,17 @@ var DepositionView = View.extend({
     },
 
     initialize: function (settings) {
+        this._query = this.model.get('igsn');
+        this._mode = 'igsn';
+        this._searchRequest = restRequest({
+          url: 'resource/search',
+          data: {
+            q: this._query,
+            mode: this._mode,
+            types: JSON.stringify(['folder', 'item']),
+            limit: 10,
+          }
+        });
         if (settings.deposition) {
             this.model = settings.deposition;
             this.render();
@@ -54,6 +71,34 @@ var DepositionView = View.extend({
             relatedIdentifiers: relatedIdentifiers,
             level: this.model.getAccessLevel()
         }));
+        this._subviews = {};
+        this._searchRequest.done((results) => {
+            this.$('.g-search-pending').hide();
+
+            const resultTypes =  _.keys(results);
+            const orderedTypes = ["folder", "item"];
+            _.each(orderedTypes, (type) => {
+                if (results[type].length) {
+                    this._subviews[type] = new SearchResultsTypeView({
+
+                        parentView: this,
+                        query: this._query,
+                        mode: this._mode,
+                        type: type,
+                        limit: this.pageLimit,
+                        initResults: results[type],
+                        sizeOneElement: this._sizeOneElement
+                    })
+                        .render();
+                    this._subviews[type].$el
+                        .appendTo(this.$('.g-search-results-container'));
+                }
+            });
+
+            if (_.isEmpty(this._subviews)) {
+                this.$('.g-search-no-results').show();
+            }
+        });
         if (this.model.get("sampleId")) {
             const addEventUrl = `${window.location.origin}/#sample/${this.model.get('sampleId')}/add`;
             QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl.toUpperCase(), QRparams);
@@ -97,6 +142,75 @@ var DepositionView = View.extend({
             modelType: 'deposition',
             parentView: this
         }).render();
+    }
+});
+
+var SearchResultsTypeView = View.extend({
+    className: 'g-search-results-type-container',
+
+    initialize: function (settings) {
+        this._query = settings.query;
+        this._mode = settings.mode;
+        this._type = settings.type;
+        this._initResults = settings.initResults || [];
+        this._pageLimit = settings.limit || 10;
+        this._sizeOneElement = settings.sizeOneElement || 30;
+
+        this._paginateWidget = new SearchPaginateWidget({
+            parentView: this,
+            type: this._type,
+            query: this._query,
+            mode: this._mode,
+            limit: this._pageLimit
+        })
+            .on('g:changed', () => {
+                this._results = this._paginateWidget.results;
+                this.render();
+            });
+
+        this._results = this._initResults;
+    },
+
+    _getTypeName: function (type) {
+        const names = {
+            collection: 'Collections',
+            group: 'Groups',
+            user: 'Users',
+            folder: 'Folders',
+            item: 'Items'
+        };
+        return names[type] || type;
+    },
+
+    _getTypeIcon: function (type) {
+        const icons = {
+            user: 'user',
+            group: 'users',
+            collection: 'sitemap',
+            folder: 'folder',
+            item: 'doc-text-inv'
+        };
+        return icons[type] || 'icon-attention-alt';
+    },
+
+    render: function () {
+        this.$el.html(SearchResultsTypeTemplate({
+            results: this._results,
+            collectionName: this._getTypeName(this._type),
+            type: this._type,
+            icon: this._getTypeIcon(this._type)
+        }));
+
+        /* This size of the results list cannot be known until after the fetch completes. And we don't want to set
+        the 'min-height' to the max results size, because we'd frequently have lots of whitespace for short result
+        lists. Do not try to move that set in stylesheet.
+        */
+        this.$('.g-search-results-type').css('min-height', `${this._initResults.length * this._sizeOneElement}px`);
+        this._paginateWidget
+            .setElement(this.$(`#${this._type}Paginate`))
+            .render();
+
+        return this;
     }
 });
 

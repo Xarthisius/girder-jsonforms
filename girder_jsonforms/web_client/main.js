@@ -5,6 +5,7 @@ const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;
 const { getCurrentUser } = girder.auth;
 const eventStream = girder.utilities.eventStream;
+const SearchFieldWidget = girder.views.widgets.SearchFieldWidget;
 
 
 function createNavItem(navItem) {
@@ -60,3 +61,11 @@ wrap(GlobalNavView, 'render', function (render) {
         }
     }
 });
+
+// Add search field to the global nav
+SearchFieldWidget.addMode(
+    'igsn',
+    ['item', 'folder'],
+    'Search by IGSN',
+    'You are searching for all data associated with a given IGSN. (e.g. JHAMAA00001)'
+);

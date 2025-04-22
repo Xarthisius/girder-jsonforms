@@ -6,10 +6,12 @@ from pathlib import Path
 
 from girder import events
 from girder.constants import AccessType
+from girder.exceptions import GirderException
 from girder.models.file import File
 from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.plugin import GirderPlugin, registerPluginStaticContent
+from girder.utility import search
 from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
@@ -67,6 +69,33 @@ def upload_to_gdrive(event):
     Item().setMetadata(parent, {"gdriveFileId": gdrive_file_id})
 
 
+def igsn_search(query, types, user, level, limit, offset):
+    results = {}
+    allowed = {
+        "folder": ["_id", "name", "description", "parentId", "meta.igsn"],
+        "item": ["_id", "name", "description", "folderId", "meta.igsn"],
+    }
+    query = {"meta.igsn": {"$regex": query, "$options": "i"}}
+    for modelName in types:
+        if modelName not in allowed:
+            continue
+        model = ModelImporter.model(modelName)
+        if model is None:
+            continue
+        if hasattr(model, "filterResultsByPermission"):
+            cursor = model.find(query, fields=allowed[modelName] + ["public", "access"])
+            results[modelName] = list(
+                model.filterResultsByPermission(
+                    cursor, user, level, limit=limit, offset=offset
+                )
+            )
+        else:
+            results[modelName] = list(
+                model.find(query, fields=allowed[modelName], limit=limit, offset=offset)
+            )
+    return results
+
+
 class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
@@ -89,6 +118,10 @@ class JSONFormsPlugin(GirderPlugin):
         events.bind("data.process", "jsonforms", annotate_uploads)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
+        try:
+            search.addSearchMode("igsn", igsn_search)
+        except GirderException:
+            logger.warning("IGSN search mode already registered.")
         registerPluginStaticContent(
             plugin="jsonforms",
             css=["/style.css"],
