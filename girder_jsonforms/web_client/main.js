@@ -1,5 +1,6 @@
 // Extends and overrides API
 import './routes';
+import './views/ItemView';
 
 const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;
