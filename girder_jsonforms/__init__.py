@@ -102,7 +102,7 @@ def igsn_text_search(query, types, user, level, limit, offset):
         "deposition": [
             "_id",
             "igsn",
-            "metadata.relatedIdentifiers",
+            "metadata.attributes.alternateIdentifiers",
             "metadata.titles",
             "metadata.descriptions",
         ],
@@ -111,7 +111,7 @@ def igsn_text_search(query, types, user, level, limit, offset):
         "$or": [
             {"igsn": {"$regex": query, "$options": "i"}},
             {
-                "metadata.relatedIdentifiers.relatedIdentifier": {
+                "metadata.attributes.alternateIdentifiers.alternateIdentifier": {
                     "$regex": query,
                     "$options": "i",
                 }

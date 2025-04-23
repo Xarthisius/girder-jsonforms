@@ -68,11 +68,13 @@ var DepositionListView = View.extend({
     _getInfoCallback: function (type, result) {
         // returns {icon: , text: } for every result
         if (result.metadata && result.metadata.attributes && result.metadata.attributes.alternateIdentifiers) {
-            var alternateIdentifier = result.metadata.attributes.alternateIdentifiers.find((id) => id.type === 'local');
-            if (alternateIdentifier) {
+            var id = result.metadata.attributes.alternateIdentifiers.find(
+              (id) => id.alternateIdentifierType.toLowerCase() === 'local'
+            );
+            if (id) {
                 return {
                     icon: 'barcode',
-                    text: `${result.igsn} (${alternateIdentifier.value}) - ${result.metadata.titles[0].title}`
+                    text: `${result.igsn} (${id.alternateIdentifier}) - ${result.metadata.titles[0].title}`
                 };
             }
         }
