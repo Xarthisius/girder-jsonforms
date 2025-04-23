@@ -7,7 +7,7 @@ wrap(ItemView, 'render', function (render) {
     if (this.model.get('meta') && this.model.get('meta')['igsn']) {
       var object = $(
         '<div class="g-item-igsn g-info-list-entry"><i class="icon-barcode"></i> IGSN: <a href="#igsn/'
-        + this.model.get('meta')['igsn'] + '">' + this.model.get('meta')['igsn'] + '</a></div>'
+        + encodeURIComponent(this.model.get('meta')['igsn']) + '">' + this.model.get('meta')['igsn'] + '</a></div>'
       );
       this.$('.g-item-info').append(object);
     }
