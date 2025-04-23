@@ -29,7 +29,7 @@ def _get_meta(entry, child_meta):
         logger.info(f"Batch action: {batch_action}")
         if batch_action.get("method") == "from_array" and child_meta.get("formField"):
             logger.info(f"Form field: {child_meta['formField']}")
-            number = re.search(r"\d+", child_meta.pop("formField")).group()
+            number = str(int(re.search(r"\d+", child_meta.pop("formField")).group()) + 1)
             logger.info(f"Number: {number}")
             if "igsn" in meta:
                 meta["igsn"] = os.path.join(entry["data"]["assignedIGSN"], number)
