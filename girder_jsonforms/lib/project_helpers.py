@@ -28,17 +28,18 @@ def batch_from_array(main_deposition, form_data):
 
 
 def batch_indices_weihs(main_deposition, form_data):
-    if not form_data.get("igsn"):
+    if not form_data.get("igsnMeta"):
         """
         If no igsn is provided in form_data, return an empty list.
         This is a required field for generating indices.
         """
         logger.warning("No igsn provided in form_data for batch_indices_weihs.")
         return []
+    meta = form_data["igsnMeta"]
     if (
-        not form_data["igsn"].get("substrates")
-        or not form_data["igsn"].get("subRows")
-        or not form_data["igsn"].get("subCols")
+        not meta.get("substrates")
+        or not meta.get("subRows")
+        or not meta.get("subCols")
     ):
         # Return empty list if no substrates or subRows/Cols are provided
         return []
@@ -46,9 +47,9 @@ def batch_indices_weihs(main_deposition, form_data):
     igsn_indices = [
         "S{}R{}C{}".format(*row)
         for row in itertools.product(
-            form_data["igsn"]["substrates"],
-            range(1, int(form_data["igsn"]["subRows"]) + 1),
-            range(1, int(form_data["igsn"]["subCols"]) + 1),
+            meta["substrates"],
+            range(1, int(meta["subRows"]) + 1),
+            range(1, int(meta["subCols"]) + 1),
         )
     ]
 
