@@ -69,3 +69,9 @@ SearchFieldWidget.addMode(
     'Search by IGSN',
     'You are searching for all data associated with a given IGSN. (e.g. JHAMAA00001)'
 );
+SearchFieldWidget.addMode(
+    'igsnText',
+    ['deposition'],
+    'Search IGSN by text',
+    'You are searching'
+);

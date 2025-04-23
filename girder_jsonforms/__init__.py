@@ -96,6 +96,42 @@ def igsn_search(query, types, user, level, limit, offset):
     return results
 
 
+def igsn_text_search(query, types, user, level, limit, offset):
+    results = {}
+    allowed = {
+        "deposition": [
+            "_id",
+            "igsn",
+            "metadata.relatedIdentifiers",
+            "metadata.titles",
+            "metadata.descriptions",
+        ],
+    }
+    query = {
+        "$or": [
+            {"igsn": {"$regex": query, "$options": "i"}},
+            {
+                "metadata.relatedIdentifiers.relatedIdentifier": {
+                    "$regex": query,
+                    "$options": "i",
+                }
+            },
+            {"metadata.titles.title": {"$regex": query, "$options": "i"}},
+            {"metadata.descriptions.description": {"$regex": query, "$options": "i"}},
+        ]
+    }
+    for modelName in types:
+        if modelName not in allowed:
+            continue
+        cursor = DepositionModel().find(query, fields=allowed[modelName] + ["public", "access"])
+        results[modelName] = list(
+            DepositionModel().filterResultsByPermission(
+                cursor, user, level, limit=limit, offset=offset
+            )
+        )
+    return results
+
+
 class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
@@ -122,6 +158,10 @@ class JSONFormsPlugin(GirderPlugin):
             search.addSearchMode("igsn", igsn_search)
         except GirderException:
             logger.warning("IGSN search mode already registered.")
+        try:
+            search.addSearchMode("igsnText", igsn_text_search)
+        except GirderException:
+            logger.warning("IGSN text search mode already registered.")
         registerPluginStaticContent(
             plugin="jsonforms",
             css=["/style.css"],

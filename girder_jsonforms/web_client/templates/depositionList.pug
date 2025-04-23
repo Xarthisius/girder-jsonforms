@@ -1,5 +1,7 @@
 .g-deposition-list-header
   .g-deposition-pagination
+  form.g-deposition-search-form.form-inline(role="form")
+    .form-group.g-deposition-search-container
 
   .btn-group
     .g-filter-depositions
@@ -19,6 +21,5 @@
         href=depositionUrlFunc && depositionUrlFunc(deposition),
         data-deposition-id=deposition.id)
       h4.list-group-item-heading.g-execute-deposition-link-header= deposition.attributes.igsn
-      each description in deposition.attributes.metadata.descriptions
-        if description.descriptionType === 'Abstract'
-          .list-group-item-text.g-execute-deposition-link-body= description.description
+      each entity in deposition.attributes.metadata.titles
+        .list-group-item-text.g-execute-deposition-link-body= entity.title
