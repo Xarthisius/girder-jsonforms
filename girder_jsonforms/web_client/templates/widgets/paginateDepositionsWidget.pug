@@ -1,6 +1,13 @@
 .g-deposition-list-header
   .g-deposition-pagination
 
+  .btn-group
+    .g-filter-depositions
+      a.g-filter-options-button.btn.btn-sm(title="Show filter help")
+        i.g-filter-state.icon-filter
+      input.g-filter-field.form-control.input-sm(
+        type="text", placeholder="Search name via regex...", mode-select="off")
+
   .g-deposition-actions
     button.g-deposition-create-button.btn.btn-sm.btn-success
       i.icon-plus

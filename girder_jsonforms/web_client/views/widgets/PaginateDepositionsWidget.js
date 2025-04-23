@@ -11,7 +11,8 @@ var PaginateDepositionsWidget = View.extend({
     events: {
         'click button.g-deposition-create-button': function (event) {
             router.navigate('newdeposition', {trigger: true});
-        }
+        },
+        'input .g-filter-field': 'search'
     },
 
     initialize: function (settings) {
@@ -40,6 +41,36 @@ var PaginateDepositionsWidget = View.extend({
         }));
 
         this.paginateWidget.setElement(this.$('.g-deposition-pagination')).render();
+        return this;
+    },
+
+    _sanitizeRegex: function (q) {
+        return q.replaceAll(/[&/\\#,+()$~%.^'":*?<>{}]/g, '');
+    },
+
+    search: function () {
+        // only search when the user stops typing
+        if (this.pending) {
+            clearTimeout(this.pending);
+        }
+
+        this.pending = setTimeout(() => {
+            var q = this.$('.g-filter-field').val();
+            if (!q) {
+                this.collection.filterFunc = null;
+            } else {
+                let regex = this._sanitizeRegex(q);
+                this.collection.filterFunc = function (model) {
+                    var match = model.igsn.match(new RegExp(regex, 'i'));
+                    return match;
+                };
+            }
+            this.collection.on('g:changed', function () {
+                this.render();
+                this.$('.g-filter-field').val(q);
+                this.$('.g-filter-field').focus();
+            }, this).fetch({}, true);
+        }, 500);
         return this;
     }
 });
