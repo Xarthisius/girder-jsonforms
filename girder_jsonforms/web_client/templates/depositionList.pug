@@ -17,7 +17,8 @@
 
 .list-group.g-deposition-list-container
   each deposition in depositions
-    a.list-group-item.g-execute-deposition-link(
+    a.list-group-item.g-deposition-link(
+        g-deposition-cid=deposition.cid,
         href=depositionUrlFunc && depositionUrlFunc(deposition),
         data-deposition-id=deposition.id)
       h4.list-group-item-heading.g-execute-deposition-link-header= deposition.attributes.igsn

@@ -11,6 +11,10 @@ const PaginateWidget = girder.views.widgets.PaginateWidget;
 
 var DepositionListView = View.extend({
     events: {
+        'click a.g-deposition-link': function (event) {
+            var cid = $(event.currentTarget).attr('g-deposition-cid');
+            router.navigate(`deposition/${this.collection.get(cid).id}`, {trigger: true});
+        },
         'click button.g-deposition-create-button': function (event) {
             router.navigate('newdeposition', {trigger: true});
         },
