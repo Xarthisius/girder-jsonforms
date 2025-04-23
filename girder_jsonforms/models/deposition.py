@@ -393,10 +393,10 @@ class Deposition(AccessControlledModel):
                     "description": main_sample["description"],
                     "eventTypes": main_sample["eventTypes"],
                     "events": [],
-                    "name": f"{main_deposition['igsn']}/{index}",
+                    "name": f"{main_deposition['igsn']}/{igsn_index}",
                     "updated": main_sample["updated"],
                 }
-                for index in indices
+                for igsn_index, _ in indices
             ]
             sample_result = Sample().collection.insert_many(samples)
             for deposition, sample_id in zip(depositions, sample_result.inserted_ids):
