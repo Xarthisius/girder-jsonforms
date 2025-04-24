@@ -89,6 +89,11 @@ def default_igsn_institutions():
             "name": "Northwestern University",
             "labs": {"X": "Other"},
         },
+        "ML": {
+            "code": "ML",
+            "name": "University of Massachusetts, Lowell",
+            "labs": {"X": "Other"},
+        },
     }
 
 
