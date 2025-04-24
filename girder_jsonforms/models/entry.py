@@ -21,9 +21,6 @@ def _get_meta(entry, child_meta):
     meta = {
         "entryId": entry["_id"],
     }
-    if "assignedIGSN" in entry["data"]:
-        meta["igsn"] = entry["data"]["assignedIGSN"]
-
     path = child_meta.get("targetPath")
     if batch_action := entry["data"].get("igsn", {}).get("batch", {}):
         logger.info(f"Batch action: {batch_action}")
@@ -31,8 +28,8 @@ def _get_meta(entry, child_meta):
             logger.info(f"Form field: {child_meta['formField']}")
             number = str(int(re.search(r"\d+", child_meta.pop("formField")).group()) + 1)
             logger.info(f"Number: {number}")
-            if "igsn" in meta:
-                meta["igsn"] = os.path.join(entry["data"]["assignedIGSN"], number)
+            if "assignedIGSN" in entry["data"]:
+                meta["igsn"] = f"{entry['data']['assignedIGSN']}-{number}"
             if path:
                 path = os.path.join(path, number)
             else:

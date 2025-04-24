@@ -377,7 +377,7 @@ class Deposition(AccessControlledModel):
                 "access": main_deposition["access"],
                 "created": main_deposition["created"],
                 "creatorId": main_deposition["creatorId"],
-                "igsn": f"{main_deposition['igsn']}/{igsn_index}",
+                "igsn": f"{main_deposition['igsn']}-{igsn_index}",
                 "metadata": {
                     "titles": [{"title": f"{titles[0]['title']} - {igsn_index}"}],
                     **metadata,
@@ -411,7 +411,7 @@ class Deposition(AccessControlledModel):
                     "description": main_sample["description"],
                     "eventTypes": main_sample["eventTypes"],
                     "events": [],
-                    "name": f"{main_deposition['igsn']}/{igsn_index}",
+                    "name": f"{main_deposition['igsn']}-{igsn_index}",
                     "updated": main_sample["updated"],
                 }
                 for igsn_index, _ in indices
