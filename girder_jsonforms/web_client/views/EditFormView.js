@@ -183,17 +183,17 @@ const EditFormView = View.extend({
         JSONEditor.defaults.callbacks.button = {
             'button1CB': function (jseditor, element) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                setField(jseditor, field, 'Waiting for a file to be uploaded');
+                //setField(jseditor, field, 'Waiting for a file to be uploaded');
                 this.uploadDialog(jseditor, field, false, true);
             }.bind(this),
             'button2CB': function (jseditor, e) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                setField(jseditor, field, 'Waiting for a directory to be uploaded');
+                //setField(jseditor, field, 'Waiting for a directory to be uploaded');
                 this.uploadDialog(jseditor, field, true);
             }.bind(this),
             'buttonSample': function (jseditor, e) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                setField(jseditor, field, 'Waiting for a file to be uploaded');
+                //setField(jseditor, field, 'Waiting for a file to be uploaded');
                 this.uploadDialog(jseditor, field, false, true);
             }
         };
