@@ -151,6 +151,16 @@ class Deposition(AccessControlledModel):
                     "descriptionType": "Methods",
                 }
             )
+        if "relatedIdentifiers" in igsn_metadata:
+            master_metadata["relatedIdentifiers"] += igsn_metadata.pop(
+                "relatedIdentifiers"
+            )
+        if "attributes" in igsn_metadata:
+            if "alternateIdentifiers" in igsn_metadata["attributes"]:
+                master_metadata["attributes"]["alternateIdentifiers"] += igsn_metadata[
+                    "attributes"
+                ].pop("alternateIdentifiers")
+
         logger.info(f"Whether to track: {track}")
         master_sample = self.create_deposition(
             master_metadata,
@@ -275,6 +285,14 @@ class Deposition(AccessControlledModel):
 
         if "agency" not in metadata:
             metadata["agency"] = "datacite"
+
+        if "attributes" not in metadata:
+            metadata["attributes"] = {
+                "alternateIdentifiers": [],
+            }
+
+        if "alternateIdentifiers" not in metadata["attributes"]:
+            metadata["attributes"]["alternateIdentifiers"] = []
 
         if "clientId" not in metadata:
             metadata["clientId"] = Setting().get(PluginSettings.IGSN_CLIENT_ID)
