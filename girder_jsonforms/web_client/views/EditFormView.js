@@ -74,8 +74,9 @@ const EditFormView = View.extend({
         },
         'click .g-edit-access': 'editAccess',
         'click a.g-cancel-form': function () {
-            this.tempFolder.destroy();
-            router.navigate('forms', {trigger: true});
+            this.tempFolder.destroy().done(() => {
+              router.navigate('forms', {trigger: true});
+            });
         },
         'submit #g-form': function (event) {
             event.preventDefault();

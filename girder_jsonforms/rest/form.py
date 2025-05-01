@@ -146,7 +146,13 @@ class Form(Resource):
             required=True,
             dataType="string",
         )
-        .param("schema", "The schema of the form", required=True, dataType="string")
+        .param(
+            "schema",
+            "The schema of the form",
+            required=True,
+            dataType="string",
+            paramType="body",
+        )
         .modelParam(
             "folderId",
             "The folder ID to save the form",
