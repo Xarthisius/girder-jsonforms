@@ -7,11 +7,13 @@ import re
 
 from girder import events
 from girder.constants import AccessType
+from girder.exceptions import ValidationException
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.model_base import Model
 from girder.models.upload import Upload
 from girder.utility import JsonEncoder, RequestBodyStream, acl_mixin
+from girder.utility.model_importer import ModelImporter
 
 
 logger = logging.getLogger(__name__)
@@ -59,10 +61,16 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 "updated",
                 "files",
                 "folders",
+                "uniqueId",
             ),
         )
 
     def validate(self, doc):
+        if not doc.get("formId"):
+            raise ValidationException("Form ID is required", "formId")
+        model = ModelImporter.model("form", plugin="jsonforms")
+        form = model.load(doc["formId"], force=True)
+        doc["uniqueId"] = doc["data"][form["uniqueField"]]
         return doc
 
     def _getExtraPath(self, template, data):
@@ -94,6 +102,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             "folderId": destination_id,
             "files": [],
             "folders": [],
+            "uniqueId": data.get(unique_field),
         }
 
         if existing := self.findOne(

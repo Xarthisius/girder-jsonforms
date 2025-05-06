@@ -67,7 +67,7 @@
               h3
                 | Related Identifiers:
             for identifier in metadata.relatedIdentifiers
-              .g-deposition-info-line
+              .g-deposition-info-line(entryId=identifier.entryId)
                 i.icon-doc
                 span.test-muted= identifier.relationType + ': '
                 a(href=identifier.relatedIdentifier)
@@ -76,7 +76,7 @@
                   else
                     span.g-info-type= identifier.relatedIdentifier
               if identifier.relatedMetadataScheme
-                .g-deposition-info-line
+                .g-deposition-info-line(formId=identifier.formId)
                   i.icon-doc-text
                   span.test-muted
                     | Schema: 
