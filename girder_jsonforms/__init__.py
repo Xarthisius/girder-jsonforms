@@ -123,7 +123,9 @@ def igsn_text_search(query, types, user, level, limit, offset):
     for modelName in types:
         if modelName not in allowed:
             continue
-        cursor = DepositionModel().find(query, fields=allowed[modelName] + ["public", "access"])
+        cursor = DepositionModel().find(
+            query, fields=allowed[modelName] + ["public", "access"]
+        )
         results[modelName] = list(
             DepositionModel().filterResultsByPermission(
                 cursor, user, level, limit=limit, offset=offset
