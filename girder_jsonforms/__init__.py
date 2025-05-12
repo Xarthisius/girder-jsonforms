@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
-import os
+from pathlib import Path
 
 from girder import events
 from girder.constants import AccessType
@@ -85,6 +85,6 @@ class JSONFormsPlugin(GirderPlugin):
             plugin="jsonforms",
             css=["/style.css"],
             js=["/girder-plugin-jsonforms.umd.cjs"],
-            staticDir=os.path.join(os.path.dirname(__file__), "web_client", "dist"),
+            staticDir=Path(__file__).parent / "web_client" / "dist",
             tree=info["serverRoot"],
         )
