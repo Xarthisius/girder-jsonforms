@@ -1,0 +1,54 @@
+.g-body-title
+  if igsn
+    Sample Information for IGSN #{igsn}
+  else
+    New Sample Submission
+form#g-deposition-form(role="form")
+  .g-deposition-form-container
+    h4 Basic Information
+      if !igsn
+        .row
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-governor") Originating Institution
+            select.form-control(id="g-deposition-governor" name="governor" required)
+              option(value="") Select an institution
+              each institution in institutions
+                option(value=institution.code)= institution.name
+            small.form-text.text-muted
+              | The institution where the sample was manufactured or procured.
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-governorLab") Originating Group
+            select.form-control(id="g-deposition-governorLab" name="governorLab")
+              option(value="") Select a group
+            small.form-text.text-muted
+              | The group within the institution. If not applicable, leave blank.
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-material") Material Type
+            select.form-control(id="g-deposition-material" name="material" required)
+              option(value="") Select a material type
+              each material in materials
+                option(value=material[0])= material[1].name
+            small.form-text.text-muted
+              | The basic type of material following NIST guidelines.
+          .col-xs-12.col-md-6.col-lg-3
+            label(for="g-deposition-materialType") Material Subtype
+            select.form-control(id="g-deposition-materialType" name="materialSubtype" disabled)
+              option(value="") Select a material subtype
+            small.form-text.text-muted
+              | If subtypes are available, select one. Otherwise, leave blank.
+    .form-group
+      .g-creators-container
+    .form-group
+      label(for="g-deposition-name") Sample Name
+      input.form-control(type="text" id="g-deposition-title" name="title" required)
+      small.form-text.text-muted
+        | A descriptive, human-readible name of the sample, e.g. "TiO2 100 nm on Si"
+    .form-group
+      label(for="g-deposition-description") Sample Description
+      textarea.form-control(id="g-deposition-description" rows="3" name="description")
+      small.form-text.text-muted
+        | A description of the sample.
+    .form-group
+      .g-identifiers-container
+  button#g-deposition-cancel.btn.btn-secondary(type="button") Cancel
+    button#g-add-deposition-btn.btn.btn-primary(type="submit") Save

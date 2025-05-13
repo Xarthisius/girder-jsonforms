@@ -21,6 +21,14 @@ class FormEntry(Resource):
     @access.public
     @autoDescribeRoute(
         Description("List all entries")
+        .param("query", "Regex for Sample Id", dataType="string", required=False)
+        .param(
+            "field",
+            "Field to search",
+            dataType="string",
+            required=False,
+            default="sampleId",
+        )
         .modelParam(
             "formId",
             "The ID of the form",
@@ -31,10 +39,12 @@ class FormEntry(Resource):
         )
         .pagingParams(defaultSort="created")
     )
-    def listFormEntry(self, form, limit, offset, sort):
+    def listFormEntry(self, query, field, form, limit, offset, sort):
         q = {}
         if form:
             q = {"formId": form["_id"]}
+        if query:
+            q[f"data.{field}"] = {"$regex": query}
 
         cursor = FormEntryModel().findWithPermissions(
             q,
@@ -50,11 +60,28 @@ class FormEntry(Resource):
     @autoDescribeRoute(
         Description("Search entries")
         .param("query", "Regex for Sample Id", dataType="string", required=True)
+        .param(
+            "field",
+            "Field to search",
+            dataType="string",
+            required=False,
+            default="sampleId",
+        )
+        .modelParam(
+            "formId",
+            "The ID of the form",
+            destName="form",
+            model=FormModel,
+            level=AccessType.READ,
+            paramType="query",
+            required=False,
+        )
         .pagingParams(defaultSort="data.sampleId")
     )
-    def searchFormEntry(self, query, limit, offset, sort):
-        print(query)
-        q = {"data.sampleId": {"$regex": query}}
+    def searchFormEntry(self, query, field, form, limit, offset, sort):
+        q = {f"data.{field}": {"$regex": query}}
+        if form:
+            q["formId"] = form["_id"]
         cursor = FormEntryModel().findWithPermissions(
             q,
             user=self.getCurrentUser(),
@@ -63,7 +90,7 @@ class FormEntry(Resource):
             offset=offset,
             sort=sort,
         )
-        return list(cursor)
+        return [f"{_['_id']};{_['data'][field]}" for _ in cursor]
 
     @access.public
     @autoDescribeRoute(
@@ -100,7 +127,7 @@ class FormEntry(Resource):
         .modelParam(
             "destinationId",
             "The folder ID of destination",
-            required=True,
+            required=False,
             model=Folder,
             paramType="query",
             destName="destination",

@@ -1,11 +1,10 @@
-import $ from 'jquery';
-
 import EntriesWidget from './widgets/EntriesWidget';
 import FormModel from '../models/FormModel';
 import FormTemplate from '../templates/formTemplate.pug';
 
 import '../stylesheets/formView.styl';
 
+const $ = girder.$;
 const View = girder.views.View;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const router = girder.router;
@@ -15,7 +14,6 @@ const { renderMarkdown } = girder.misc;
 var FormView = View.extend({
     events: {
         'click .g-new-entry': function (event) {
-            console.log('new entry');
             router.navigate('form/' + this.model.get('_id') + '/entry', {
                 trigger: true
             });

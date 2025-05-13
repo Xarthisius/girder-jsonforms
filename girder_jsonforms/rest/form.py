@@ -25,8 +25,8 @@ class Form(Resource):
         self.route("POST", (), self.createForm)
         self.route("PUT", (":id",), self.updateForm)
         self.route("DELETE", (":id",), self.deleteForm)
-        self.route("GET", (":id", "access"), self.getFromAccess)
-        self.route("PUT", (":id", "access"), self.updateFromAccess)
+        self.route("GET", (":id", "access"), self.getFormAccess)
+        self.route("PUT", (":id", "access"), self.updateFormAccess)
         self.route("GET", (":id", "export"), self.exportForm)
         self.route("POST", (":id", "import"), self.importForm)
 
@@ -94,12 +94,14 @@ class Form(Resource):
             raise RestException("File is empty")
         file_obj = RequestBodyStream(cherrypy.request.body)
         file_type = "csv" if content_type == "application/csv" else "xlsx"
-        return FormModel().import_entries(form, file_obj, file_type, dry_run=dryRun)
+        return FormModel().import_entries(
+            form, file_obj, file_type, self.getCurrentUser(), dry_run=dryRun
+        )
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
         Description("Export form entries as a table")
-        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.READ)
+        .modelParam("id", model=FormModel, level=AccessType.READ)
         .param(
             "exportFormat",
             "The format to export the entries as",
@@ -144,7 +146,13 @@ class Form(Resource):
             required=True,
             dataType="string",
         )
-        .param("schema", "The schema of the form", required=True, dataType="string")
+        .param(
+            "schema",
+            "The schema of the form",
+            required=True,
+            dataType="string",
+            paramType="body",
+        )
         .modelParam(
             "folderId",
             "The folder ID to save the form",
@@ -185,6 +193,12 @@ class Form(Resource):
             dataType="string",
             default="sampleId",
         )
+        .param(
+            "jsHelpers",
+            "The JavaScript helpers to use in the form (either string or url)",
+            required=False,
+            dataType="string",
+        )
     )
     @filtermodel(model="form", plugin="jsonforms")
     def createForm(
@@ -198,6 +212,7 @@ class Form(Resource):
         gdriveFolderId,
         serialize,
         uniqueField,
+        jsHelpers,
     ):
         return FormModel().create_form(
             name,
@@ -210,6 +225,7 @@ class Form(Resource):
             gdriveFolderId=gdriveFolderId or None,
             serialize=serialize,
             uniqueField=uniqueField,
+            jsHelpers=jsHelpers,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -319,7 +335,7 @@ class Form(Resource):
             "id", "The ID of the form", model=FormModel, level=AccessType.ADMIN
         )
     )
-    def getFromAccess(self, form):
+    def getFormAccess(self, form):
         return FormModel().getFullAccessList(form)
 
     @access.user(scope=TokenScope.DATA_OWN)
@@ -344,7 +360,7 @@ class Form(Resource):
         .errorResponse("ID was invalid.")
         .errorResponse("Admin access was denied for the form.", 403)
     )
-    def updateFromAccess(self, form, access, publicFlags, public):
+    def updateFormAccess(self, form, access, publicFlags, public):
         user = self.getCurrentUser()
         if form["folderId"]:
             folder = Folder().load(form["folderId"], force=True)

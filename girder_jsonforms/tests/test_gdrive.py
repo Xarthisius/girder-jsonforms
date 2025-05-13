@@ -41,3 +41,4 @@ def test_enabled_gdrive(enable_gdrive, mock_authorization, mock_apiRoot):
     from girder_jsonforms import GDRIVE_SERVICE as GDRIVE
 
     assert GDRIVE == {"status": "Authorized"}, "Google Drive should be enabled"
+    plugin._pluginRegistry = None

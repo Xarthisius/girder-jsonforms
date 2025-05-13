@@ -1,15 +1,73 @@
-import $ from 'jquery';
+import DepositionModel from './models/DepositionModel';
+import DepositionView from './views/DepositionView';
+import DepositionListView from './views/DepositionListView';
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
 import FormView from './views/FormView';
 import FormListView from './views/FormListView';
 import EditFormView from './views/EditFormView';
+import EditDepositionView from './views/EditDepositionView';
 
 const router = girder.router;
 const events = girder.events;
+const { restRequest } = girder.rest;
+const $ = girder.$;
 
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
+});
+
+router.route('depositions', 'depositions', function () {
+    events.trigger('g:navigateTo', DepositionListView);
+});
+
+router.route('newdeposition', 'deposition', function () {
+    events.trigger('g:navigateTo', EditDepositionView);
+});
+
+router.route('deposition/:id/edit', 'editDeposition', function (id) {
+    const deposition = new DepositionModel({_id: id});
+    deposition.fetch().done(() => {
+        events.trigger('g:navigateTo', EditDepositionView, {
+            model: deposition,
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('depositions', {trigger: true, replace: true});
+    });
+});
+
+router.route('deposition/:id', 'deposition', function (id) {
+    const deposition = new DepositionModel({_id: id});
+    deposition.fetch().done(() => {
+      events.trigger('g:navigateTo', DepositionView, {
+            model: deposition
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('depositions', {trigger: true, replace: true});
+    });
+});
+
+router.route('igsn/:igsn', 'igsn', function (igsn) {
+  restRequest({
+    method: 'GET',
+    url: 'deposition',
+    data: {
+      igsnPrefix: igsn,
+      limit: 1
+    }
+  }).done((resp) => {
+    if (resp.length > 0) {
+      router.navigate('deposition/' + resp[0]._id, {trigger: true, replace: true});
+    } else {
+      router.navigate('depositions', {trigger: true, replace: true});
+    }
+  }).fail(() => {
+    router.navigate('depositions', {trigger: true, replace: true});
+  });
 });
 
 router.route('form/:id/entry', 'form', function (id, params) {
