@@ -1,3 +1,4 @@
+import copy
 import datetime
 import logging
 
@@ -362,12 +363,11 @@ class Deposition(AccessControlledModel):
             "relatedIdentifierType": "IGSN",
         }
 
-        metadata = main_deposition["metadata"].copy()
-        metadata["relatedIdentifiers"].append(relatedIdentifier)
-        titles = metadata.pop("titles")
-
         depositions = []
         for index in indices:
+            metadata = copy.deepcopy(main_deposition["metadata"])
+            metadata["relatedIdentifiers"].append(relatedIdentifier)
+            titles = metadata.pop("titles")
             igsn_index, local_index = index
             logger.info(
                 f"Creating deposition for {main_deposition['igsn']} with index {igsn_index} "
@@ -380,7 +380,7 @@ class Deposition(AccessControlledModel):
                 "igsn": f"{main_deposition['igsn']}-{igsn_index}",
                 "metadata": {
                     "titles": [{"title": f"{titles[0]['title']} - {igsn_index}"}],
-                    **metadata,
+                    **metadata.copy(),
                 },
                 "parentId": main_deposition["_id"],
                 "public": main_deposition.get("public"),
@@ -392,7 +392,9 @@ class Deposition(AccessControlledModel):
                 "track": main_deposition["track"],
             }
             if local_index:
-                deposition["metadata"].setdefault("attributes", {})
+                if "attributes" not in deposition["metadata"]:
+                    deposition["metadata"]["attributes"] = {}
+                # Overwrite the alternate identifier
                 deposition["metadata"]["attributes"]["alternateIdentifiers"] = [
                     {
                         "alternateIdentifier": local_index,
