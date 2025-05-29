@@ -6,6 +6,7 @@ from girder.models.folder import Folder
 
 from ..models.form import Form as FormModel
 from ..models.entry import FormEntry as FormEntryModel
+from ..worker_plugin.pull_related_ids import run as pullRelatedIds
 
 
 class FormEntry(Resource):
@@ -151,4 +152,9 @@ class FormEntry(Resource):
         )
     )
     def deleteFormEntry(self, entry):
+        pullRelatedIds.delay(
+            entry,
+            user=self.getCurrentUser(),
+            girder_job_title="Updating relatedIdentifiers in Depositions",
+        )
         FormEntryModel().remove(entry)

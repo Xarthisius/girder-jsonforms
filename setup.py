@@ -26,12 +26,18 @@ setup(
     setup_requires=["setuptools-git"],
     install_requires=[
         "girder>=5.0.0a5.dev0",
+        "girder-worker>=5.0.0a4",
         "girder-sample-tracker>=2.0.0",  # Required for the sample tracker to test JSONForms
         "google-api-python-client",
         "google-auth-oauthlib",
         "pandas",
         "openpyxl",
     ],
-    entry_points={"girder.plugin": ["jsonforms = girder_jsonforms:JSONFormsPlugin"]},
+    entry_points={
+        "girder.plugin": ["jsonforms = girder_jsonforms:JSONFormsPlugin"],
+        "girder_worker_plugins": [
+            "jsonforms = girder_jsonforms.worker_plugin:JSONFormsWorkerPlugin"
+        ],
+    },
     zip_safe=False,
 )
