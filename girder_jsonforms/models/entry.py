@@ -1,15 +1,43 @@
 import datetime
 import io
 import json
+import logging
 import os
+import re
 
 from girder import events
 from girder.constants import AccessType
+from girder.exceptions import ValidationException
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.model_base import Model
 from girder.models.upload import Upload
-from girder.utility import acl_mixin, JsonEncoder, RequestBodyStream
+from girder.utility import JsonEncoder, RequestBodyStream, acl_mixin
+from girder.utility.model_importer import ModelImporter
+
+
+logger = logging.getLogger(__name__)
+
+
+def _get_meta(entry, child_meta):
+    meta = {
+        "entryId": entry["_id"],
+    }
+    path = child_meta.get("targetPath")
+    if batch_action := entry["data"].get("igsn", {}).get("batch", {}):
+        logger.info(f"Batch action: {batch_action}")
+        if batch_action.get("method") == "from_array" and child_meta.get("formField"):
+            logger.info(f"Form field: {child_meta['formField']}")
+            number = str(int(re.search(r"\d+", child_meta.pop("formField")).group()) + 1)
+            logger.info(f"Number: {number}")
+            if "assignedIGSN" in entry["data"]:
+                meta["igsn"] = f"{entry['data']['assignedIGSN']}-{number}"
+            if path:
+                path = os.path.join(path, number)
+            else:
+                path = number
+            meta["targetPath"] = path
+    return path, meta
 
 
 class FormEntry(acl_mixin.AccessControlMixin, Model):
@@ -28,14 +56,21 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 "formId",
                 "folderId",
                 "data",
+                "creatorId",
                 "created",
                 "updated",
                 "files",
                 "folders",
+                "uniqueId",
             ),
         )
 
     def validate(self, doc):
+        if not doc.get("formId"):
+            raise ValidationException("Form ID is required", "formId")
+        model = ModelImporter.model("form", plugin="jsonforms")
+        form = model.load(doc["formId"], force=True)
+        doc["uniqueId"] = doc["data"][form["uniqueField"]]
         return doc
 
     def _getExtraPath(self, template, data):
@@ -52,16 +87,22 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             return None
 
     def create_entry(self, form, data, source, destination, creator):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
         unique_field = form.get("uniqueField")
+        if destination is None:
+            destination_id = None
+        else:
+            destination_id = destination["_id"]
         entry = {
             "formId": form["_id"],
             "data": data,
+            "creatorId": creator["_id"],
             "created": now,
             "updated": now,
-            "folderId": destination["_id"],
+            "folderId": destination_id,
             "files": [],
             "folders": [],
+            "uniqueId": data.get(unique_field),
         }
 
         if existing := self.findOne(
@@ -80,6 +121,9 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 }
             )
 
+        # At this point we need to ensure we have _id and/or igsn was created
+        entry = self.save(entry)
+
         # Move from temp to destination
         path = entry["data"].get("targetPath")
         known_targets = {
@@ -90,31 +134,42 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
         }
         if source is not None:
             for child in Folder().childFolders(source, "folder", user=creator):
-                path = child.get("meta", {}).get("targetPath")
+                child_meta = child.get("meta", {})
+                path, meta = _get_meta(entry, child_meta)
+                logger.info(f"Moving {child['_id']} to {path}")
+                child = Folder().setMetadata(child, meta)
                 try:
                     target, _ = known_targets[path]
                 except KeyError:
                     target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = target, child.get("meta", {}).get(unique_field)
+                    known_targets[path] = (
+                        target,
+                        child.get("meta", {}).get(unique_field),
+                    )
                 child = self.unique(child, target)
                 Folder().move(child, target, "folder")
                 # TODO upload to GDrive
                 entry["folders"].append(child["_id"])
 
             for child in Folder().childItems(source):
-                path = child.get("meta", {}).get("targetPath")
+                child_meta = child.get("meta", {})
+                path, meta = _get_meta(entry, child_meta)
+                child = Item().setMetadata(child, meta)
                 try:
                     target, _ = known_targets[path]
                 except KeyError:
                     target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = target, child.get("meta", {}).get(unique_field)
+                    known_targets[path] = (
+                        target,
+                        child.get("meta", {}).get(unique_field),
+                    )
                 child = self.unique(child, target)
                 child = Item().move(child, target)
                 for file in Item().childFiles(child):
                     # Upload to GDrive
                     gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
                     if gdrive_folder_id:
-                        events.daemon.trigger(
+                        events.trigger(
                             "gdrive.upload",
                             {
                                 "file": file,
@@ -156,7 +211,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 # not really chunking here as JSON is small
                 upload = Upload().handleChunk(upload, RequestBodyStream(f, size))
                 if form.get("gdriveFolderId"):
-                    events.daemon.trigger(
+                    events.trigger(
                         "gdrive.upload",
                         {
                             "file": upload,

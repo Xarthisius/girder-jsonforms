@@ -3,6 +3,7 @@ import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import istanbul from 'vite-plugin-istanbul';
 import { compileClient } from 'pug';
+import inject from '@rollup/plugin-inject';
 
 function pugPlugin() {
   return {
@@ -27,6 +28,11 @@ export default defineConfig({
       exclude: ['node_modules', 'test/'],
       extension: [ '.js', '.ts', '.vue' ],
       // requireEnv: true,
+    }),
+    inject({
+      $: 'jquery',
+      jQuery: 'jquery',
+      'window.jQuery': 'jquery'
     }),
   ],
   build: {

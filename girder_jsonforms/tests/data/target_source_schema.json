@@ -1,0 +1,92 @@
+{
+  "type": "object",
+  "title": "Weihs Lab Target Source",
+  "description": "A powder used for sputtering in the Weihs Lab.",
+  "properties": {
+    "lookup": {
+      "type": "string",
+      "description": "Lookup for the IGSN of the sample",
+      "format": "autocomplete",
+      "options": {
+        "autocomplete": {
+          "search": "search_deposition",
+          "renderResult": "render_deposition",
+          "getResultValue": "get_deposition_value",
+          "autoSelect": true,
+          "debounceTime": 500
+        } 
+      },
+      "propertyOrder": 0
+    },
+    "sampleId": {
+      "type": "string",
+      "description": "Sample ID",
+      "readOnly": true,
+      "propertyOrder": 1,
+      "template": "{{split IGSN '-' 0}} - {{element}}",
+      "watch": {
+          "IGSN": "lookup",
+          "element": "element"
+      }
+    },
+    "depositionId": {
+      "type": "string",
+      "format": "hidden",
+      "template": "{{split IGSN '-' 1}}",
+      "options": {
+        "hidden": true
+      },
+      "watch": {
+        "IGSN": "lookup"
+      },
+      "propertyOrder": 0
+    },
+    "IGSN": {
+      "type": "string",
+      "format": "hidden",
+      "template": "{{split IGSN '-' 0}}",
+      "options": {
+        "hidden": true
+      },
+      "watch": {
+        "IGSN": "lookup"
+      },
+      "propertyOrder": 0
+    },
+    "contaminants": {
+      "type": "string",
+      "propertyOrder": 3,
+      "description": "Detected impurities"
+    },
+    "element": {
+      "type": "string",
+      "propertyOrder": 2,
+      "description": "Chemical element",
+      "minLength": 1,
+      "maxLength": 2
+    },
+    "manufacturer": {
+      "type": "string",
+      "description": "Manufacturer of the power supply, e.g., 'XYZ Corp'"
+    },
+    "purchaseOrder": {
+      "type": "string",
+      "description": "URL to the purchase order, e.g., 'https://example.com/PO123456'",
+      "format": "url"
+    },
+    "purity": {
+      "type": "number",
+      "description": "Purity of the powder, e.g., '99.99%'",
+      "minimum": 0,
+      "maximum": 100
+    }
+  },
+  "required": [
+    "IGSN",
+    "contaminants",
+    "element",
+    "manufacturer",
+    "purchaseOrder",
+    "purity"
+  ]
+}

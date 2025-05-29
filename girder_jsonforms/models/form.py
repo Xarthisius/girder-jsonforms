@@ -31,6 +31,7 @@ class Form(AccessControlledModel):
                 "description",
                 "entryFileName",
                 "schema",
+                "jsHelpers",
                 "created",
                 "updated",
                 "gdriveFolderId",
@@ -38,6 +39,7 @@ class Form(AccessControlledModel):
                 "serialize",
                 "pathTemplate",
                 "uniqueField",
+                "dependencies",
             ),
         )
 
@@ -50,6 +52,7 @@ class Form(AccessControlledModel):
         description,
         schema,
         creator,
+        jsHelpers=None,
         folder=None,
         pathTemplate=None,
         entryFileName=None,
@@ -57,12 +60,13 @@ class Form(AccessControlledModel):
         serialize=False,
         uniqueField=None,
     ):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         form = {
             "name": name,
             "description": description,
             "schema": schema,
+            "jsHelpers": jsHelpers,
             "folderId": None,
             "gdriveFolderId": gdriveFolderId,
             "pathTemplate": pathTemplate,
@@ -75,6 +79,9 @@ class Form(AccessControlledModel):
         if folder:
             form["folderId"] = folder["_id"]
 
+        if creator is not None:
+            self.setUserAccess(form, user=creator, level=AccessType.ADMIN, save=False)
+
         return self.save(form)
 
     def update_form(
@@ -84,13 +91,14 @@ class Form(AccessControlledModel):
         description,
         schema,
         folder=None,
+        jsHelpers=None,
         pathTemplate=None,
         entryFileName=None,
         gdriveFolderId=None,
         serialize=None,
         uniqueField=None,
     ):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         form["name"] = name
         form["description"] = description
@@ -106,6 +114,9 @@ class Form(AccessControlledModel):
         if entryFileName:
             form["entryFileName"] = entryFileName
 
+        if jsHelpers:
+            form["jsHelpers"] = jsHelpers
+
         if gdriveFolderId:
             form["gdriveFolderId"] = gdriveFolderId
 
@@ -120,15 +131,48 @@ class Form(AccessControlledModel):
     def materialize(self, form, user):
         from .entry import FormEntry
 
-        if form["schema"].startswith("http"):
-            form["schema"] = self._loadRemoteSchema(form["schema"])
-        else:
-            form["schema"] = json.loads(form["schema"])
+        if isinstance(form["schema"], str):
+            if form["schema"].startswith("http"):
+                form["schema"] = self._loadRemoteSchema(form["schema"])
+            else:
+                form["schema"] = json.loads(form["schema"])
+
+        if isinstance(form.get("jsHelpers"), str) and form["jsHelpers"].startswith(
+            "http"
+        ):
+            form["jsHelpers"] = requests.get(form["jsHelpers"]).text
+
+        for keyPath in find_key_paths(form["schema"], "preload"):
+            value = get_value(form["schema"], keyPath)
+            if isinstance(value, str) and value.startswith("girder.formId:"):
+                formId = value.split(":")[1]
+                fields = value.split(":")[2:]
+                source_form = self.load(
+                    formId, level=AccessType.READ, user=user, exc=True
+                )
+                dependencies = {}
+                for dep in FormEntry().collection.find(
+                    {"formId": source_form["_id"]},
+                    projection={f"data.{_}": 1 for _ in fields},
+                ):
+                    dep_id = str(dep.pop("_id"))
+                    dependencies[dep_id] = convert_to_jq_notation(dep)
+                form["dependencies"] = dependencies
 
         for keyPath in find_key_paths(form["schema"], "enumSource"):
             value = get_value(form["schema"], keyPath)
             if isinstance(value, str) and value.startswith("girder.formId:"):
-                formId = value.split(":")[1]
+                command = value.split(":")
+                formId = command[1]
+                try:
+                    enum_value = command[2]
+                except IndexError:
+                    enum_value = "{entry[_id]}"
+                try:
+                    enum_title = command[3]
+                except IndexError:
+                    enum_title = None
+
                 source_form = self.load(
                     formId, level=AccessType.READ, user=user, exc=True
                 )
@@ -137,6 +181,7 @@ class Form(AccessControlledModel):
                     "title": "{{item.title}}",
                     "value": "{{item.value}}",
                 }
+
                 for entry in (
                     FormEntry()
                     .find(
@@ -145,10 +190,14 @@ class Form(AccessControlledModel):
                     )
                     .sort([(source_form["uniqueField"], 1)])
                 ):
+                    if enum_title:
+                        title = enum_title.format(entry=entry)
+                    else:
+                        title = entry["data"][source_form["uniqueField"]]
                     enum_source["source"].append(
                         {
-                            "value": str(entry["_id"]),
-                            "title": entry["data"][source_form["uniqueField"]],
+                            "value": enum_value.format(entry=entry),
+                            "title": title,
                         }
                     )
                     set_value(form["schema"], keyPath, [enum_source])
@@ -183,7 +232,7 @@ class Form(AccessControlledModel):
         return ref_value
 
     def get_data_types(self, form):
-        schema = json.loads(form["schema"])
+        schema = form["schema"]  # Has to materialized
         types = self.infer_column_types(
             schema, definitions=schema.get("definitions", {})
         )
@@ -241,10 +290,11 @@ class Form(AccessControlledModel):
 
         return properties
 
-    def import_entries(self, form, file_obj, file_type, dry_run=True):
+    def import_entries(self, form, file_obj, file_type, user, dry_run=True):
         from .entry import FormEntry
 
-        schema = json.loads(form["schema"])
+        form = self.materialize(form, user)  # Ensure the schema is materialized
+
         io_buffer = io.BytesIO(file_obj.read())
         if file_type == "csv":
             entries = pd.read_csv(
@@ -264,7 +314,7 @@ class Form(AccessControlledModel):
         for row in parsed_entries:
             entry = row["data"]
             try:
-                jsonschema.Draft7Validator(schema).validate(entry)
+                jsonschema.Draft7Validator(form["schema"]).validate(entry)
             except jsonschema.ValidationError as e:
                 print(str(e))
                 failed += 1
@@ -274,13 +324,20 @@ class Form(AccessControlledModel):
             except KeyError:
                 failed += 1
                 continue
-            if existing_entry := FormEntry().findOne(
+            if FormEntry().findOne(
                 {"formId": form["_id"], f"data.{form['uniqueField']}": unique_id}
             ):
                 updated += 1
-                print("Updating entry", existing_entry["_id"])
             else:
                 new += 1
+            if not dry_run:
+                FormEntry().create_entry(
+                    form,
+                    entry,  # The actual data to insert
+                    None,
+                    None,
+                    user,
+                )
         return json.dumps({"new": new, "updated": updated, "failed": failed})
 
     def _loadRemoteSchema(self, url):
