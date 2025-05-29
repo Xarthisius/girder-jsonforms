@@ -153,6 +153,7 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
+        DepositionModel().validate({})   # To initialize the model and bind events
         events.bind("data.process", "jsonforms", annotate_uploads)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
