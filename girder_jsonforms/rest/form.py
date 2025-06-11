@@ -14,6 +14,7 @@ from girder.utility import RequestBodyStream
 from girder.utility.progress import noProgress
 
 from ..models.form import Form as FormModel
+from ..models.deposition import Deposition
 
 
 class Form(Resource):
@@ -29,6 +30,7 @@ class Form(Resource):
         self.route("PUT", (":id", "access"), self.updateFormAccess)
         self.route("GET", (":id", "export"), self.exportForm)
         self.route("POST", (":id", "import"), self.importForm)
+        self.route("POST", (":id", "ingest"), self.ingestDataForForm)
 
     @access.public
     @autoDescribeRoute(
@@ -376,3 +378,43 @@ class Form(Resource):
             )
 
         return FormModel().setAccessList(form, access, save=True, user=user)
+
+    @access.user(scope=TokenScope.DATA_WRITE)
+    @autoDescribeRoute(
+        Description("Ingest data for a form")
+        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.WRITE)
+        .modelParam(
+            "depositionId",
+            "The ID of the deposition",
+            model=Deposition,
+            required=True,
+            paramType="query",
+            level=AccessType.READ,
+        )
+        .modelParam(
+            "folderId",
+            "The folder ID with uploaded data",
+            model=Folder,
+            required=True,
+            paramType="query",
+            level=AccessType.READ,
+        )
+        .param(
+            "progress",
+            "Whether to record progress for the ingest task",
+            dataType="boolean",
+            required=False,
+            default=False,
+        )
+    )
+    def ingestDataForForm(self, form, deposition, folder, progress):
+        from ..worker_plugin.amdee import run as run_ingest
+
+        run_ingest.delay(
+            self.getCurrentUser(),
+            form,
+            deposition,
+            folder,
+            progress=progress,
+            girder_job_disable=True,
+        )

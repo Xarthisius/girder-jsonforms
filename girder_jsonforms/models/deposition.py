@@ -5,7 +5,7 @@ import logging
 from girder import events
 from girder.api.rest import getApiUrl
 from girder.constants import AccessType
-from girder.exceptions import ValidationException
+from girder.exceptions import GirderException, ValidationException
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
 from girder.models.user import User
@@ -212,15 +212,16 @@ class Deposition(AccessControlledModel):
                 logger.error(errmsg)
             return
 
+        try:
+            api_url = getApiUrl()
+        except GirderException:
+            api_url = "/api/v1"
+
         relatedIdentifier = {
             "relationType": "HasMetadata",
-            "relatedIdentifier": "/".join(
-                (getApiUrl(), "entry", str(event.info["_id"]))
-            ),
+            "relatedIdentifier": "/".join((api_url, "entry", str(event.info["_id"]))),
             "relatedIdentifierType": "URL",
-            "relatedMetadataScheme": "/".join(
-                (getApiUrl(), "form", str(formId), "schema")
-            ),
+            "relatedMetadataScheme": "/".join((api_url, "form", str(formId), "schema")),
         }
 
         logger.info(f"Updating relations for {deposition['igsn']}")

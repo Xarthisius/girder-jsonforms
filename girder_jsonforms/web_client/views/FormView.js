@@ -1,4 +1,5 @@
 import EntriesWidget from './widgets/EntriesWidget';
+import ImportToFormDialog from './widgets/ImportToForm';
 import FormModel from '../models/FormModel';
 import FormTemplate from '../templates/formTemplate.pug';
 
@@ -18,7 +19,8 @@ var FormView = View.extend({
                 trigger: true
             });
         },
-        'click .g-edit-access': 'editAccess'
+        'click .g-edit-access': 'editAccess',
+        'click .g-import-form': 'importForm'
     },
     initialize: function (settings) {
         cancelRestRequests('fetch');
@@ -64,7 +66,16 @@ var FormView = View.extend({
             console.log(params);
             console.log('Should change access to folderId');
         }, this).render();
-    }
+    },
+
+    importForm: function () {
+        new ImportToFormDialog({
+            el: $('#g-dialog-container'),
+            model: this.model,
+            modelType: 'form',
+            parentView: this
+        });
+    },
 });
 
 export default FormView;
