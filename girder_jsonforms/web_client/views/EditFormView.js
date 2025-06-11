@@ -81,6 +81,7 @@ const EditFormView = View.extend({
         'submit #g-form': function (event) {
             event.preventDefault();
             this.$('.g-validation-failed-message').empty();
+            this.setSubmitEnabled(false);
             var errors = this.form.validate();
             if (errors.length) {
                 this.form.root.showValidationErrors(errors);
@@ -100,23 +101,18 @@ const EditFormView = View.extend({
                 params.destinationId = this.destFolder.id;
             }
             new FormEntryModel(params).save().done(() => {
+                this.trigger('g:alert', {
+                    text: 'Form entry saved successfully.',
+                    type: 'success',
+                });
                 router.navigate(`form/${params.formId}`, {trigger: true});
+            }).fail((err) => {
+                this.trigger('g:alert', {
+                  text: err.responseJSON.message || 'An error occurred while saving the form entry.',
+                  type: 'danger',
+                });
+                this.setSubmitEnabled(true);
             });
-            /* if (this.initialValues) {
-                this.initialValues.set('data', this.form.getValue());
-                this.initialValues.save().done(() => {
-                    router.navigate('forms', {trigger: true});
-                });
-            } else {
-                new FormEntryModel({
-                    formId: this.model.id,
-                    data: JSON.stringify(this.form.getValue()),
-                    sourceId: this.tempFolder.id,
-                    destinationId: this.destFolder.id
-                }).save().done(() => {
-                    router.navigate('forms', {trigger: true});
-                });
-            } */
         }
     },
 
@@ -321,6 +317,11 @@ const EditFormView = View.extend({
             });
         }
         return this;
+    },
+
+    setSubmitEnabled: function (enabled) {
+        this.$('#g-form').prop('disabled', !enabled);
+        this.$('.g-save-form').girderEnable(enabled);
     },
 
     editAccess: function () {
