@@ -163,15 +163,16 @@ class Deposition(AccessControlledModel):
                 ].pop("alternateIdentifiers")
 
         logger.info(f"Whether to track: {track}")
+        # Copy access policies from the form to the master sample
+        form = Form().load(entry["formId"], force=True)
         master_sample = self.create_deposition(
             master_metadata,
             creator,
             igsn=igsn,
             track=track,
+            access=form["access"],
+            public=form.get("public", False),
         )
-        # Copy access policies from the form to the master sample
-        form = Form().load(entry["formId"], force=True)
-        self.copyAccessPolicies(src=form, dest=master_sample, save=True)
         logger.info(f"Creating batch for {igsn}")
         self.create_batch(master_sample, data)
 
@@ -309,6 +310,8 @@ class Deposition(AccessControlledModel):
         igsn=None,
         parent=None,
         track=False,
+        access=None,
+        public=False,
     ):
         if igsn is None and prefix is None:
             raise ValidationException("Either IGSN or prefix must be provided")
@@ -335,10 +338,14 @@ class Deposition(AccessControlledModel):
             "updated": now,
             "sampleId": None,
             "track": track,
+            "public": public,
         }
 
         if parent["_id"]:
             self.copyAccessPolicies(src=parent, dest=deposition, save=False)
+
+        if access:
+            deposition["access"] = copy.deepcopy(access)
 
         if creator is not None:
             self.setUserAccess(
