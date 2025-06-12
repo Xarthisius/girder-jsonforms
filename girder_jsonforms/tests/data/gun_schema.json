@@ -1,0 +1,47 @@
+{
+  "type": "object",
+  "title": "Weihs Lab Sputter Gun",
+  "description": "A sputter gun used in the Weihs Lab.",
+  "properties": {
+    "geometry": {
+      "type": "string",
+      "enum": [
+        "Geometry 1",
+        "Geometry 2",
+        "Geometry 3"
+      ]
+    },
+    "manufacturer": {
+      "type": "string",
+      "propertyOrder": 1,
+      "description": "The manufacturer of the sputter gun."
+    },
+    "name": {
+      "type": "string",
+      "propertyOrder": 0
+    },
+    "serialNumber": {
+      "type": "string"
+    },
+    "size": {
+      "type": "string"
+    },
+    "gunType": {
+      "type": "string",
+      "enum": [
+        "Gun Type 1",
+        "Gun Type 2",
+        "Gun Type 3"
+      ],
+      "default": "Gun Type 1"
+    }
+  },
+  "required": [
+    "geometry",
+    "manufacturer",
+    "name",
+    "serialNumber",
+    "size",
+    "gunType"
+  ]
+}

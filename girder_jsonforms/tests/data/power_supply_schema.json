@@ -1,0 +1,42 @@
+{
+  "type": "object",
+  "title": "Weihs Lab Power Supply",
+  "description": "A power supply used in the Weihs Lab.",
+  "properties": {
+    "manufacturer": {
+      "type": "string",
+      "propertyOrder": 1,
+      "description": "Manufacturer of the power supply, e.g., 'Keithley', 'Agilent', 'Fluke'",
+      "pattern": "^[a-zA-Z0-9\\s]+$",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "name": {
+      "type": "string",
+      "propertyOrder": 0,
+      "description": "Name of the power supply, e.g., 'Keithley 2400', has to be unique",
+      "pattern": "^[a-zA-Z0-9\\s]+$",
+      "minLength": 1,
+      "maxLength": 50
+    },
+    "power": {
+      "type": "number",
+      "description": "Power rating in KW",
+      "minimum": 0,
+      "maximum": 100
+    },
+    "serialNumber": {
+      "type": "string",
+      "description": "Serial number of the power supply, e.g., 'SN123456'",
+      "pattern": "^[a-zA-Z0-9\\s]+$",
+      "minLength": 1,
+      "maxLength": 50
+    }
+  },
+  "required": [
+    "manufacturer",
+    "name",
+    "power",
+    "serialNumber"
+  ]
+}

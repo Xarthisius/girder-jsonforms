@@ -1,0 +1,18 @@
+label(for="g-alternate-identifiers") Alternate Identifiers
+button.btn.btn-sm.btn-success.g-button(type="button" id="g-deposition-addIdentifier") Add Identifier
+ul.g-identifiers-list(name="identifiers").list-group
+  each identifier in identifiers
+    li(draggable="true").g-identifier-item.list-group-item
+      .input-group.mb-3
+        span.input-group-btn
+          button.btn.btn-sm.g-button(type="button" disabled)
+            i.icon-move
+        select.form-control.g-identifier-type(name="type").list-group-item-action
+          option(value="") Select a type
+          option(value="local", selected=(identifier.type == "local")) Local
+          option(value="doi", selected=(identifier.type == "doi")) DOI
+        span.input-group-btn(style="width:0px;")
+        input.form-control.g-identifier-value(type="text" name="value" required value=identifier.value)
+        span.input-group-btn
+          button.btn.btn-sm.btn-danger.g-button(type="button" id="g-deposition-removeIdentifier")
+            i.icon-trash

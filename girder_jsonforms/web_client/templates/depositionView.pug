@@ -1,0 +1,101 @@
+.g-deposition-container
+  .g-deposition-actions
+    button.g-back.btn.btn-sm.btn-primary(title="Back to depositions")
+      i.icon-left
+      | Back
+    if (level >= AccessType.WRITE)
+      button.g-edit-deposition.btn.btn-sm.btn-warning(title="Edit")
+        i.icon-pencil
+        | Edit
+    if (level >= AccessType.ADMIN)
+      button.g-access-deposition.g-edit-access.btn.btn-sm.btn-warning(title="Access control")
+        i.icon-lock
+        | Access control
+      button.g-delete-deposition.btn.btn-sm.btn-danger(title="Delete")
+        i.icon-trash
+        | Delete
+
+  h1.g-deposition-title
+    | IGSN
+
+  .g-sample-code
+    canvas#g-qr-code
+    if trackerUrl !== "#sample/null"
+      p.center-text
+        i.icon-compass
+        a.g-sample-tracker-link(href=trackerUrl, title="Tracker link")
+          | See Sample Tracker
+
+  .g-deposition-content
+    .g-deposition-content-header
+      .g-deposition-content-header-left
+        h2.g-deposition-content-header-title
+          = metadata.titles[0]["title"]
+
+    .g-deposition-content-body
+      .g-deposition-content-body-left
+        .g-deposition-content-body-left-item
+          .g-deposition-info-line
+            i.icon-doc
+            span.test-muted= 'IGSN: '
+            span.g-info-type= deposition.get("igsn")
+          for d in metadata.descriptions
+            .g-deposition-info-line
+              i.icon-doc
+              span.test-muted= 'Description (' + d.descriptionType + '): '
+              span.g-info-type= d.description
+          if metadata.creators.length > 0
+            .g-deposition-info-line
+              h3
+                | Creators:
+            for creator in metadata.creators
+              .g-deposition-info-line
+                i.icon-user
+                span.test-muted= creator.role + ': '
+                span.g-info-type= creator.firstName + ' ' + creator.lastName + ' (' + creator.identifiers + ')'
+          if metadata.attributes && metadata.attributes.alternateIdentifiers.length > 0
+            .g-deposition-info-line
+              h3
+                | Alternate Identifiers:
+            for identifier in metadata.attributes.alternateIdentifiers
+              .g-deposition-info-line
+                i.icon-doc
+                span.test-muted= identifier.alternateIdentifierType + ': '
+                span.g-info-type= identifier.alternateIdentifier
+          if relatedIdentifiers.length > 0
+            .g-deposition-info-line
+              h3
+                | Related Identifiers:
+            for identifier in metadata.relatedIdentifiers
+              .g-deposition-info-line(entryId=identifier.entryId)
+                i.icon-doc
+                span.test-muted= identifier.relationType + ': '
+                a(href=identifier.relatedIdentifier)
+                  if identifier.relatedIdentifierTitle
+                    span.g-info-type= identifier.relatedIdentifierTitle
+                  else
+                    span.g-info-type= identifier.relatedIdentifier
+              if identifier.relatedMetadataScheme
+                .g-deposition-info-line(formId=identifier.formId)
+                  i.icon-doc-text
+                  span.test-muted
+                    | Schema: 
+                  a(href=identifier.relatedMetadataScheme)
+                    if identifier.relatedMetadataSchemeTitle
+                      span.g-info-type= identifier.relatedMetadataSchemeTitle
+                    else
+                      span.g-info-type= identifier.relatedMetadataScheme
+        .g-deposition-content-body-left-item
+
+.g-search-container
+  h3
+    | Related Data
+
+  .g-search-results-container
+
+  .g-search-pending
+    i.icon-spin4.animate-spin
+
+  .g-search-no-results(style='display: none;')
+    i.icon-block
+    | No related data found
