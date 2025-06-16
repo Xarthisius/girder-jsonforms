@@ -133,7 +133,8 @@ def igsn_text_search(query, types, user, level, limit, offset):
         )
     for entry in results["deposition"]:
         local_id = None
-        for attr in entry["metadata"]["attributes"]["alternateIdentifiers"]:
+        attrs = entry["metadata"].get("attributes", {}).get("alternateIdentifiers", [])
+        for attr in attrs:
             if attr["alternateIdentifierType"].lower() == "local":
                 local_id = attr["alternateIdentifier"]
                 break
