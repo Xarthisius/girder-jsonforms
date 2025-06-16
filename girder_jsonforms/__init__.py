@@ -131,6 +131,17 @@ def igsn_text_search(query, types, user, level, limit, offset):
                 cursor, user, level, limit=limit, offset=offset
             )
         )
+    for entry in results["deposition"]:
+        local_id = None
+        for attr in entry["metadata"]["attributes"]["alternateIdentifiers"]:
+            if attr["alternateIdentifierType"].lower() == "local":
+                local_id = attr["alternateIdentifier"]
+                break
+        if local_id:
+            tag = f"{entry['igsn']} ({local_id})"
+        else:
+            tag = f"{entry['igsn']}"
+        entry["name"] = f"{tag} - {entry['metadata']['titles'][0]['title']}"
     return results
 
 
@@ -153,7 +164,7 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
-        DepositionModel().validate({})   # To initialize the model and bind events
+        DepositionModel().validate({})  # To initialize the model and bind events
         events.bind("data.process", "jsonforms", annotate_uploads)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
