@@ -88,6 +88,7 @@ const EditFormView = View.extend({
                 this.$('.g-validation-failed-message').html('<ul>' + errors.map(function (err) {
                     return `<li> Path ${err.path}: ${err.message} (${err.property})</li>`;
                 }).join('') + '</ul>');
+                this.setSubmitEnabled(true);
                 return;
             }
             var params = {
