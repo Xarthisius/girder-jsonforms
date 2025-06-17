@@ -14,7 +14,7 @@ from girder.models.model_base import Model
 from girder.models.upload import Upload
 from girder.utility import JsonEncoder, RequestBodyStream, acl_mixin
 from girder.utility.model_importer import ModelImporter
-
+import jsondiff
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,9 @@ def _get_meta(entry, child_meta):
         logger.info(f"Batch action: {batch_action}")
         if batch_action.get("method") == "from_array" and child_meta.get("formField"):
             logger.info(f"Form field: {child_meta['formField']}")
-            number = str(int(re.search(r"\d+", child_meta.pop("formField")).group()) + 1)
+            number = str(
+                int(re.search(r"\d+", child_meta.pop("formField")).group()) + 1
+            )
             logger.info(f"Number: {number}")
             if "assignedIGSN" in entry["data"]:
                 meta["igsn"] = f"{entry['data']['assignedIGSN']}-{number}"
@@ -38,6 +40,34 @@ def _get_meta(entry, child_meta):
                 path = number
             meta["targetPath"] = path
     return path, meta
+
+
+class Changeset(acl_mixin.AccessControlMixin, Model):
+    def initialize(self):
+        self.name = "changeset"
+        self.resourceColl = ("form", "jsonforms")
+        self.resourceParent = "entryId"
+
+        self.exposeFields(
+            level=AccessType.READ,
+            fields=("_id", "entryId", "creatorId", "created", "diff"),
+        )
+
+    def validate(self, doc):
+        if not doc.get("entryId"):
+            raise ValidationException("Entry ID is required", "entryId")
+        return doc
+
+    def create_changeset(self, entry, diff, creator):
+        now = datetime.datetime.now(datetime.UTC)
+        changeset = {
+            "entryId": entry["_id"],
+            "diff": diff,
+            "created": now,
+        }
+        if creator:
+            changeset["creatorId"] = creator["_id"]
+        return self.save(changeset)
 
 
 class FormEntry(acl_mixin.AccessControlMixin, Model):
@@ -64,6 +94,16 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 "uniqueId",
             ),
         )
+
+    def save(self, doc, validate=True, triggerEvents=True, creator=None):
+        if "_id" in doc:
+            current_entry = self.load(doc["_id"], force=True, exc=True)
+            diff = jsondiff.diff(
+                current_entry["data"], doc["data"], syntax="explicit", marshal=True
+            )
+            if diff:
+                Changeset().create_changeset(doc, diff, creator=creator)
+        return super().save(doc, validate=validate, triggerEvents=triggerEvents)
 
     def validate(self, doc):
         if not doc.get("formId"):
@@ -122,9 +162,19 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             )
 
         # At this point we need to ensure we have _id and/or igsn was created
-        entry = self.save(entry)
+        entry = self.save(entry, creator=creator)
 
+        if source is not None:
+            entry = self.handle_source(form, source, destination, entry, creator)
+
+        if form.get("serialize", False):
+            entry = self.handle_serialization(form, entry, destination, creator)
+
+        return entry
+
+    def handle_source(self, form, source, destination, entry, creator):
         # Move from temp to destination
+        unique_field = form.get("uniqueField")
         path = entry["data"].get("targetPath")
         known_targets = {
             None: (
@@ -132,60 +182,69 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 entry["data"].get(unique_field),
             )
         }
-        if source is not None:
-            for child in Folder().childFolders(source, "folder", user=creator):
-                child_meta = child.get("meta", {})
-                path, meta = _get_meta(entry, child_meta)
-                logger.info(f"Moving {child['_id']} to {path}")
-                child = Folder().setMetadata(child, meta)
-                try:
-                    target, _ = known_targets[path]
-                except KeyError:
-                    target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = (
-                        target,
-                        child.get("meta", {}).get(unique_field),
+        dirty = False
+        for child in Folder().childFolders(source, "folder", user=creator):
+            child_meta = child.get("meta", {})
+            path, meta = _get_meta(entry, child_meta)
+            logger.info(f"Moving {child['_id']} to {path}")
+            child = Folder().setMetadata(child, meta)
+            try:
+                target, _ = known_targets[path]
+            except KeyError:
+                target = self.get_destination_folder(path, destination, creator)
+                known_targets[path] = (
+                    target,
+                    child.get("meta", {}).get(unique_field),
+                )
+            child = self.unique(child, target)
+            Folder().move(child, target, "folder")
+            # TODO upload to GDrive
+            entry["folders"].append(child["_id"])
+            dirty = True
+
+        for child in Folder().childItems(source):
+            child_meta = child.get("meta", {})
+            path, meta = _get_meta(entry, child_meta)
+            child = Item().setMetadata(child, meta)
+            try:
+                target, _ = known_targets[path]
+            except KeyError:
+                target = self.get_destination_folder(path, destination, creator)
+                known_targets[path] = (
+                    target,
+                    child.get("meta", {}).get(unique_field),
+                )
+            child = self.unique(child, target)
+            child = Item().move(child, target)
+            for file in Item().childFiles(child):
+                # Upload to GDrive
+                gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
+                if gdrive_folder_id:
+                    events.trigger(
+                        "gdrive.upload",
+                        {
+                            "file": file,
+                            "gdriveFolderId": gdrive_folder_id,
+                            "path": os.path.join(path, file["name"]),
+                            "currentUser": creator,
+                        },
                     )
-                child = self.unique(child, target)
-                Folder().move(child, target, "folder")
-                # TODO upload to GDrive
-                entry["folders"].append(child["_id"])
+            entry["files"].append(child["_id"])
+            dirty = True
+        Folder().remove(source)
+        if dirty:
+            entry = self.save(entry, creator=creator)
+        return entry
 
-            for child in Folder().childItems(source):
-                child_meta = child.get("meta", {})
-                path, meta = _get_meta(entry, child_meta)
-                child = Item().setMetadata(child, meta)
-                try:
-                    target, _ = known_targets[path]
-                except KeyError:
-                    target = self.get_destination_folder(path, destination, creator)
-                    known_targets[path] = (
-                        target,
-                        child.get("meta", {}).get(unique_field),
-                    )
-                child = self.unique(child, target)
-                child = Item().move(child, target)
-                for file in Item().childFiles(child):
-                    # Upload to GDrive
-                    gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
-                    if gdrive_folder_id:
-                        events.trigger(
-                            "gdrive.upload",
-                            {
-                                "file": file,
-                                "gdriveFolderId": gdrive_folder_id,
-                                "path": os.path.join(path, file["name"]),
-                                "currentUser": creator,
-                            },
-                        )
-                entry["files"].append(child["_id"])
-            Folder().remove(source)
-
-        if not form.get("serialize", False):
-            return self.save(entry)
-
-        # Dump the entry into json file, by creating bytes buffer from json dump and
-        # Upload().uploadFromFile will create a file in each destination folder
+    def handle_serialization(self, form, entry, destination, creator):
+        unique_field = form.get("uniqueField")
+        path = entry["data"].get("targetPath")
+        known_targets = {
+            None: (
+                self.get_destination_folder(path, destination, creator),
+                entry["data"].get(unique_field),
+            )
+        }
         if len(known_targets) > 1:
             known_targets.pop(None)
 
@@ -223,7 +282,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                     )
             processed.add(target["_id"])
 
-        return self.save(entry)
+        return self.save(entry, creator=creator)
 
     @staticmethod
     def _get_upload_for_entry(fname, target, creator, size, reference):
