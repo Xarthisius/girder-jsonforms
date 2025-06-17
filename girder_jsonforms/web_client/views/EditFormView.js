@@ -1,6 +1,5 @@
-import $ from 'jquery';
-import _ from 'underscore';
-
+const $ = girder.$;
+const _ = girder._;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const FolderModel = girder.models.FolderModel;
 const BrowserWidget = girder.views.widgets.BrowserWidget;
@@ -9,17 +8,20 @@ const router = girder.router;
 const UploadWidget = girder.views.widgets.UploadWidget;
 const { getCurrentUser } = girder.auth;
 const { AccessType } = girder.constants;
+const { restRequest } = girder.rest;
 
 import '../stylesheets/editFormView.styl';
 
 import flatpickr from 'flatpickr'; // eslint-disable-line no-unused-vars
 import Handlebars from 'handlebars';
-import { JSONEditor } from '@json-editor/json-editor';
+import '@json-editor/json-editor';
+import Autocomplete from '@trevoreyre/autocomplete-js';
 
 import template from '../templates/editFormView.pug';
 import FormEntryModel from '../models/FormEntryModel';
 
 import 'flatpickr/dist/flatpickr.min.css';
+import '@trevoreyre/autocomplete-js/dist/style.css';
 
 function makeid(length) {
     let result = '';
@@ -72,136 +74,75 @@ const EditFormView = View.extend({
         },
         'click .g-edit-access': 'editAccess',
         'click a.g-cancel-form': function () {
-            this.tempFolder.destroy();
-            router.navigate('forms', {trigger: true});
+            this.tempFolder.destroy().done(() => {
+              router.navigate('forms', {trigger: true});
+            });
         },
         'submit #g-form': function (event) {
             event.preventDefault();
             this.$('.g-validation-failed-message').empty();
+            this.setSubmitEnabled(false);
             var errors = this.form.validate();
             if (errors.length) {
                 this.form.root.showValidationErrors(errors);
                 this.$('.g-validation-failed-message').html('<ul>' + errors.map(function (err) {
                     return `<li> Path ${err.path}: ${err.message} (${err.property})</li>`;
                 }).join('') + '</ul>');
+                this.setSubmitEnabled(true);
                 return;
             }
-            new FormEntryModel({
+            var params = {
                 formId: this.model.id,
                 data: JSON.stringify(this.form.getValue()),
-                sourceId: this.tempFolder.id,
-                destinationId: this.destFolder.id
-            }).save().done(() => {
-                router.navigate('forms', {trigger: true});
+            }
+            if (this.tempFolder) {
+                params.sourceId = this.tempFolder.id;
+            }
+            if (this.destFolder) {
+                params.destinationId = this.destFolder.id;
+            }
+            new FormEntryModel(params).save().done(() => {
+                this.trigger('g:alert', {
+                    text: 'Form entry saved successfully.',
+                    type: 'success',
+                });
+                router.navigate(`form/${params.formId}`, {trigger: true});
+            }).fail((err) => {
+                this.trigger('g:alert', {
+                  text: err.responseJSON.message || 'An error occurred while saving the form entry.',
+                  type: 'danger',
+                });
+                this.setSubmitEnabled(true);
             });
-            /* if (this.initialValues) {
-                this.initialValues.set('data', this.form.getValue());
-                this.initialValues.save().done(() => {
-                    router.navigate('forms', {trigger: true});
-                });
-            } else {
-                new FormEntryModel({
-                    formId: this.model.id,
-                    data: JSON.stringify(this.form.getValue()),
-                    sourceId: this.tempFolder.id,
-                    destinationId: this.destFolder.id
-                }).save().done(() => {
-                    router.navigate('forms', {trigger: true});
-                });
-            } */
         }
     },
 
     initialize: function (settings) {
         window.Handlebars = Handlebars; // Otherwise the helper is not available in the template
-        Handlebars.registerHelper('multiply', function (a, b) { return a * b; });
-        Handlebars.registerHelper('divide', function (a, b) { return a / b; });
-        Handlebars.registerHelper('add', function (a, b) { return a + b; });
-        Handlebars.registerHelper('subtract', function (a, b) { return a - b; });
-        Handlebars.registerHelper('replace', function (string, search, replacement) {
-            return (string !== undefined && string !== null) ? string.replace(search, replacement) : '';
-        });
-        Handlebars.registerHelper('replaceAll', function (string, search, replacement) {
-            return (string !== undefined && string !== null) ? string.replaceAll(search, replacement) : '';
-        });
-        Handlebars.registerHelper('substr', function (string, from, length) {
-            return (string !== undefined && string !== null) ? string.substr(from, length) : '';
-        });
-        Handlebars.registerHelper('split', function (string, separator, index) {
+        window.Autocomplete = Autocomplete; // Otherwise the helper is not available in the template
+        this.otherEntries = {};
+        const view = this;
+        Handlebars.registerHelper('entryField', function (entryId, field) {
+            const dependencies = view.model.get('dependencies');
+            console.log(dependencies);
             try {
-                return string.split(separator)[index];
+                return dependencies[entryId][`data.${field}`];
             } catch (e) {
-                return '';
+                console.log('Error getting dependencies');
+                return undefined;
             }
         });
-        Handlebars.registerHelper('join', function (a, b, separator) {
-            return `${a}${separator}${b}`;
-        });
-        Handlebars.registerHelper("padNumber", function (number, width) {
-            if (number === null || number === undefined || number === '') {
-                return '';
-            }
-            let numStr = number.toString();
-            return numStr.padStart(width, "0");
-        });
-        Handlebars.registerHelper('joinarray', function (a, sep, prefix=false) {
-            const result = a.join(sep);
-            if (result !== '' && prefix) {
-                return `${sep}${result}`;
-            }
-            return result;
-        });
-        Handlebars.registerHelper('tamupath', function TAMUPath(sampleId, wagon = false) {
-            if (sampleId === undefined || sampleId === null || sampleId === '' || (Array.isArray(sampleId) && sampleId.length === 1 && sampleId[0] === '')) {
-                return '';
-            }
-            let campaign = sampleId.substr(0, 3);
-            let sampleNo = parseInt(sampleId.substr(3, 2));
-            let wagonId = Math.trunc(sampleNo / 8);
-            let wagonBegin = (wagonId * 8 + 1).toString().padStart(2, '0');
-            let wagonEnd = ((wagonId + 1) * 8).toString().padStart(2, '0');
-            let group = sampleId.split('_')[1];
-            let manufactureMethod = group.substr(0, 3);
-            let method = sampleId.split('_')[2];
-            if (method === 'EDS') {
-                method = manufactureMethod === 'VAM' ? 'SEM-EDS' : 'EDS-EBSD';
-            } else if (method === 'SHPB') {
-                method = `Compression (SHPB)/${sampleId.split('_')[3]}`;
-            } else if (method === 'Tensile' || method === 'SPT') {
-                method = `${method}/${sampleId.split('_')[3]}`;
-            }
-            if (manufactureMethod === 'VAM') {
-                return `${campaign}/${group}/${sampleId.split('_')[0]}/${method}`;
-            } else if (manufactureMethod === 'DED') {
-                let root = `${campaign}/${group}-${wagonBegin}-${wagonEnd}`;
-                if (wagon) {
-                    return `${root}/${method}`;
-                } else {
-                    return `${root}/${sampleId.split('_')[0]}/${method}`;
-                }
-            }
-        });
-        Handlebars.registerHelper('firstChar', function (str) {
-            if (typeof str !== 'string' || str.length === 0) {
-                return ''; // Return an empty string if the input is invalid
-            }
-            return str.charAt(0); // Return the first character of the string
-        });
-        
-        Handlebars.registerHelper('charToOrd', function (char) {
-            if (typeof char !== 'string' || char.length === 0) {
-                return ''; // Return an empty string if the input is invalid
-            }
-            const capitalChar = char.toUpperCase(); // Ensure the character is uppercase
-            const asciiCode = capitalChar.charCodeAt(0); // Get the ASCII code
-            if (asciiCode >= 65 && asciiCode <= 90) { // Check if it's a capital letter (A-Z)
-                return asciiCode - 64; // Return the position in the alphabet (A=1, B=2, ..., Z=26)
-            }
-            return ''; // Return an empty string if the character is not a capital letter
-        });
-
         this.schema = this.model.get('schema');
+        if (this.model.get('jsHelpers')) {
+            try {
+                eval(this.model.get('jsHelpers'));
+                console.log('JS helpers loaded');
+            } catch (e) {
+                console.log('Error loading JS helpers');
+            }
+        }
         const destFolderId = this.model.get('folderId');
+        this.serialize = this.model.get('serialize');
         this.destFolder = null;
         if (destFolderId) {
             var folder = new FolderModel({_id: destFolderId}).once('g:fetched', function (val) {
@@ -233,7 +174,6 @@ const EditFormView = View.extend({
             this.tempFolder.addMetadata('formId', this.model.id);
         });
 
-        const view = this;
         window.addEventListener('beforeunload', function (e) {
             view.tempFolder.destroy();
         });
@@ -241,17 +181,17 @@ const EditFormView = View.extend({
         JSONEditor.defaults.callbacks.button = {
             'button1CB': function (jseditor, element) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                setField(jseditor, field, 'Waiting for a file to be uploaded');
+                //setField(jseditor, field, 'Waiting for a file to be uploaded');
                 this.uploadDialog(jseditor, field, false, true);
             }.bind(this),
             'button2CB': function (jseditor, e) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                setField(jseditor, field, 'Waiting for a directory to be uploaded');
+                //setField(jseditor, field, 'Waiting for a directory to be uploaded');
                 this.uploadDialog(jseditor, field, true);
             }.bind(this),
             'buttonSample': function (jseditor, e) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                setField(jseditor, field, 'Waiting for a file to be uploaded');
+                //setField(jseditor, field, 'Waiting for a file to be uploaded');
                 this.uploadDialog(jseditor, field, false, true);
             }
         };
@@ -291,7 +231,8 @@ const EditFormView = View.extend({
         const uniqueField = this.model.get('uniqueField', 'sampleId');
         var reference = {
             [uniqueField]: value[uniqueField],
-            annotate: true
+            annotate: true,
+            formField: field
         };
         if (value.targetPath) {
             reference.targetPath = value.targetPath;
@@ -317,15 +258,24 @@ const EditFormView = View.extend({
                 reference: JSON.stringify(reference)
             }
         }).on('g:uploadFinished', function (info) {
-            var ids = '';
+            var ids = jseditor.jsoneditor.getEditor(field).getValue();
             if (info.files.length === 0) {
                 return;
             } else if (info.files.length === 1) {
-                ids = info.files[0].id;
+                if (ids) {
+                    ids = `${ids},${info.files[0].id}`;
+                } else {
+                    ids = info.files[0].id;
+                }
             } else {
-                ids = Array.from(info.files).map(function (file) {
+                const newids = Array.from(info.files).map(function (file) {
                     return file.id;
                 }).join(',');
+                if (ids) {
+                    ids = `${ids},${newids}`;
+                } else {
+                    ids = newids;
+                }
             }
             setField(jseditor, field, ids);
         }, this).render();
@@ -337,7 +287,8 @@ const EditFormView = View.extend({
             level: this.model.getAccessLevel(),
             AccessType: AccessType,
             destFolder: this.destFolder,
-            destFolderPath: this.destFolderPath
+            destFolderPath: this.destFolderPath,
+            serialize: this.serialize,
         }));
         const formContainer = this.$('.g-form-container');
         if (this.schema) {
@@ -359,7 +310,7 @@ const EditFormView = View.extend({
                 if (view.initialValues) {
                     view.form.setValue(view.initialValues.get('data'));
                 }
-                if (view.destFolder === null) {
+                if (view.destFolder === null && view.serialize) {
                     view.form.disable();
                 } else {
                     view.form.enable();
@@ -367,6 +318,11 @@ const EditFormView = View.extend({
             });
         }
         return this;
+    },
+
+    setSubmitEnabled: function (enabled) {
+        this.$('#g-form').prop('disabled', !enabled);
+        this.$('.g-save-form').girderEnable(enabled);
     },
 
     editAccess: function () {

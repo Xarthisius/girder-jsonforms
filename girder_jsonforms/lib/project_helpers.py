@@ -1,0 +1,99 @@
+import itertools
+import logging
+
+logger = logging.getLogger(__name__)
+
+
+def batch_indices(method, main_deposition, form_data):
+    if method == "from_array":
+        return batch_from_array(main_deposition, form_data)
+    elif method == "weihs":
+        return batch_indices_weihs(main_deposition, form_data)
+    elif method == "imqcam":
+        return batch_indices_imqcam(main_deposition, form_data)
+    else:
+        logger.warning(f"Unknown method: {method}")
+        return []
+
+
+def batch_from_array(main_deposition, form_data):
+    """
+    Generate batch indices from an array of substrates.
+    """
+    field = form_data["igsn"]["batch"]["field"]
+    igsn_indices = [f"{i+1}" for i, element in enumerate(form_data[field])]
+    local_indices = [None] * len(igsn_indices)  # Placeholder for local indices
+
+    return list(zip(igsn_indices, local_indices))
+
+
+def batch_indices_weihs(main_deposition, form_data):
+    if not form_data.get("igsnMeta"):
+        """
+        If no igsn is provided in form_data, return an empty list.
+        This is a required field for generating indices.
+        """
+        logger.warning("No igsn provided in form_data for batch_indices_weihs.")
+        return []
+    meta = form_data["igsnMeta"]
+    if (
+        not meta.get("substrates")
+        or not meta.get("subRows")
+        or not meta.get("subCols")
+    ):
+        # Return empty list if no substrates or subRows/Cols are provided
+        return []
+
+    igsn_indices = [
+        "S{}R{}C{}".format(*row)
+        for row in itertools.product(
+            meta["substrates"],
+            range(1, int(meta["subRows"]) + 1),
+            range(1, int(meta["subCols"]) + 1),
+        )
+    ]
+
+    local_indices = [None] * len(igsn_indices)  # Placeholder for local indices
+
+    return list(zip(igsn_indices, local_indices))
+
+
+def batch_indices_imqcam(main_deposition, form_data):
+    if not form_data.get("buildGeometries"):
+        logger.warning(
+            "No build geometries provided in form_data for batch_indices_imqcam."
+        )
+        # Return empty list if no substrates or subRows/Cols are provided
+        return []
+
+    local_indices = []
+
+    prefix = (
+        f"{form_data['userParameters']['runDate'].replace('-', '')}_"
+        f"{form_data['userParameters']['location']}_"
+        f"{form_data['buildPlate']['material']}"
+    )
+    suffix = (
+        "_".join(form_data["extraInfo"])
+        if "extraInfo" in form_data and form_data["extraInfo"]
+        else ""
+    )
+    if suffix:
+        suffix = f"_{suffix}"
+
+    for geometry in form_data["buildGeometries"]:
+        """
+        geometry should be a dict with 'buildGeometry', 'count'
+        """
+        logger.info(f"Processing geometry: {geometry}")
+        build_geometry = geometry.get("geometryType")
+        if not build_geometry:
+            continue
+        count = int(geometry.get("count", 1))
+        # Generate igsn indices for this geometry
+        for i in range(count):
+            local_indices.append(f"{prefix}_{build_geometry}_{i + 1:03d}{suffix}")
+
+    return list(
+        zip([f"{i:03d}" for i in range(1, len(local_indices) + 1)], local_indices)
+    )

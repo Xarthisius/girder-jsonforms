@@ -1,0 +1,84 @@
+{
+    "type": "object",
+    "title": "Weihs Lab Target Configuration",
+    "description": "Configure the target for the build.",
+    "properties": {
+        "sources": {
+            "type": "array",
+            "propertyOrder": 2,
+            "items": {
+                "type": "object",
+                "id": "arr_item",
+                "properties": {
+                    "source": {
+                        "type": "string",
+                        "description": "The ID of the source file to be included in the build.",
+                        "enumSource": "girder.formId"
+                    },
+                    "element": {
+                        "type": "string",
+                        "format": "hidden",
+                        "options": {
+                            "hidden": true
+                        },
+                        "watch": {
+                            "source": "arr_item.source"
+                        },
+                        "template": "{{ split source '-' 0 }}"
+                    },
+                    "sourceId": {
+                        "type": "string",
+                        "format": "hidden",
+                        "options": {
+                            "hidden": true
+                        },
+                        "watch": {
+                            "source": "arr_item.source"
+                        },
+                        "template": "{{ split source '-' 1 }}"
+                    }
+                }
+            },
+            "minItems": 1,
+            "description": "List of source files to be included in the build. Each source file should be specified by its ID."
+        },
+        "creationDate": {
+            "type": "string",
+            "format": "date",
+            "description": "The date when the target was created. This is automatically set to the current date when the target is created.", 
+            "options": {
+                "flatpickr": {
+                    "dateFormat": "Y-m-d"
+                }
+            },
+            "propertyOrder": 1
+        },
+        "name": {
+            "type": "string",
+            "description": "The name of the target. This should be a unique identifier for the target.",
+            "watch": {
+              "sources": "sources",
+              "creationDate": "creationDate"
+            },
+            "template": "{{ aimd-target sources }} ({{ creationDate }})",
+            "propertyOrder": 0
+        },
+        "calibSlope": {
+            "type": "number",
+            "title": "Calibration Slope",
+            "description": "The calibration slope for the target. This value is used to adjust the calibration of the target.",
+            "propertyOrder": 3
+        },
+        "calibIntercept": {
+            "type": "number",
+            "title": "Calibration Intercept",
+            "description": "The calibration intercept for the target. This value is used to adjust the calibration of the target.",
+            "propertyOrder": 4
+        },
+        "notes": {
+            "type": "string",
+            "description": "Additional notes or comments about the target.",
+            "propertyOrder": 5
+        }
+    }
+}

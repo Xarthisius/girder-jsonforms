@@ -7,27 +7,28 @@ if (false && level >= AccessType.ADMIN)
       i.icon-trash
 
 form#g-form(role="form")
-  if destFolder === null
-    .alert.alert-warning
-      | This form does not have any predefined destination folder for data uploads.
-      | Please select a folder to save the data before filling out the form.
+  if serialize
+    if destFolder === null
+      .alert.alert-warning
+        | This form does not have any predefined destination folder for data uploads.
+        | Please select a folder to save the data before filling out the form.
 
-    #g-data-group.form-group
-      label.control-label Destination Folder
-      .input-group.input-group-sm
-        input#g-folder-data-id.form-control.input-sm(
-          type="text",
-          placeholder="Select a folder",
-        )
-        .input-group-btn
-          button.g-open-browser.btn.btn-default(type="button")
-            i.icon-folder-open
-  else
-    .alert.alert-info
-      | Data uploaded through this form is saved in the folder: #[span.g-bold-part= destFolderPath].
-      | Note that form can be configured to perform additional path transformations and
-      | and data can end up in a subfolder of the one shown here.
- 
+      #g-data-group.form-group
+        label.control-label Destination Folder
+        .input-group.input-group-sm
+          input#g-folder-data-id.form-control.input-sm(
+            type="text",
+            placeholder="Select a folder",
+          )
+          .input-group-btn
+            button.g-open-browser.btn.btn-default(type="button")
+              i.icon-folder-open
+    else
+      .alert.alert-info
+        | Data uploaded through this form is saved in the folder: #[span.g-bold-part= destFolderPath].
+        | Note that form can be configured to perform additional path transformations and
+        | and data can end up in a subfolder of the one shown here.
+
   .g-form-container
 
   .form-footer

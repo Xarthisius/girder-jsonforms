@@ -1,0 +1,26 @@
+.g-deposition-list-header
+  .g-deposition-pagination
+  form.g-deposition-search-form.form-inline(role="form")
+    .form-group.g-deposition-search-container
+
+  .btn-group
+    .g-filter-depositions
+      a.g-filter-options-button.btn.btn-sm(title="Show filter help")
+        i.g-filter-state.icon-filter
+      input.g-filter-field.form-control.input-sm(
+        type="text", placeholder="Search name via regex...", mode-select="off")
+
+  .g-depositions-actions
+    button.g-deposition-create-button.btn.btn-sm.btn-success
+      i.icon-plus
+      | Create New IGSN
+
+.list-group.g-deposition-list-container
+  each deposition in depositions
+    a.list-group-item.g-deposition-link(
+        g-deposition-cid=deposition.cid,
+        href=depositionUrlFunc && depositionUrlFunc(deposition),
+        data-deposition-id=deposition.id)
+      h4.list-group-item-heading.g-execute-deposition-link-header= deposition.attributes.igsn
+      each entity in deposition.attributes.metadata.titles
+        .list-group-item-text.g-execute-deposition-link-body= entity.title
