@@ -196,6 +196,12 @@ class Form(Resource):
             default="sampleId",
         )
         .param(
+            "postEntryTask",
+            "The task to run after an entry is created",
+            required=False,
+            dataType="string",
+        )
+        .param(
             "jsHelpers",
             "The JavaScript helpers to use in the form (either string or url)",
             required=False,
@@ -214,6 +220,7 @@ class Form(Resource):
         gdriveFolderId,
         serialize,
         uniqueField,
+        postEntryTask,
         jsHelpers,
     ):
         return FormModel().create_form(
@@ -228,6 +235,7 @@ class Form(Resource):
             serialize=serialize,
             uniqueField=uniqueField,
             jsHelpers=jsHelpers,
+            postEntryTask=postEntryTask,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -281,6 +289,12 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
+        .param(
+            "postEntryTask",
+            "The task to run after an entry is created",
+            required=False,
+            dataType="string",
+        )
         .responseClass("Form")
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
@@ -297,6 +311,7 @@ class Form(Resource):
         gdriveFolderId,
         serialize,
         uniqueField,
+        postEntryTask,
     ):
         if name is not None:
             form["name"] = name
@@ -319,6 +334,8 @@ class Form(Resource):
             form["serialize"] = serialize
         if uniqueField is not None:
             form["uniqueField"] = uniqueField
+        if postEntryTask is not None:
+            form["postEntryTask"] = postEntryTask
         return FormModel().save(form)
 
     @access.user

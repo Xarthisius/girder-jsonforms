@@ -123,7 +123,7 @@ var DepositionView = View.extend({
                     forms.push(formId);
                     entries.push(entryId);
                 }
-            } else if (identifier.relationType === "IsPartOf" && identifier.relatedIdentifierType === "IGSN") {
+            } else if (identifier.relatedIdentifierType === "IGSN") {
                 relatedIdentifiers[i].relatedIdentifierTitle = identifier.relatedIdentifier;
                 relatedIdentifiers[i].relatedIdentifier = `#igsn/${identifier.relatedIdentifier}`;
             }

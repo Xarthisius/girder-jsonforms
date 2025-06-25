@@ -124,7 +124,6 @@ const EditFormView = View.extend({
         const view = this;
         Handlebars.registerHelper('entryField', function (entryId, field) {
             const dependencies = view.model.get('dependencies');
-            console.log(dependencies);
             try {
                 return dependencies[entryId][`data.${field}`];
             } catch (e) {

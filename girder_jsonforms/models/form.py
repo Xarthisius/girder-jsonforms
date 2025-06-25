@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import requests
 from girder.constants import AccessType
+from girder.exceptions import ValidationException
 from girder.models.model_base import AccessControlledModel
 
 from ..lib.jq import (
@@ -40,6 +41,7 @@ class Form(AccessControlledModel):
                 "pathTemplate",
                 "uniqueField",
                 "dependencies",
+                "postEntryTask",
             ),
         )
 
@@ -59,6 +61,7 @@ class Form(AccessControlledModel):
         gdriveFolderId=None,
         serialize=False,
         uniqueField=None,
+        postEntryTask=None,
     ):
         now = datetime.datetime.now(datetime.UTC)
 
@@ -70,6 +73,7 @@ class Form(AccessControlledModel):
             "folderId": None,
             "gdriveFolderId": gdriveFolderId,
             "pathTemplate": pathTemplate,
+            "postEntryTask": postEntryTask,
             "entryFileName": entryFileName or "entry.json",
             "serialize": serialize,
             "created": now,
@@ -147,9 +151,14 @@ class Form(AccessControlledModel):
             if isinstance(value, str) and value.startswith("girder.formId:"):
                 formId = value.split(":")[1]
                 fields = value.split(":")[2:]
-                source_form = self.load(
-                    formId, level=AccessType.READ, user=user, exc=True
-                )
+                try:
+                    source_form = self.load(
+                        formId, level=AccessType.READ, user=user, exc=True
+                    )
+                except ValidationException:
+                    raise ValidationException(
+                        f"Form {formId} linked via '{keyPath}' does not exist or is not accessible."
+                    )
                 dependencies = {}
                 for dep in FormEntry().collection.find(
                     {"formId": source_form["_id"]},

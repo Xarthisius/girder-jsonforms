@@ -7,6 +7,7 @@ from girder.models.folder import Folder
 from ..models.form import Form as FormModel
 from ..models.entry import FormEntry as FormEntryModel
 from ..worker_plugin.pull_related_ids import run as pullRelatedIds
+from ..lib.project_tasks import trigger_post_entry_task
 
 
 class FormEntry(Resource):
@@ -137,13 +138,16 @@ class FormEntry(Resource):
     )
     @filtermodel(model=FormEntryModel, plugin="jsonforms")
     def createFormEntry(self, form, data, source, destination):
-        return FormEntryModel().create_entry(
+        entry = FormEntryModel().create_entry(
             form,
             data,
             source,
             destination,
             self.getCurrentUser(),
         )
+        if task := form.get("postEntryTask"):
+            trigger_post_entry_task(task, entry, self.getCurrentUser())
+        return entry
 
     @access.user(scope=TokenScope.DATA_WRITE)
     @autoDescribeRoute(

@@ -36,11 +36,7 @@ def batch_indices_weihs(main_deposition, form_data):
         logger.warning("No igsn provided in form_data for batch_indices_weihs.")
         return []
     meta = form_data["igsnMeta"]
-    if (
-        not meta.get("substrates")
-        or not meta.get("subRows")
-        or not meta.get("subCols")
-    ):
+    if not meta.get("substrates") or not meta.get("subRows") or not meta.get("subCols"):
         # Return empty list if no substrates or subRows/Cols are provided
         return []
 
