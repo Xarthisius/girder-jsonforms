@@ -13,6 +13,7 @@ var AddCreatorDialog = View.extend({
   events: {
     'click .g-add-creator-btn': function (event) {
       event.preventDefault();
+      this.$('.g-validation-failed-message').empty();
       this._addCreator();
     },
     'change input[name="creatorType"]': function (event) {
@@ -66,7 +67,7 @@ var AddCreatorDialog = View.extend({
         view.$el.find('input[name="lastName"]').val(data.lastName);
         view.$el.find('input[name="identifiers"]').val(`orcid:${data.orcid}`);
         view.$el.find('input[name="affiliations"]').val(data.institution);
-        $('.basicModalAutoSelectSelected').html(JSON.stringify(item, null, 2));
+        //$('.basicModalAutoSelectSelected').html(JSON.stringify(item, null, 2));   // debug
         $('ul.bootstrap-autocomplete').css("display", "none");
     });
     return this;
@@ -103,6 +104,15 @@ var AddCreatorDialog = View.extend({
       obj[item.name] = item.value;
       return obj;
     }, {});
+    console.log(creator);
+    if (!creator.firstName || !creator.lastName) {
+      this.$('.g-validation-failed-message').text('Please enter at least a first and last name for this creator.');
+      return false;
+    }
+    if (!creator.role) {
+      this.$('.g-validation-failed-message').text('Please select a role for this creator.');
+      return false;
+    }
     if (creator) {
       this.creators.push(creator);
       this.trigger('g:creatorAdded', {creator: creator});
