@@ -19,7 +19,8 @@
             placeholder="Search for a person or organization"
             autocomplete="off"
           )
-          code.basicModalAutoSelectSelected
+          small.form-text.text-muted
+            | Type to search for an existing person in ORCID. Upon selection this will auto-fill the fields below. If the person is not found, you can add them manually.
         .form-group(hidden=(creatorType != "person")).person-fields
           label(for="firstName") First Name
           input.form-control(type="text" id="firstName" name="firstName" required)

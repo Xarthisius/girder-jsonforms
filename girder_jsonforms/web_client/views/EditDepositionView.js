@@ -1,6 +1,8 @@
+import $ from 'jquery';
+import 'bootstrap-autocomplete';
+
 const { restRequest } = girder.rest;
 const View = girder.views.View;
-const $ = girder.$;
 
 import AddCreatorDialog from './widgets/AddCreatorDialog';
 import CreatorsWidget from './widgets/CreatorsWidget';
@@ -46,6 +48,7 @@ const EditDepositionView = View.extend({
           attributes: {alternateIdentifiers: alternateIdentifiers},
         }),
         track: checkbox ? checkbox.checked : false,
+        sampleId: metadata.sampleId,
       };
       if (this.model) {
         this.updateDeposition(data);
@@ -127,14 +130,41 @@ const EditDepositionView = View.extend({
     this.identifiers = settings && settings.model ? settings.model.getFormIdentifiers() : [];
     this.creatorsWidget = new CreatorsWidget({creators: this.creators, parentView: this})
     this.identifiersWidget = new IdentifiersWidget({parentView: this, identifiers: this.identifiers});
-    restRequest({
+    var samplePromise = null;
+    if (this.model && this.model.get('sampleId')) {
+      samplePromise = restRequest({
+        method: 'GET',
+        url: `sample/${this.model.get('sampleId')}`,
+      }).done((resp) => {
+        this.sample = resp;
+      }).fail((resp) => {
+        this.sample = null;
+        this.trigger('g:alert', {
+          text: resp.responseJSON.message,
+          type: 'danger',
+        });
+      });
+    }
+    var settingsPromise = restRequest({
       method: 'GET',
       url: 'deposition/settings'
     }).done((resp) => {
       this.igsnInstitutions = resp['igsn_institutions'];
       this.igsnMaterials = resp['igsn_materials'];
-      this.render();
     });
+    $.when(
+      settingsPromise,
+      samplePromise
+    ).done(() => {
+      this.render();
+      document.querySelector('input[id="g-sample-id"]').value = this.sample ? this.sample['name'] : '';
+    }).fail((resp) => {
+      this.trigger('g:alert', {
+        text: resp.responseJSON.message,
+        type: 'danger',
+      });
+    });
+
   },
   render: function () {
     if (this.model) {
@@ -156,10 +186,47 @@ const EditDepositionView = View.extend({
     }
     this.creatorsWidget.setElement(this.$('.g-creators-container')).render();
     this.identifiersWidget.setElement(this.$('.g-identifiers-container')).render();
+    $('.sampleSelect').autoComplete(
+      {
+        bootstrapVersion: "3" ,
+        minChars: 2,
+        resolver: 'custom',
+        events: {
+          search: function (query, callback, origJQElement) {
+            console.log('Searching for ' + query);
+            restRequest({
+              method: 'GET',
+              url: 'sample',
+              data: { query: query, limit: 10}
+            }).done(function (resp) {
+              callback(resp);
+            });
+          },
+          searchPost: function (resultsFromServer, origJQElement) {
+            $('ul.bootstrap-autocomplete').css("display", "block");
+            return resultsFromServer;
+          }
+        },
+        formatResult: function (item) {
+          return {
+            value: item._id,
+            text: item.name,
+            html: `${item.name} (${item._id})`,
+          };
+        }
+      }
+    );
+    $('.sampleSelect').on('autocomplete.select', function (event, item) {
+        $('ul.bootstrap-autocomplete').css("display", "none");
+        if (!item) {
+            return;
+        }
+        document.querySelector('input[name="sampleId"]').value = item._id;
+    });
     return this;
   },
   updateDeposition: function(data) {
-      this.model.set({ metadata: data.metadata }).save().done(() => {
+      this.model.set({ sampleId: data.sampleId, metadata: data.metadata }).save().done(() => {
           this.trigger('g:alert', {
               text: 'Deposition updated successfully',
               type: 'success',
