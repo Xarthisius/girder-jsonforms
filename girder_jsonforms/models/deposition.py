@@ -432,7 +432,17 @@ class Deposition(AccessControlledModel):
 
         self.collection.insert_many(depositions)
 
-    def update_deposition(self, deposition, metadata):
+    def update_deposition(self, deposition, metadata, sampleId, user=None):
+        try:
+            sample = Sample().load(sampleId, user=user, level=AccessType.READ)
+        except Exception:
+            sample = None
+        if sample:
+            deposition["sampleId"] = sample["_id"]
+            deposition["track"] = True
+        else:
+            deposition["sampleId"] = None
+            deposition["track"] = False
         deposition["metadata"].update(metadata)
         deposition["updated"] = datetime.datetime.now(datetime.UTC)
 

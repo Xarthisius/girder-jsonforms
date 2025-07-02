@@ -37,6 +37,7 @@ const EditDepositionView = View.extend({
       const alternateIdentifiers = this.identifiersWidget.identifiers.map((item) => {
         return { alternateIdentifier: item.value, alternateIdentifierType: item.type };
       });
+      const checkbox = document.querySelector('.g-enable-tracking');
       const data = {
         metadata: JSON.stringify({
           creators: this.creators,
@@ -44,6 +45,7 @@ const EditDepositionView = View.extend({
           descriptions: [{description: metadata.description, descriptionType: 'Abstract'}],
           attributes: {alternateIdentifiers: alternateIdentifiers},
         }),
+        track: checkbox ? checkbox.checked : false,
       };
       if (this.model) {
         this.updateDeposition(data);
@@ -138,6 +140,7 @@ const EditDepositionView = View.extend({
     if (this.model) {
       this.form = this.$el.html(template({
         igsn: this.model.get('igsn'),
+        sampleId: this.model.get('sampleId'),
         institutions: [],
         materials: [],
       }));
@@ -146,6 +149,7 @@ const EditDepositionView = View.extend({
     } else {
       this.form = this.$el.html(template({
         igsn: null,
+        sampleId: null,
         institutions: this.igsnInstitutions,
         materials: Object.entries(this.igsnMaterials),
       }));

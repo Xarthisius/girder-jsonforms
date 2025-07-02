@@ -50,5 +50,18 @@ form#g-deposition-form(role="form")
         | A description of the sample.
     .form-group
       .g-identifiers-container
+    if !igsn
+      .form-group
+        .checkbox
+          label
+            input.g-enable-tracking(type="checkbox" checked=true)
+            | Enable Sample Tracking of this IGSN
+    if sampleId
+      .form-group
+      label(for="g-sample-id") Sample Tracking ID
+      input.form-control(type="text" id="g-sample-id" name="sampleId" value=sampleId readonly)
+      small.form-text.text-muted
+        | The Sample Tracker object ID associated with this sample.
+
   button#g-deposition-cancel.btn.btn-secondary(type="button") Cancel
     button#g-add-deposition-btn.btn.btn-primary(type="submit") Save

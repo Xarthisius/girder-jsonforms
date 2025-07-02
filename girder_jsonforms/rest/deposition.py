@@ -137,6 +137,13 @@ class Deposition(Resource):
     @autoDescribeRoute(
         Description("Create a new deposition")
         .param("prefix", "The prefix for IGSN", required=True, dataType="string")
+        .param(
+            "track",
+            "Create a sample tracker for IGSN",
+            required=False,
+            dataType="boolean",
+            default=False,
+        )
         .jsonParam(
             "metadata",
             "JSON object with Datacite fields",
@@ -154,10 +161,10 @@ class Deposition(Resource):
         )
     )
     @filtermodel(model="deposition", plugin="jsonforms")
-    def create_deposition(self, prefix, metadata, parent):
+    def create_deposition(self, prefix, track, metadata, parent):
         # Logic to create a new deposition
         return DepositionModel().create_deposition(
-            metadata, self.getCurrentUser(), prefix, parent=parent
+            metadata, self.getCurrentUser(), prefix=prefix, track=track, parent=parent
         )
 
     @access.public
@@ -171,6 +178,7 @@ class Deposition(Resource):
             required=True,
             level=AccessType.WRITE,
         )
+        .param("sampleId", "The sample tracker to associate with IGSN", required=False)
         .jsonParam(
             "metadata",
             "JSON object with Datacite fields",
@@ -178,9 +186,11 @@ class Deposition(Resource):
             required=True,
         )
     )
-    def update_deposition(self, deposition, metadata):
+    def update_deposition(self, deposition, sampleId, metadata):
         # Logic to update an existing deposition
-        return DepositionModel().update_deposition(deposition, metadata)
+        return DepositionModel().update_deposition(
+            deposition, metadata, sampleId, user=self.getCurrentUser()
+        )
 
     @access.user(scope=TokenScope.DATA_OWN)
     @autoDescribeRoute(
