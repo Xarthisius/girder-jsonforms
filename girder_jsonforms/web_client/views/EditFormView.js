@@ -64,7 +64,7 @@ const EditFormView = View.extend({
             this.model.fetch().done(() => { this.render(); });
         },
         'click .g-edit-form': function (event) {
-            router.navigate('form/' + this.model.get('_id') + '/edit', {
+            router.navigate(`form/${this.model.id}/edit`, {
                 params: this._formSpec,
                 trigger: true
             });
@@ -73,9 +73,14 @@ const EditFormView = View.extend({
             this.dataSelector.setElement($('#g-dialog-container')).render();
         },
         'click .g-edit-access': 'editAccess',
+        'click button.g-delete-entry': function () {
+            this.initialValues.destroy().done(() => {
+               router.navigate(`form/${this.model.id}`, {trigger: true});
+            });
+        },
         'click a.g-cancel-form': function () {
             this.tempFolder.destroy().done(() => {
-              router.navigate('forms', {trigger: true});
+              router.navigate(`form/${this.model.id}`, {trigger: true});
             });
         },
         'submit #g-form': function (event) {
@@ -288,6 +293,7 @@ const EditFormView = View.extend({
             destFolder: this.destFolder,
             destFolderPath: this.destFolderPath,
             serialize: this.serialize,
+            entry: this.initialValues,
         }));
         const formContainer = this.$('.g-form-container');
         if (this.schema) {
