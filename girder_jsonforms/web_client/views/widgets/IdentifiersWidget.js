@@ -1,5 +1,4 @@
 import IdentifiersWidgetTemplate from '../../templates/widgets/identifiersWidget.pug';
-import AddCreatorDialog from './AddCreatorDialog';
 
 const $ = girder.$;
 const View = girder.views.View;

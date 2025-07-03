@@ -21,6 +21,14 @@ var DepositionModel = AccessControlledModel.extend({
             }));
         }
         return [];
+    },
+
+    getFormRelatedIdentifiers: function () {
+        const metadata = this.get('metadata');
+        if (metadata && metadata.relatedIdentifiers) {
+            return metadata.relatedIdentifiers
+        }
+        return [];
     }
 });
 

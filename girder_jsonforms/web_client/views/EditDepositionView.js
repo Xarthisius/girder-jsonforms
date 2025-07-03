@@ -7,6 +7,7 @@ const View = girder.views.View;
 import AddCreatorDialog from './widgets/AddCreatorDialog';
 import CreatorsWidget from './widgets/CreatorsWidget';
 import IdentifiersWidget from './widgets/IdentifiersWidget';
+import RelatedIdentifiersWidget from './widgets/RelatedIdentifiersWidget';
 import '../stylesheets/editDepositionView.styl';
 import template from '../templates/editDepositionView.pug';
 
@@ -36,6 +37,7 @@ const EditDepositionView = View.extend({
       metadata["materialSubtype"] = isDefined(metadata["materialSubtype"]) ? metadata["materialSubtype"] : 'X';
       metadata["governorLab"] = isDefined(metadata["governorLab"]) ? metadata["governorLab"] : 'X';
       this.identifiersWidget._updateIdentifiers();  // Saves state
+      this.relatedIdentifiersWidget._updateIdentifiers();  // Saves state
       const alternateIdentifiers = this.identifiersWidget.identifiers.map((item) => {
         return { alternateIdentifier: item.value, alternateIdentifierType: item.type };
       });
@@ -45,6 +47,7 @@ const EditDepositionView = View.extend({
           creators: this.creators,
           titles: [{title: metadata.title}],
           descriptions: [{description: metadata.description, descriptionType: 'Abstract'}],
+          relatedIdentifiers: this.relatedIdentifiersWidget.identifiers,
           attributes: {alternateIdentifiers: alternateIdentifiers},
         }),
         track: checkbox ? checkbox.checked : false,
@@ -128,8 +131,10 @@ const EditDepositionView = View.extend({
     this.model = settings && settings.model ? settings.model : null;
     this.creators = settings && settings.model ? settings.model.getFormCreators() : [];
     this.identifiers = settings && settings.model ? settings.model.getFormIdentifiers() : [];
+    this.relatedIdentifiers = settings && settings.model ? settings.model.getFormRelatedIdentifiers() : [];
     this.creatorsWidget = new CreatorsWidget({creators: this.creators, parentView: this})
     this.identifiersWidget = new IdentifiersWidget({parentView: this, identifiers: this.identifiers});
+    this.relatedIdentifiersWidget = new RelatedIdentifiersWidget({parentView: this, identifiers: this.relatedIdentifiers});
     var samplePromise = null;
     if (this.model && this.model.get('sampleId')) {
       samplePromise = restRequest({
@@ -157,7 +162,11 @@ const EditDepositionView = View.extend({
       samplePromise
     ).done(() => {
       this.render();
-      document.querySelector('input[id="g-sample-id"]').value = this.sample ? this.sample['name'] : '';
+      let sampleField = document.querySelector('input[id="g-sample-id"]');
+      if (sampleField) {
+        sampleField.value = this.sample ? this.sample['name'] : '';
+      }
+      //document.querySelector('input[id="g-sample-id"]').value = this.sample ? this.sample['name'] : '';
     }).fail((resp) => {
       this.trigger('g:alert', {
         text: resp.responseJSON.message,
@@ -186,6 +195,7 @@ const EditDepositionView = View.extend({
     }
     this.creatorsWidget.setElement(this.$('.g-creators-container')).render();
     this.identifiersWidget.setElement(this.$('.g-identifiers-container')).render();
+    this.relatedIdentifiersWidget.setElement(this.$('.g-related-identifiers-container')).render();
     $('.sampleSelect').autoComplete(
       {
         bootstrapVersion: "3" ,
@@ -193,7 +203,6 @@ const EditDepositionView = View.extend({
         resolver: 'custom',
         events: {
           search: function (query, callback, origJQElement) {
-            console.log('Searching for ' + query);
             restRequest({
               method: 'GET',
               url: 'sample',
