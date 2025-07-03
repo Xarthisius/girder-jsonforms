@@ -7,7 +7,7 @@ ul.g-related-identifiers-list(name="identifiers").list-group
         span.input-group-btn
           button.btn.btn-sm.g-button(type="button" disabled)
             i.icon-move
-        select.form-control.g-related-identifier-relation-type(name="relationType").list-group-item-action
+        select.form-control.g-related-identifier-relation-type(name="relationType" required).list-group-item-action
           option(value="") Select Relation
           option(value="HasMetadata", selected=(identifier.relationType == "HasMetadata")) Has Metadata
           option(value="IsPartOf", selected=(identifier.relationType == "IsPartOf")) Is Part Of
@@ -16,7 +16,7 @@ ul.g-related-identifiers-list(name="identifiers").list-group
           option(value="IsSourceOf", selected=(identifier.relationType == "IsSourceOf")) Is Source Of
         span.input-group-btn(style="width:0px;")
 
-        select.form-control.g-related-identifier-type(name="relatedIdentifierType").list-group-item-action
+        select.form-control.g-related-identifier-type(name="relatedIdentifierType" required).list-group-item-action
           option(
             value="",
             disabled=(identifier.relationType == "HasMetadata" || identifier.relatedIdentifierType != "")
