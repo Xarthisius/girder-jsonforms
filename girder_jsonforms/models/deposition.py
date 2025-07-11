@@ -85,6 +85,8 @@ class Deposition(AccessControlledModel):
                 "igsn",
                 "metadata",
                 "parentId",
+                "public",
+                "publicFlags",
                 "state",
                 "submitted",
                 "updated",
@@ -341,6 +343,7 @@ class Deposition(AccessControlledModel):
             "sampleId": None,
             "track": track,
             "public": public,
+            "publicFlags": [],
         }
 
         if parent["_id"]:
@@ -518,6 +521,20 @@ class Deposition(AccessControlledModel):
                     progress=progress,
                     setPublic=setPublic,
                     publicFlags=publicFlags,
+                    force=force,
+                )
+            if sample := Sample().load(doc.get("sampleId"), user=user, level=AccessType.ADMIN):
+                if setPublic is not None:
+                    sample = Sample().setPublic(sample, setPublic, save=False)
+                if publicFlags is not None:
+                    sample = Sample().setPublicFlags(
+                        sample, publicFlags, user=user, save=False, force=force
+                    )
+                Sample().setAccessList(
+                    sample,
+                    access,
+                    save=True,
+                    user=user,
                     force=force,
                 )
 
