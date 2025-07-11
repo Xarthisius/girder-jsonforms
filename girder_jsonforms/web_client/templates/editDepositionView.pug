@@ -51,13 +51,7 @@ form#g-deposition-form(role="form")
       .g-related-identifiers-container
     .form-group
       .g-identifiers-container
-    if !igsn
-      .form-group
-        .checkbox
-          label
-            input.g-enable-tracking(type="checkbox" checked=true)
-            | Enable Sample Tracking of this IGSN
-    else
+    if igsn
       .form-group
         label(for="g-sample-id") Associated Sample Tracker
         select.sampleSelect.form-control(
@@ -67,5 +61,30 @@ form#g-deposition-form(role="form")
           autocomplete="off"
         )
 
+    if !igsn
+      #g-configuration-accordion.panel-group
+        .panel.panel-default
+          .panel-heading(data-toggle="collapse"
+              data-parent="#g-configuration-accordion"
+              data-target="#g-advanced-configuration")
+            .panel-title
+              a
+                b Advanced Settings
+          #g-advanced-configuration.panel-collapse.collapse
+            .panel-body
+              p These settings should only be changed if you are certain of what you are doing.
+              .form-group
+                .checkbox
+                  label
+                    input.g-enable-tracking(type="checkbox" checked=true)
+                    | Enable Sample Tracking of this IGSN
+              .form-group
+                label(for="g-deposition-batch") Number of subsamples
+                input#g-deposition-batch.form-control(type="number" name="batch" value="0" min="0" max="99")
+                small.form-text.text-muted
+                  | If the number of subsamples is greater than 0, the additional IGSNs will be generated
+                  | with a suffix -01, -02, ... up to N. If 0, a single IGSN will be generated.
+
   button#g-deposition-cancel.btn.btn-secondary(type="button") Cancel
     button#g-add-deposition-btn.btn.btn-primary(type="submit") Save
+  #g-deposition-error-message.g-validation-failed-message

@@ -174,7 +174,7 @@ class Deposition(AccessControlledModel):
             public=form.get("public", False),
         )
         logger.info(f"Creating batch for {igsn}")
-        self.create_batch(master_sample, data)
+        self.create_batch_from_entry(master_sample, data)
 
         if "igsn_prefix" in data:
             data["igsn_suffix"] = suffix
@@ -312,6 +312,8 @@ class Deposition(AccessControlledModel):
         track=False,
         access=None,
         public=False,
+        save=True,
+        batch=0,
     ):
         if igsn is None and prefix is None:
             raise ValidationException("Either IGSN or prefix must be provided")
@@ -356,15 +358,41 @@ class Deposition(AccessControlledModel):
             sample = Sample().create(igsn, creator, access=deposition["access"])
             deposition["sampleId"] = sample["_id"]
 
-        return self.save(deposition)
+        if save:
+            deposition = self.save(deposition)
 
-    def create_batch(self, main_deposition, form_data):
+        if batch > 0:
+            igsn_indices = [f"{i+1:02d}" for i in range(batch)]
+            if local_identifier := self.local_identifier(metadata):
+                # If a local identifier is provided, use it for all indices
+                local_indices = [f"{local_identifier}-{i+1:02d}" for i in range(batch)]
+            else:
+                local_indices = [None] * batch
+            indices = list(zip(igsn_indices, local_indices))
+            self.create_batch(deposition, indices)
+        return deposition
+
+    def create_batch_from_entry(self, main_deposition, form_data):
         method = form_data.get("igsn", {}).get("batch", {}).get("method", "unknown")
         indices = batch_indices(method, main_deposition, form_data)
         if not indices:
             logger.error("Missing required fields for batch creation")
             return
+        self.create_batch(main_deposition, indices)
 
+    @staticmethod
+    def local_identifier(metadata):
+        """
+        Generate a local identifier based on the metadata.
+        This is used for batch processing to create unique identifiers.
+        """
+        if "attributes" in metadata and "alternateIdentifiers" in metadata["attributes"]:
+            for alt_id in metadata["attributes"]["alternateIdentifiers"]:
+                if alt_id.get("alternateIdentifierType").lower() == "local":
+                    return alt_id.get("alternateIdentifier")
+        return None
+
+    def create_batch(self, main_deposition, indices):
         relatedIdentifier = {
             "relationType": "IsPartOf",
             "relatedIdentifier": main_deposition["igsn"],

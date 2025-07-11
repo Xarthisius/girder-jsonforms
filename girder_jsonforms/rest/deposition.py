@@ -159,12 +159,19 @@ class Deposition(Resource):
             paramType="query",
             level=AccessType.WRITE,
         )
+        .param(
+            "batch",
+            "The number of subsamples to create in the deposition",
+            required=False,
+            dataType="integer",
+            default=0,
+        )
     )
     @filtermodel(model="deposition", plugin="jsonforms")
-    def create_deposition(self, prefix, track, metadata, parent):
+    def create_deposition(self, prefix, track, metadata, parent, batch):
         # Logic to create a new deposition
         return DepositionModel().create_deposition(
-            metadata, self.getCurrentUser(), prefix=prefix, track=track, parent=parent
+            metadata, self.getCurrentUser(), prefix=prefix, track=track, parent=parent, batch=batch
         )
 
     @access.public
