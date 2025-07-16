@@ -226,7 +226,7 @@ def sputter_run_form(server, user, admin, gun_form, target_form, ps_form):
         server,
         user,
         schema,
-        unique_field="sputterRunId",  # Ensure this is unique for sputter runs
+        unique_field="assignedIGSN",  # Ensure this is unique for sputter runs
     )
     yield form
     _delete_form(server, admin, form)
@@ -235,6 +235,7 @@ def sputter_run_form(server, user, admin, gun_form, target_form, ps_form):
 @pytest.fixture
 def sputter_record():
     return {
+        "assignedIGSN": "JHABOX",
         "basePressure": 1e-06,
         "bilayerSpacing": 100,
         "blueGun": {"used": False},
@@ -244,6 +245,14 @@ def sputter_record():
         "greenGun": {"used": False},
         "igsn": {
             "_text1": "",
+            "batch": {"method": "weihs"},
+            "field": "assignedIGSN",
+            "prefix": "JHABOX",
+            "request": True,
+            "suffix": "",
+            "track": True,
+        },
+        "igsnMeta": {
             "groupJH": "A",
             "institution": "JH",
             "material": "BO",
@@ -251,16 +260,11 @@ def sputter_record():
             "subRows": 2,
             "submaterialBO": "X",
             "substrates": ["2", "8"],
-            "title": "",
+            "title": "res",
         },
-        "igsn_field": "sputterRunId",
-        "igsn_prefix": "JHABOX",
-        "igsn_request": True,
-        "igsn_suffix": "",
-        "igsn_track": True,
         "leakRate": 1e-06,
         "measurements": [],
-        "name": "",
+        "name": "test",
         "orangeGun": {"used": False},
         "purpleGun": {"used": False},
         "sputterRunId": "JHABOX",
@@ -268,6 +272,7 @@ def sputter_record():
         "substrateOrientation": 0,
         "substrateType": "Si",
         "thickness": 100,
+        "totalRotation": 0,
     }
 
 
@@ -285,12 +290,12 @@ def test_full_flow(server, user, sputter_run_form, sputter_record):
     )
     assertStatusOk(resp)
     entry = resp.json
-    assert not entry["data"]["igsn_request"], "IGSN request should be consumed"
+    assert not entry["data"]["igsn"]["request"], "IGSN request should be consumed"
     assert (
-        entry["data"]["sputterRunId"] == "JHABOX00001"
+        entry["data"]["assignedIGSN"] == "JHABOX00001"
     ), "sputterRunId should match the expected value"
     assert (
-        entry["data"]["igsn_suffix"] == "00001"
+        entry["data"]["igsn"]["suffix"] == "00001"
     ), "igsn_suffix should be set to '00001' after the first entry creation"
 
     resp = server.request(
@@ -304,12 +309,12 @@ def test_full_flow(server, user, sputter_run_form, sputter_record):
     assertStatusOk(resp)
     assert {_["igsn"] for _ in resp.json} == {
         "JHABOX00001",
-        "JHABOX00001/S2R1C1",
-        "JHABOX00001/S2R1C2",
-        "JHABOX00001/S2R2C1",
-        "JHABOX00001/S2R2C2",
-        "JHABOX00001/S8R1C1",
-        "JHABOX00001/S8R1C2",
-        "JHABOX00001/S8R2C1",
-        "JHABOX00001/S8R2C2",
+        "JHABOX00001-S2R1C1",
+        "JHABOX00001-S2R1C2",
+        "JHABOX00001-S2R2C1",
+        "JHABOX00001-S2R2C2",
+        "JHABOX00001-S8R1C1",
+        "JHABOX00001-S8R1C2",
+        "JHABOX00001-S8R2C1",
+        "JHABOX00001-S8R2C2",
     }

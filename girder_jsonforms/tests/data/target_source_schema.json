@@ -23,10 +23,11 @@
       "description": "Sample ID",
       "readOnly": true,
       "propertyOrder": 1,
-      "template": "{{split IGSN '-' 0}} - {{element}}",
+      "template": "{{split IGSN '-' 0}} - {{element}} - ({{localId}})",
       "watch": {
           "IGSN": "lookup",
-          "element": "element"
+          "element": "element",
+          "localId": "localId"
       }
     },
     "depositionId": {
@@ -53,6 +54,18 @@
       },
       "propertyOrder": 0
     },
+    "localId": {
+      "type": "string",
+      "propertyOrder": 0,
+      "description": "Local ID for the powder",
+      "template": "{{split IGSN '-' 2}}",
+      "options": {
+        "hidden": true
+      },
+      "watch": {
+        "IGSN": "lookup"
+      }
+    },
     "contaminants": {
       "type": "string",
       "propertyOrder": 3,
@@ -65,20 +78,35 @@
       "minLength": 1,
       "maxLength": 2
     },
+    "bonded": {
+      "type": "boolean",
+      "propertyOrder": 4,
+      "format": "checkbox",
+      "description": "Indicates if the powder is bonded",
+      "default": false
+    },
+    "thickness": {
+      "type": "number",
+      "propertyOrder": 5,
+      "description": "Target thickness (inches)",
+      "minimum": 0
+    },
+    "purity": {
+      "type": "number",
+      "propertyOrder": 6,
+      "description": "Purity of the powder, e.g., '99.99%'",
+      "minimum": 0,
+      "maximum": 100
+    },
     "manufacturer": {
       "type": "string",
+      "propertyOrder": 7,
       "description": "Manufacturer of the power supply, e.g., 'XYZ Corp'"
     },
     "purchaseOrder": {
       "type": "string",
-      "description": "URL to the purchase order, e.g., 'https://example.com/PO123456'",
-      "format": "url"
-    },
-    "purity": {
-      "type": "number",
-      "description": "Purity of the powder, e.g., '99.99%'",
-      "minimum": 0,
-      "maximum": 100
+      "propertyOrder": 8,
+      "description": "URL to the purchase order, e.g., 'https://example.com/PO123456'"
     }
   },
   "required": [

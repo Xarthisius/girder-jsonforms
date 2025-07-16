@@ -1,20 +1,20 @@
 {
   "definitions": {
-    "igsn": {
-      "id": "igsn",
+    "igsnMetadata": {
+      "id": "igsnMetadata",
       "type": "object",
       "format": "grid-strict",
-      "title": "Sample IGSN Creation",
+      "title": "IGSN Creation",
       "options": {
         "grid_columns": 12,
         "titleHidden": true
       },
       "properties": {
         "_text1": {
-          "format": "hidden",
           "type": "string",
           "title": "IGSN metadata",
-          "description": "<p>This section gathers necessary information to create an IGSNs for each sample created during the sputter run</p>",
+          "format": "hidden",
+          "description": "<p>This section gathers necessary information to create an IGSNs for each powder</p>",
           "propertyOrder": 0,
           "options": {
             "grid_columns": 12,
@@ -24,139 +24,76 @@
         "institution": {
           "type": "string",
           "description": "Originating Institution",
-          "enum": ["JH", "TM", "SB"],
+          "enum": [
+            "JH"
+          ],
+          "default": "JH",
           "propertyOrder": 1,
           "options": {
             "titleHidden": true,
             "grid_columns": 3,
             "enum_titles": [
-              "Johns Hopkins University",
-              "Texas A&M University",
-              "University of California, Santa Barbara"
+              "Johns Hopkins University"
             ]
           }
         },
         "groupJH": {
           "type": "string",
           "description": "Originating Group",
-          "enum": ["A", "B", "X"],
+          "enum": [
+            "A",
+            "B",
+            "X"
+          ],
           "propertyOrder": 2,
           "options": {
             "titleHidden": true,
             "dependencies": {
               "institution": "JH"
             },
-            "enum_titles": ["Hopkins Extreme Materials Institute", "Some other lab", "Unknown"],
-            "grid_columns": 3
-          }
-        },
-        "groupTM": {
-          "type": "string",
-          "description": "Originating Group",
-          "enum": ["A", "B", "X"],
-          "propertyOrder": 2,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "institution": "TM"
-            },
-            "enum_titles": ["MESAM", "Some other lab", "Unknown"],
-            "grid_columns": 3
-          }
-        },
-        "groupSB": {
-          "type": "string",
-          "description": "Originating Group",
-          "enum": ["X"],
-          "propertyOrder": 2,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "institution": "SB"
-            },
-            "enum_titles": ["Unknown"],
+            "enum_titles": [
+              "Hopkins Extreme Materials Institute",
+              "Weihs Group",
+              "Other"
+            ],
             "grid_columns": 3
           }
         },
         "material": {
           "type": "string",
           "description": "Material Type",
-          "enum": ["BO", "BM", "CR", "MA", "ME", "MO", "OC", "OG", "PL", "SM"],
+          "enum": [
+            "MA",
+            "CR"
+          ],
+          "default": "CR",
           "propertyOrder": 3,
           "options": {
             "titleHidden": true,
+            "grid_columns": 3,
             "enum_titles": [
-              "biological",
-              "biometerials",
-              "ceramics",
               "metals and alloys",
-              "metamatierals",
-              "molecular fluids",
-              "organic compounds",
-              "organometallics",
-              "polymers",
-              "semiconductors"
-            ],
-            "grid_columns": 3
-          }
-        },
-        "submaterialBO": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["X"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "BO"
-            },
-            "grid_columns": 3,
-            "enum_titles": [
-              ""
-            ]
-          }
-        },
-        "submaterialBM": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["X"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "BM"
-            },
-            "grid_columns": 3,
-            "enum_titles": [
-              ""
-            ]
-          }
-        },
-        "submaterialCR": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["A", "B", "C", "D", "E", "F"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "CR"
-            },
-            "grid_columns": 3,
-            "enum_titles": [
-              "carbides",
-              "cements",
-              "nitrides",
-              "oxides",
-              "perovskites",
-              "silicates"
+              "ceramics"
             ]
           }
         },
         "submaterialMA": {
           "type": "string",
           "description": "Material Subtype",
-          "enum": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"],
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "J",
+            "K",
+            "L"
+          ],
           "propertyOrder": 4,
           "options": {
             "titleHidden": true,
@@ -180,121 +117,23 @@
             "grid_columns": 3
           }
         },
-        "submaterialME": {
+        "submaterialCR": {
           "type": "string",
           "description": "Material Subtype",
-          "enum": ["X"],
+          "enum": [
+            "A",
+            "C"
+          ],
           "propertyOrder": 4,
+          "default": "A",
           "options": {
             "titleHidden": true,
             "dependencies": {
-              "material": "ME"
+              "material": "CR"
             },
             "enum_titles": [
-              ""
-            ],
-            "grid_columns": 3
-          }
-        },
-        "submaterialMO": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["X"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "MO"
-            },
-            "enum_titles": [
-              ""
-            ],
-            "grid_columns": 3
-          }
-        },
-        "submaterialOC": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "OC"
-            },
-            "enum_titles": [
-              "alcohols",
-              "aldehydes",
-              "alkanes",
-              "alkenes",
-              "alkynes",
-              "amines",
-              "carboxylic acids",
-              "cyclic compounds",
-              "cycloalkanes",
-              "esters",
-              "ketones",
-              "nitriles"
-            ],
-            "grid_columns": 3
-          }
-        },
-        "submaterialOG": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["X"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "OG"
-            },
-            "enum_titles": [
-              ""
-            ],
-            "grid_columns": 3
-          }
-        },
-        "submaterialPL": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["A", "B", "C", "D", "E", "F", "G", "H"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "PL"
-            },
-            "enum_titles": [
-              "copolymers",
-              "elastomers",
-              "homopolymers",
-              "liquid crystals",
-              "polymer blends",
-              "rubbbers",
-              "thermoplastics",
-              "thermosets"
-            ],
-            "grid_columns": 3
-          }
-        },
-        "submaterialSM": {
-          "type": "string",
-          "description": "Material Subtype",
-          "enum": ["A", "B", "C", "D", "E", "F"],
-          "propertyOrder": 4,
-          "options": {
-            "titleHidden": true,
-            "dependencies": {
-              "material": "SM"
-            },
-            "enum_titles": [
-              "extrinsic",
-              "II-VI",
-              "III-V",
-              "intrinsic",
-              "n-type",
-              "p-type"
+              "carbides",
+              "nitrides"
             ],
             "grid_columns": 3
           }
@@ -315,10 +154,28 @@
           "format": "checkbox",
           "description": "The substrates created in the sputter run.",
           "uniqueItems": true,
-          "default": ["1", "2", "3", "4", "5", "6", "7", "8"],
+          "default": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8"
+          ],
           "items": {
             "type": "string",
-            "enum": ["1", "2", "3", "4", "5", "6", "7", "8"]
+            "enum": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8"
+            ]
           },
           "options": {
             "grid_columns": 6
@@ -328,7 +185,7 @@
           "type": "integer",
           "propertyOrder": 7,
           "description": "Number of rows on each substrate",
-          "default": 4,
+          "default": 6,
           "options": {
             "titleHidden": true,
             "grid_columns": 3
@@ -338,7 +195,7 @@
           "type": "integer",
           "propertyOrder": 8,
           "description": "Number of columns on each substrate",
-          "default": 7,
+          "default": 3,
           "options": {
             "titleHidden": true,
             "grid_columns": 3,
@@ -347,8 +204,97 @@
         }
       }
     },
+    "igsn": {
+      "id": "igsn",
+      "type": "object",
+      "title": "IGSN",
+      "description": "IGSN",
+      "options": {
+        "hidden": true
+      },
+      "properties": {
+        "suffix": {
+          "type": "string",
+          "propertyOrder": 1,
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          },
+          "default": ""
+        },
+        "prefix": {
+          "type": "string",
+          "propertyOrder": 2,
+          "description": "The unique identifier for the build.",
+          "hidden": true,
+          "template": "{{org}}{{gJH}}{{material}}{{sCR}}{{sMA}}",
+          "watch": {
+            "org": "root.igsnMeta.institution",
+            "gJH": "root.igsnMeta.groupJH",
+            "material": "root.igsnMeta.material",
+            "sCR": "root.igsnMeta.submaterialCR",
+            "sMA": "root.igsnMeta.submaterialMA"
+          },
+          "options": {
+            "grid_columns": 12,
+            "hidden": true
+          }
+        },
+        "request": {
+          "type": "boolean",
+          "propertyOrder": 3,
+          "default": true,
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        },
+        "track": {
+          "type": "boolean",
+          "propertyOrder": 4,
+          "default": true,
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        },
+        "field": {
+          "type": "string",
+          "propertyOrder": 5,
+          "default": "assignedIGSN",
+          "const": "assignedIGSN",
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        },
+        "batch": {
+          "type": "object",
+          "propertyOrder": 6,
+          "properties": {
+            "method": {
+              "type": "string",
+              "propertyOrder": 1,
+              "enum": [
+                "weihs"
+              ],
+              "default": "weihs",
+              "options": {
+                "hidden": true,
+                "grid_columns": 12
+              }
+            }
+          },
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        }
+      }
+    },
     "gunMeasurement": {
       "type": "object",
+      "id": "gun_measurement",
       "format": "grid-strict",
       "properties": {
         "voltage": {
@@ -369,9 +315,15 @@
         },
         "power": {
           "type": "number",
-          "description": "Power (W)",
+          "description": "Power (W) - calculated from voltage and current",
           "propertyOrder": 3,
+          "watch": {
+            "voltage": "gun_measurement.voltage",
+            "current": "gun_measurement.current"
+          },
+          "template": "{{multiply voltage current}}",
           "options": {
+            "readonly": true,
             "grid_columns": 4,
             "grid_break": true
           }
@@ -402,7 +354,7 @@
         },
         "rotation": {
           "type": "number",
-          "description": "Rotation (degrees)",
+          "description": "Rotation (dimensionless)",
           "propertyOrder": 2,
           "options": {
             "grid_columns": 6,
@@ -445,13 +397,13 @@
             "grid_break": true
           }
         },
-        "purple": {
+        "yellow": {
           "type": "object",
           "$ref": "#/definitions/gunMeasurement",
-          "title": "Purple Gun",
+          "title": "Yellow Gun",
           "options": {
             "dependencies": {
-              "root.purpleGun.used": true
+              "root.yellowGun.used": true
             },
             "grid_columns": 12,
             "grid_break": true
@@ -469,20 +421,18 @@
           "title": "Used",
           "description": "Whether the gun was used.",
           "default": false,
-          "propertyOrder": 1,
           "options": {
             "grid_columns": 1
           }
         },
         "sputter": {
-            "type": "object",
-            "$ref": "#/definitions/sputter",
-            "propertyOrder": 2,
-            "title": "Sputter Parameters",
-            "description": "Parameters for the sputter gun.",
-            "propertyOrder": 2,
-            "options": {
-              "dependencies": {
+          "type": "object",
+          "$ref": "#/definitions/sputter",
+          "propertyOrder": 2,
+          "title": "Sputter Parameters",
+          "description": "Parameters for the sputter gun.",
+          "options": {
+            "dependencies": {
               "used": true
             },
             "grid_columns": 12
@@ -496,7 +446,7 @@
       "properties": {
         "gun": {
           "type": "string",
-          "enumSource": "girder.formId",
+          "enumSource": "girder.formId:684c32c09827d47f69fc31cc",
           "propertyOrder": 1,
           "options": {
             "grid_columns": 3
@@ -505,7 +455,7 @@
         "target": {
           "type": "string",
           "description": "Target material",
-          "enumSource": "girder.formId",
+          "enumSource": "girder.formId:684c35589827d47f69fc31ce",
           "propertyOrder": 2,
           "options": {
             "grid_columns": 3
@@ -514,7 +464,7 @@
         "powerSupply": {
           "type": "string",
           "description": "Power supply",
-          "enumSource": "girder.formId",
+          "enumSource": "girder.formId:684c320c9827d47f69fc31cb",
           "propertyOrder": 3,
           "options": {
             "grid_columns": 3
@@ -540,6 +490,7 @@
         "waterFlow": {
           "type": "number",
           "description": "Water flow rate (gal/min)",
+          "default": 1.0,
           "propertyOrder": 6,
           "options": {
             "grid_columns": 3
@@ -585,31 +536,41 @@
       }
     }
   },
-
   "type": "object",
   "format": "grid-strict",
   "title": "Weihs Lab Sputter Record",
   "description": "Data recording a single sputter deposition run.",
   "properties": {
-    "igsn": {
-      "$ref": "#/definitions/igsn",
+    "igsnMeta": {
+      "$ref": "#/definitions/igsnMetadata",
       "propertyOrder": 0
     },
-    "name": {
-      "type": "string",
-      "title": "User",
-      "description": "The name of the person doing the sputter run.",
+    "igsn": {
+      "$ref": "#/definitions/igsn",
+      "propertyOrder": 0,
       "options": {
-        "grid_columns": 6
+        "hidden": true
+      }
+    },
+    "assignedIGSN": {
+      "type": "string",
+      "propertyOrder": 0,
+      "template": "{{prefix}}{{suffix}}",
+      "watch": {
+        "prefix": "igsn.prefix",
+        "suffix": "igsn.suffix"
       },
-      "propertyOrder": 1
+      "options": {
+        "hidden": true,
+        "grid_columns": 12
+      }
     },
     "sputterType": {
       "type": "string",
       "propertyOrder": 2,
-      "description": "The age of the person.",
+      "description": "The type of sputter run",
       "options": {
-        "grid_columns": 6,
+        "grid_columns": 12,
         "grid_break": true
       },
       "enum": [
@@ -621,10 +582,12 @@
       "type": "string",
       "propertyOrder": 3,
       "description": "Substrate type",
+      "default": "Brass",
       "enum": [
+        "Brass",
+        "Glass",
         "Si",
         "SiO2",
-        "Glass",
         "Other"
       ],
       "options": {
@@ -643,9 +606,14 @@
     "bilayerSpacing": {
       "type": "number",
       "propertyOrder": 5,
-      "description": "Bilayer spacing (nm)",
-      "default": 100.0,
+      "description": "Bilayer spacing (nm) - calculated from thickness and total rotations)",
+      "template": "{{divide thickness totalRotations}}",
+      "watch": {
+        "totalRotations": "root.totalRotations",
+        "thickness": "root.thickness"
+      },
       "options": {
+        "readonly": true,
         "grid_columns": 3
       }
     },
@@ -663,29 +631,37 @@
       "type": "string",
       "propertyOrder": 7,
       "description": "Gas type",
+      "default": "Argon",
       "enum": [
         "Argon",
         "Nitrogen",
         "Oxygen"
       ],
       "options": {
-        "grid_columns": 6
+        "grid_columns": 4
       }
     },
-    "gasFlowRate": {
+    "gasPressure": {
       "type": "number",
       "propertyOrder": 8,
-      "description": "Gas flow rate (gal/min)",
-      "default": 1.0,
+      "description": "Gas pressure (mtorr)",
       "options": {
-        "grid_columns": 6,
+        "grid_columns": 4
+      }
+    },
+    "rotationRate": {
+      "type": "number",
+      "propertyOrder": 9,
+      "description": "Rotation rate (Hz)",
+      "options": {
+        "grid_columns": 4,
         "grid_break": true
       }
     },
     "label1": {
       "format": "info",
       "title": "Pre-sputter chamber status",
-      "propertyOrder": 9,
+      "propertyOrder": 10,
       "options": {
         "grid_columns": 2,
         "grid_offset": 5,
@@ -694,27 +670,24 @@
     },
     "basePressure": {
       "type": "number",
-      "propertyOrder": 10,
+      "propertyOrder": 11,
       "description": "Base pressure (Torr)",
-      "default": 1.0e-6,
       "options": {
         "grid_columns": 4
       }
     },
     "leakRate": {
       "type": "number",
-      "propertyOrder": 11,
+      "propertyOrder": 12,
       "description": "Leak rate (Torr/min)",
-      "default": 1.0e-6,
       "options": {
         "grid_columns": 4
       }
     },
     "cryoTemp": {
       "type": "number",
-      "propertyOrder": 12,
+      "propertyOrder": 13,
       "description": "Cryo temperature (K)",
-      "default": 12.0,
       "options": {
         "grid_columns": 4,
         "grid_break": true
@@ -723,7 +696,7 @@
     "label2": {
       "format": "info",
       "title": "Sputter parameters",
-      "propertyOrder": 13,
+      "propertyOrder": 14,
       "options": {
         "grid_columns": 2,
         "grid_offset": 5,
@@ -733,7 +706,7 @@
     "blueGun": {
       "type": "object",
       "$ref": "#/definitions/coloredGun",
-      "propertyOrder": 14,
+      "propertyOrder": 15,
       "title": "Blue Gun",
       "description": "Blue Gun",
       "options": {
@@ -743,7 +716,7 @@
     "orangeGun": {
       "type": "object",
       "$ref": "#/definitions/coloredGun",
-      "propertyOrder": 15,
+      "propertyOrder": 16,
       "title": "Orange Gun",
       "description": "Orange Gun",
       "options": {
@@ -753,26 +726,26 @@
     "greenGun": {
       "type": "object",
       "$ref": "#/definitions/coloredGun",
-      "propertyOrder": 16,
+      "propertyOrder": 17,
       "title": "Green Gun",
       "description": "Green Gun",
       "options": {
         "grid_columns": 12
       }
     },
-    "purpleGun": {
+    "yellowGun": {
       "type": "object",
       "$ref": "#/definitions/coloredGun",
-      "propertyOrder": 17,
-      "title": "Purple Gun",
-      "description": "Purple gun",
+      "propertyOrder": 18,
+      "title": "Yellow Gun",
+      "description": "Yellow gun",
       "options": {
         "grid_columns": 12
       }
     },
     "measurements": {
       "type": "array",
-      "propertyOrder": 18,
+      "propertyOrder": 19,
       "title": "Measurements",
       "description": "Measurements taken during the sputter run.",
       "items": {
@@ -784,75 +757,41 @@
         "grid_break": true
       }
     },
-    "igsn_prefix": {
+    "label3": {
+      "format": "info",
+      "title": "Post-sputter chamber status",
+      "propertyOrder": 20,
+      "options": {
+        "grid_columns": 2,
+        "grid_offset": 5,
+        "grid_break": true
+      }
+    },
+    "totalRotations": {
+      "type": "number",
+      "propertyOrder": 21,
+      "description": "Total number of rotations",
+      "options": {
+        "grid_columns": 6
+      }
+    },
+    "finalBasePressure": {
+      "type": "number",
+      "propertyOrder": 22,
+      "description": "Final base pressure (Torr)",
+      "options": {
+        "grid_columns": 6,
+        "grid_break": true
+      }
+    },
+    "comments": {
       "type": "string",
-      "propertyOrder": 100,
-      "title": "Sputter Run ID",
-      "description": "The unique identifier for the sputter run.",
-      "hidden": true,
-      "template": "{{org}}{{gJH}}{{gTM}}{{gSB}}{{material}}{{sBO}}{{sBM}}{{sCR}}{{sMA}}{{sME}}{{sMO}}{{sOC}}{{sOG}}{{sPL}}{{sSM}}",
-      "watch": {
-        "org": "root.igsn.institution",
-        "gJH": "root.igsn.groupJH",
-        "gTM": "root.igsn.groupTM",
-        "gSB": "root.igsn.groupSB",
-        "material": "root.igsn.material",
-        "sBO": "root.igsn.submaterialBO",
-        "sBM": "root.igsn.submaterialBM",
-        "sCR": "root.igsn.submaterialCR",
-        "sMA": "root.igsn.submaterialMA",
-        "sME": "root.igsn.submaterialME",
-        "sMO": "root.igsn.submaterialMO",
-        "sOC": "root.igsn.submaterialOC",
-        "sOG": "root.igsn.submaterialOG",
-        "sPL": "root.igsn.submaterialPL",
-        "sSM": "root.igsn.submaterialSM",
-        "suffix": "root.igsn_suffix"
-      },
+      "format": "textarea",
+      "propertyOrder": 23,
+      "description": "Comments",
       "options": {
         "grid_columns": 12,
-        "hidden": true
-      }
-    },
-    "igsn_request": {
-      "type": "boolean",
-      "propertyOrder": 101,
-      "title": "Request IGSN",
-      "description": "Whether to request an IGSN for this sputter run.",
-      "default": true,
-      "options": {
-        "hidden": true,
-        "grid_columns": 12
-      }
-    },
-    "igsn_field": {
-      "type": "string",
-      "propertyOrder": 102,
-      "title": "Field with IGSN prefix",
-      "const": "sputterRunId",
-      "default": "sputterRunId",
-      "options": {
-        "hidden": true,
-        "grid_columns": 12
-      }
-    },
-    "igsn_suffix": {
-      "type": "string",
-      "propertyOrder": 103,
-      "title": "IGSN suffix",
-      "options": {
-        "hidden": true,
-        "grid_columns": 12
-      }
-    },
-    "igsn_track": {
-      "type": "boolean",
-      "propertyOrder": 104,
-      "title": "Track IGSN",
-      "description": "Whether to create Sample tracking for this sputter run.",
-      "default": true,
-      "options": {
-        "hidden": true
+        "grid_break": true
       }
     },
     "sputterRunId": {
@@ -865,27 +804,31 @@
       },
       "template": "{{prefix}}{{suffix}}",
       "watch": {
-        "prefix": "root.igsn_prefix",
-        "suffix": "root.igsn_suffix"
+        "prefix": "root.igsn.prefix",
+        "suffix": "root.igsn.suffix"
       }
     }
   },
   "if": {
     "properties": {
-      "igsn_request": {
-        "const": false
+      "igsn": {
+        "properties": {
+          "request": {
+            "const": false
+          }
+        }
       }
     }
   },
   "then": {
     "properties": {
-      "igsn": {
+      "igsnMeta": {
         "options": {
           "hidden": true
         },
         "readonly": true
       },
-      "sputterRunId": {
+      "assignedIGSN": {
         "options": {
           "hidden": false
         },

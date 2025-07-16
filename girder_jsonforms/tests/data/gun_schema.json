@@ -5,10 +5,10 @@
   "properties": {
     "geometry": {
       "type": "string",
+      "default": "Linear",
       "enum": [
-        "Geometry 1",
-        "Geometry 2",
-        "Geometry 3"
+        "Linear",
+        "Round"
       ]
     },
     "manufacturer": {
@@ -28,12 +28,12 @@
     },
     "gunType": {
       "type": "string",
+      "description": "The type of sputter gun used.",
+      "default": "DC",
       "enum": [
-        "Gun Type 1",
-        "Gun Type 2",
-        "Gun Type 3"
-      ],
-      "default": "Gun Type 1"
+        "DC",
+        "RF"
+      ]
     }
   },
   "required": [
