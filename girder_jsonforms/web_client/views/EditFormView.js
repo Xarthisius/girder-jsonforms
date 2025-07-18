@@ -132,7 +132,7 @@ const EditFormView = View.extend({
             try {
                 return dependencies[entryId][`data.${field}`];
             } catch (e) {
-                console.log('Error getting dependencies');
+                // console.log('Error getting dependencies');
                 return undefined;
             }
         });
@@ -207,6 +207,9 @@ const EditFormView = View.extend({
         });
 
         this.initialValues = settings.initialValues;
+        this.uniqueField = this.model.get('uniqueField', 'sampleId');
+        this.originalSampleId = this.initialValues ? this.initialValues.get('data')[this.uniqueField] : null;
+        this.assignedIGSN = this.initialValues ? this.initialValues.get('data')["assignedIGSN"] : null;
         this.form = null;
     },
 
@@ -232,9 +235,8 @@ const EditFormView = View.extend({
             onlyFolders = true;
         }
         const value = jseditor.parent.getValue();
-        const uniqueField = this.model.get('uniqueField', 'sampleId');
         var reference = {
-            [uniqueField]: value[uniqueField],
+            [this.uniqueField]: value[this.uniqueField],
             annotate: true,
             formField: field
         };
@@ -315,6 +317,18 @@ const EditFormView = View.extend({
             $.when(this.form.promise).done(() => {
                 if (view.initialValues) {
                     view.form.setValue(view.initialValues.get('data'));
+                }
+                if (view.originalSampleId && view.assignedIGSN) {
+                  view.form.watch(`root.${view.uniqueField}`, function () {
+                      const sampleId = view.form.getEditor(`root.${view.uniqueField}`).getValue();
+                      if (sampleId !== view.originalSampleId) {
+                          view.$('.g-validation-failed-message').html('<ul><li>Sample ID cannot be changed once IGSN is assigned. Create a new entry instead.</li></ul>');
+                          view.setSubmitEnabled(false);
+                      } else {
+                          view.$('.g-validation-failed-message').empty();
+                          view.setSubmitEnabled(true);
+                      }
+                  });
                 }
                 if (view.destFolder === null && view.serialize) {
                     view.form.disable();
