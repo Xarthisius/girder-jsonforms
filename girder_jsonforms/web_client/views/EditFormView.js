@@ -294,6 +294,7 @@ const EditFormView = View.extend({
             destFolderPath: this.destFolderPath,
             serialize: this.serialize,
             entry: this.initialValues,
+            data: this.initialValues ? this.initialValues.get('data') : {}
         }));
         const formContainer = this.$('.g-form-container');
         if (this.schema) {

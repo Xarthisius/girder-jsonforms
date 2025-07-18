@@ -4,6 +4,10 @@
       button.g-delete-entry.btn.btn-sm.btn-danger(title="Delete Entry")
         i.icon-trash
 
+if data.assignedIGSN
+  .g-igsn-info
+    | This entry has been assigned an IGSN: #[a(href=`#igsn/${data.assignedIGSN}`).span.g-bold-part= data.assignedIGSN].
+
 form#g-form(role="form")
   if serialize
     if destFolder === null
