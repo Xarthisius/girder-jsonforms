@@ -90,7 +90,7 @@ var DepositionView = View.extend({
         });
         if (this.model.get("sampleId")) {
             const addEventUrl = `${window.location.origin}/#sample/${this.model.get('sampleId')}/add`;
-            QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl.toUpperCase(), QRparams);
+            QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl, QRparams);
         }
         return this;
     },
