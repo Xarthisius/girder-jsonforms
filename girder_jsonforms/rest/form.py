@@ -295,6 +295,12 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
+        .param(
+            "jsHelpers",
+            "The JavaScript helpers to use in the form (either string or url)",
+            required=False,
+            dataType="string",
+        )
         .responseClass("Form")
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
@@ -312,6 +318,7 @@ class Form(Resource):
         serialize,
         uniqueField,
         postEntryTask,
+        jsHelpers,
     ):
         if name is not None:
             form["name"] = name
@@ -336,6 +343,8 @@ class Form(Resource):
             form["uniqueField"] = uniqueField
         if postEntryTask is not None:
             form["postEntryTask"] = postEntryTask
+        if jsHelpers is not None:
+            form["jsHelpers"] = jsHelpers
         return FormModel().save(form)
 
     @access.user
