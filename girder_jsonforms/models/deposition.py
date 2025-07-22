@@ -118,7 +118,16 @@ class Deposition(AccessControlledModel):
                 except Exception:
                     continue
             filtered_identifiers.append(identifier)
+
         deposition["metadata"]["relatedIdentifiers"] = filtered_identifiers
+
+        if deposition.get("sampleId"):
+            try:
+                Sample().load(
+                    deposition["sampleId"], user=user, level=AccessType.READ, exc=True
+                )
+            except Exception:
+                deposition["sampleId"] = None
         return deposition
 
     def register_deposition(self, event: events.Event) -> None:
