@@ -9,6 +9,7 @@ from girder.exceptions import GirderException, ValidationException
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
 from girder.models.user import User
+from girder.utility.model_importer import ModelImporter
 from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
 from pymongo import ReturnDocument
@@ -96,6 +97,29 @@ class Deposition(AccessControlledModel):
         )
         events.bind("model.entry.save", "jsonforms", self.register_deposition)
         events.bind("model.entry.save.created", "jsonforms", self.updateRelations)
+
+    def filter(self, deposition, user=None, additionalKeys=None):
+        deposition = super().filter(
+            deposition, user=user, additionalKeys=additionalKeys
+        )
+        filtered_identifiers = []
+        if not isinstance(deposition.get("metadata"), dict):
+            return deposition
+        for identifier in deposition["metadata"].get("relatedIdentifiers", []):
+            if (
+                identifier["relationType"] == "HasMetadata"
+                and "entry" in identifier["relatedIdentifier"]
+            ):
+                entryId = identifier["relatedIdentifier"].split("/")[-1]
+                try:
+                    ModelImporter.model("entry", "jsonforms").load(
+                        entryId, user=user, level=AccessType.READ, exc=True
+                    )
+                except Exception:
+                    continue
+            filtered_identifiers.append(identifier)
+        deposition["metadata"]["relatedIdentifiers"] = filtered_identifiers
+        return deposition
 
     def register_deposition(self, event: events.Event) -> None:
         entry = event.info
@@ -389,7 +413,10 @@ class Deposition(AccessControlledModel):
         Generate a local identifier based on the metadata.
         This is used for batch processing to create unique identifiers.
         """
-        if "attributes" in metadata and "alternateIdentifiers" in metadata["attributes"]:
+        if (
+            "attributes" in metadata
+            and "alternateIdentifiers" in metadata["attributes"]
+        ):
             for alt_id in metadata["attributes"]["alternateIdentifiers"]:
                 if alt_id.get("alternateIdentifierType").lower() == "local":
                     return alt_id.get("alternateIdentifier")
@@ -523,7 +550,11 @@ class Deposition(AccessControlledModel):
                     publicFlags=publicFlags,
                     force=force,
                 )
-            if sample := Sample().load(doc.get("sampleId"), user=user, level=AccessType.ADMIN):
+            if not doc.get("sampleId"):
+                return doc
+            if sample := Sample().load(
+                doc.get("sampleId"), user=user, level=AccessType.ADMIN
+            ):
                 if setPublic is not None:
                     sample = Sample().setPublic(sample, setPublic, save=False)
                 if publicFlags is not None:

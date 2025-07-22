@@ -107,6 +107,7 @@ class Deposition(Resource):
             limit=limit,
             sort=sort,
             user=self.getCurrentUser(),
+            fields={"metadata.relatedIdentifiers": 0},
             level=level,
         )
 
