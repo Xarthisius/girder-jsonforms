@@ -42,7 +42,7 @@ const EditDepositionView = View.extend({
         return { alternateIdentifier: item.value, alternateIdentifierType: item.type };
       });
       const checkbox = document.querySelector('.g-enable-tracking');
-      const batch = document.querySelector('#g-deposition-batch').value;
+      const batch = document.querySelector('#g-deposition-batch') ? document.querySelector('#g-deposition-batch').value : 0;
       const data = {
         metadata: JSON.stringify({
           creators: this.creators,

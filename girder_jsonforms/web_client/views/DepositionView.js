@@ -19,7 +19,7 @@ import SearchResultsTypeTemplate from '@girder/core/templates/body/searchResults
 
 const QRparams = {
   'errorCorrectionLevel': 'H',
-  'version': 7,
+  'version': 8,
   'mode': 'alphanumeric'
 };
 
