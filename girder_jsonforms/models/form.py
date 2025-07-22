@@ -46,6 +46,14 @@ class Form(AccessControlledModel):
         )
 
     def validate(self, doc):
+        if isinstance(doc["schema"], str):
+            try:
+                if doc["schema"].startswith("http"):
+                    self._loadRemoteSchema(doc["schema"])
+                else:
+                    json.loads(doc["schema"])
+            except Exception as e:
+                raise ValidationException("Invalid schema: {}".format(str(e)))
         return doc
 
     def create_form(
