@@ -6,7 +6,10 @@ import '../stylesheets/depositionView.styl';
 import QRCode from 'qrcode';
 
 const _ = girder._;
+const events = girder.events;
+const router = girder.router;
 const { AccessType } = girder.constants;
+const { handleClose, handleOpen } = girder.dialog;
 const { renderMarkdown } = girder.misc;
 const { getApiRoot } = girder.rest;
 const AccessWidget = girder.views.widgets.AccessWidget;
@@ -15,13 +18,71 @@ const { restRequest } = girder.rest;
 const SearchPaginateWidget = girder.views.widgets.SearchPaginateWidget;
 
 import SearchResultsTypeTemplate from '@girder/core/templates/body/searchResultsType.pug';
+import DepositionSplitDialog from '../templates/depositionSplitDialog.pug';
 
+import '@girder/core/utilities/jquery/girderEnable';
+import '@girder/core/utilities/jquery/girderModal';
 
 const QRparams = {
   'errorCorrectionLevel': 'H',
   'version': 8,
   'mode': 'alphanumeric'
 };
+
+var SplitDialog = View.extend({
+  events: {
+    'submit #g-split-form': function (e) {
+      e.preventDefault();
+      // Disable submission button to prevent multiple clicks
+      this.$('#g-split-btn').girderEnable(false);
+      this.$('.g-validation-failed-message').text('');
+
+      const data = $(e.currentTarget).serializeArray();
+      const params = new Map(data.map((obj) => [obj.name, obj.value]));
+      const suffix = params.get('suffix') || '';
+      // validate that the suffix is not empty and only consist of alphanumeric characters
+      if (!suffix || !/^[a-zA-Z0-9]+$/.test(suffix)) {
+        this.$('#g-split-btn').girderEnable(true);
+        this.$('.g-validation-failed-message').text('Suffix must be a non-empty alphanumeric string.');
+        return ;
+      }
+      restRequest({
+        type: 'POST',
+        url: `deposition/${this.model.id}/split`,
+        data: Object.fromEntries(params),
+        error: null
+      }).done((resp) => {
+        this.$el.modal('hide');
+        router.navigate(`deposition/${resp._id}`, {trigger: true});
+      }).fail((resp) => {
+        this.$el.modal('hide');
+        events.trigger('g:alert', {
+          text: resp.responseJSON.message || 'An error occurred while splitting the deposition.',
+          type: 'danger'
+        });
+      });
+    }
+  },
+
+  initialize: function (settings) {
+    this.model = settings.model || new DepositionModel();
+    this.render();
+  },
+
+  render: function () {
+    this.$el.html(DepositionSplitDialog({
+      igsn: this.model.get('igsn')
+    })).girderModal(this)
+        .on('shown.bs.modal', () => {
+          this.$('#g-split-form').focus();
+        }).on('hidden.bs.modal', () => {
+          handleClose('splitEvent', {replace: true});
+        });
+    handleOpen('splitEvent', {replace: true});
+    this.$('#g-split-form').focus();
+    return this;
+  }
+});
 
 var DepositionView = View.extend({
     events: {
@@ -31,6 +92,13 @@ var DepositionView = View.extend({
         },
         'click .g-back': function () {
             girder.router.navigate('depositions', {trigger: true});
+        },
+        'click .g-split-deposition': function () {
+            new SplitDialog({
+                el: $('#g-dialog-container'),
+                model: this.model,
+                parentView: this
+            }).render();
         }
     },
 

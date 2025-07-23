@@ -1,0 +1,19 @@
+.modal-dialog
+  .modal-content
+    form#g-split-form.modal-form(role="form")
+      .modal-header
+        button.close(type="button", data-dismiss="modal", aria-hidden="true") &times;
+        h4.modal-title Create a child IGSN for #{igsn}
+      .modal-body
+        .form-group
+          label(for="suffix") Suffix
+          input#suffix.form-control(type="text", name="suffix")
+        .form-group
+          .checkbox
+            label(for="track")
+              input.g-enable-tracking(type="checkbox" checked=true, name="track")
+              | Enable Sample Tracking of this IGSN
+        .g-validation-failed-message
+      .modal-footer
+        a.btn.btn-default(data-dismiss="modal") Close
+        button#g-split-btn.btn.btn-primary(type="submit") Split

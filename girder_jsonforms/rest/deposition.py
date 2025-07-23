@@ -200,6 +200,10 @@ class Deposition(Resource):
     )
     @filtermodel(model="deposition", plugin="jsonforms")
     def create_child_deposition(self, deposition, suffix, track, metadata):
+        # check if suffix is valid (non empty and alphanumeric)
+        if not suffix or not re.match(r"^[a-zA-Z0-9]+$", suffix):
+            raise RestException("Suffix must be a non-empty alphanumeric string.")
+
         new_igsn = f"{deposition['igsn']}-{suffix}"
         if DepositionModel().findOne({"igsn": new_igsn}):
             raise RestException(f"Deposition with IGSN {new_igsn} already exists.")
