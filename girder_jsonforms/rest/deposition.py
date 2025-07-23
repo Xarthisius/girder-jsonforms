@@ -1,3 +1,4 @@
+import datetime
 import re
 import urllib.parse
 import requests
@@ -9,6 +10,7 @@ from girder.api.rest import (
     filtermodel,
 )
 from girder.constants import AccessType, SortDir, TokenScope
+from girder.exceptions import RestException
 from girder.models.setting import Setting
 from girder.utility.progress import noProgress
 from ..models.deposition import Deposition as DepositionModel
@@ -58,6 +60,7 @@ class Deposition(Resource):
         self.route("PUT", (":id",), self.update_deposition)
         self.route("GET", (":id", "access"), self.get_deposition_access)
         self.route("PUT", (":id", "access"), self.update_deposition_access)
+        self.route("POST", (":id", "split"), self.create_child_deposition)
 
     @access.public
     @autoDescribeRoute(
@@ -174,6 +177,48 @@ class Deposition(Resource):
         return DepositionModel().create_deposition(
             metadata, self.getCurrentUser(), prefix=prefix, track=track, parent=parent, batch=batch
         )
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Create a child deposition from an existing one")
+        .modelParam(
+            "id",
+            model=DepositionModel,
+            plugin="jsonforms",
+            paramType="path",
+            required=True,
+            level=AccessType.WRITE,
+        )
+        .param("suffix", "The suffix for IGSN", required=True, dataType="string")
+        .param("track", "Create a sample tracker for IGSN", required=False, dataType="boolean", default=False)
+        .jsonParam(
+            "metadata",
+            "JSON object with Datacite fields for the child deposition",
+            requireObject=True,
+            required=False,
+        )
+    )
+    @filtermodel(model="deposition", plugin="jsonforms")
+    def create_child_deposition(self, deposition, suffix, track, metadata):
+        new_igsn = f"{deposition['igsn']}-{suffix}"
+        if DepositionModel().findOne({"igsn": new_igsn}):
+            raise RestException(f"Deposition with IGSN {new_igsn} already exists.")
+
+        local_identifier = DepositionModel().local_identifier(deposition["metadata"])
+        if local_identifier:
+            local_identifier = f"{local_identifier}-{suffix}"
+        indices = [(suffix, local_identifier)]
+        # Is not saved, but that's what's checked
+        deposition.update(
+            {
+                "created:": datetime.datetime.now(datetime.UTC),
+                "creatorId": self.getCurrentUser()["_id"],
+                "updated": datetime.datetime.now(datetime.UTC),
+                "track": track,
+            }
+        )
+        result = DepositionModel().create_batch(deposition, indices)
+        return DepositionModel().load(result.inserted_ids[0], user=self.getCurrentUser())
 
     @access.public
     @autoDescribeRoute(

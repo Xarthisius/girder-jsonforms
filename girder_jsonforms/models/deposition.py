@@ -497,7 +497,7 @@ class Deposition(AccessControlledModel):
             for deposition, sample_id in zip(depositions, sample_result.inserted_ids):
                 deposition["sampleId"] = sample_id
 
-        self.collection.insert_many(depositions)
+        return self.collection.insert_many(depositions)
 
     def update_deposition(self, deposition, metadata, sampleId, user=None):
         try:
