@@ -285,6 +285,19 @@ const EditDepositionView = View.extend({
               return null;
           }
 
+          var affiliation = [];
+          if (creator.affiliations.split(' - ').length > 1) {
+              const [name, affId] = creator.affiliations.split(' - ');
+              affiliation = [
+                {
+                  name: name,
+                  schemeUri: 'https://ror.org',
+                  affiliationIdentifier: affId,
+                  affiliationIdentifierScheme: 'ROR'
+                }
+              ];
+          }
+
           return {
               name: `${creator.familyName}, ${creator.givenName}`,
               nameType: creator.nameType,
@@ -297,7 +310,7 @@ const EditDepositionView = View.extend({
                   nameIdentifierScheme: "ORCID"
                 }
               ],
-              affiliation: []
+              affiliation: affiliation,
           };
       }).filter((creator) => creator !== null);
   },

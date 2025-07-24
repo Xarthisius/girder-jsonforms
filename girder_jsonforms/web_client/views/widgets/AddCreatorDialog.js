@@ -66,8 +66,24 @@ var AddCreatorDialog = View.extend({
         view.$el.find('input[name="givenName"]').val(data.givenName);
         view.$el.find('input[name="familyName"]').val(data.familyName);
         view.$el.find('input[name="identifiers"]').val(`orcid:${data.orcid}`);
-        view.$el.find('input[name="affiliations"]').val(data.institution);
+        view.$el.find('input[name="affiliations"]').val('Fetching institution...');
         //$('.basicModalAutoSelectSelected').html(JSON.stringify(item, null, 2));   // debug
+        $.ajax({
+          url: 'https://api.ror.org/v2/organizations',
+          data: {query: `"${data.institution}"`},
+          dataType: 'json',
+          success: function (response) {
+            if (response && response.items && response.items.length > 0) {
+              const rorId = response.items[0].id;
+              view.$el.find('input[name="affiliations"]').val(`${data.institution} - ${rorId}`);
+            } else {
+              view.$el.find('input[name="affiliations"]').val(data.institution);
+            }
+          },
+          error: function (error) {
+            view.$el.find('input[name="affiliations"]').val(data.institution);
+          }
+        });
         $('ul.bootstrap-autocomplete').css("display", "none");
     });
     return this;
@@ -104,13 +120,8 @@ var AddCreatorDialog = View.extend({
       obj[item.name] = item.value;
       return obj;
     }, {});
-    console.log(creator);
     if (!creator.givenName || !creator.familyName) {
       this.$('.g-validation-failed-message').text('Please enter at least a first and last name for this creator.');
-      return false;
-    }
-    if (!creator.role) {
-      this.$('.g-validation-failed-message').text('Please select a role for this creator.');
       return false;
     }
     if (creator) {

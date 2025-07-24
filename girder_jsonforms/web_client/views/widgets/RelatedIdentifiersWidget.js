@@ -29,7 +29,6 @@ const RelatedIdentifiersWidget = View.extend({
         this._updateIdentifiers();
     },
     'change .g-related-identifier-relation-type': function (event) {
-        console.log('Relation type changed:', event.currentTarget.value);
         this._updateIdentifiers();
         this.render();
     }
@@ -84,7 +83,6 @@ const RelatedIdentifiersWidget = View.extend({
               // Add scheme if it exists
           };
           let scheme = $(item).find('.g-related-metadata-scheme').val();
-          console.log('Scheme:', scheme);
           if (scheme) {
               result.relatedMetadataScheme = scheme;
           }

@@ -16,8 +16,6 @@ ul.g-creators-list(name="creators").list-group
             | #{creator.givenName} #{creator.familyName} (#{creator.identifiers})
           p.small
             | #{creator.affiliations}
-            span.g-creator-role.text-muted
-              | / #{creator.role}
         .col-xs-2.text-right
           button.btn.btn-danger.btn-sm.g-delete-creator(type="button" id="g-deposition-removeCreator")
             i.icon-trash

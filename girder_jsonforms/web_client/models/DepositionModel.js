@@ -9,14 +9,17 @@ var DepositionModel = AccessControlledModel.extend({
         if (metadata && metadata.creators) {
             return metadata.creators.map(function (creator) {
               const orcid = creator.nameIdentifiers && creator.nameIdentifiers.length > 0 ? creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/)[1] : '';
-              console.log('orcid', orcid);
+              let affiliation = '';
+              if (creator.affiliation && creator.affiliation.length > 0) {
+                 const aff = creator.affiliation[0];
+                 affiliation = `${aff.name} - ${aff.affiliationIdentifier}`
+              }
               return {
                 givenName: creator.givenName || '',
                 familyName: creator.familyName || '',
                 identifiers: `orcid:${orcid || ''}`,
                 nameType: creator.nameType || 'Personal',
-                affiliations: creator.affiliation ? creator.affiliation.join(', ') : '',
-                role: creator.role || 'creator',
+                affiliations: affiliation
               }
           });
         }
