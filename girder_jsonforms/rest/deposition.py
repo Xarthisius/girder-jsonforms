@@ -13,6 +13,7 @@ from girder.constants import AccessType, SortDir, TokenScope
 from girder.exceptions import RestException
 from girder.models.setting import Setting
 from girder.utility.progress import noProgress
+from girder_sample_tracker.models.sample import Sample
 from ..models.deposition import Deposition as DepositionModel
 from ..settings import PluginSettings
 
@@ -72,6 +73,12 @@ class Deposition(Resource):
             dataType="string",
         )
         .param(
+            "sampleId",
+            "Pass to lookup a form by exact sample tracker ID match.",
+            required=False,
+            dataType="string",
+        )
+        .param(
             "q",
             "The query to search for on selected fields (title, igsn, alternateIdentifier)",
             required=False,
@@ -88,7 +95,30 @@ class Deposition(Resource):
         .pagingParams(defaultSort="igsn", defaultSortDir=SortDir.ASCENDING)
     )
     @filtermodel(model="deposition", plugin="jsonforms")
-    def list_deposition(self, igsnPrefix, q, level, limit, offset, sort):
+    def list_deposition(self, igsnPrefix, sampleId, q, level, limit, offset, sort):
+        user = self.getCurrentUser()
+        if sampleId is not None:
+            try:
+                sample = Sample().load(
+                    sampleId,
+                    user=user,
+                    level=AccessType.READ,
+                    exc=True,
+                )
+            except Exception:
+                return []
+            return DepositionModel().findWithPermissions(
+                query={"sampleId": sample["_id"]},
+                offset=offset,
+                limit=limit,
+                sort=sort,
+                user=user,
+                fields={
+                    "metadata.relatedIdentifiers": 0,
+                },  # Exclude ACLed fields
+                level=level,
+            )
+
         query = {}
         if igsnPrefix is not None:
             query["igsn"] = re.compile(f"^{igsnPrefix}.*$")
@@ -110,7 +140,10 @@ class Deposition(Resource):
             limit=limit,
             sort=sort,
             user=self.getCurrentUser(),
-            fields={"metadata.relatedIdentifiers": 0, "sampleId": 0},  # Exclude ACLed fields
+            fields={
+                "metadata.relatedIdentifiers": 0,
+                "sampleId": 0,
+            },  # Exclude ACLed fields
             level=level,
         )
 
@@ -175,7 +208,12 @@ class Deposition(Resource):
     def create_deposition(self, prefix, track, metadata, parent, batch):
         # Logic to create a new deposition
         return DepositionModel().create_deposition(
-            metadata, self.getCurrentUser(), prefix=prefix, track=track, parent=parent, batch=batch
+            metadata,
+            self.getCurrentUser(),
+            prefix=prefix,
+            track=track,
+            parent=parent,
+            batch=batch,
         )
 
     @access.user
@@ -190,7 +228,13 @@ class Deposition(Resource):
             level=AccessType.WRITE,
         )
         .param("suffix", "The suffix for IGSN", required=True, dataType="string")
-        .param("track", "Create a sample tracker for IGSN", required=False, dataType="boolean", default=False)
+        .param(
+            "track",
+            "Create a sample tracker for IGSN",
+            required=False,
+            dataType="boolean",
+            default=False,
+        )
         .jsonParam(
             "metadata",
             "JSON object with Datacite fields for the child deposition",
@@ -222,7 +266,9 @@ class Deposition(Resource):
             }
         )
         result = DepositionModel().create_batch(deposition, indices)
-        return DepositionModel().load(result.inserted_ids[0], user=self.getCurrentUser())
+        return DepositionModel().load(
+            result.inserted_ids[0], user=self.getCurrentUser()
+        )
 
     @access.public
     @autoDescribeRoute(
