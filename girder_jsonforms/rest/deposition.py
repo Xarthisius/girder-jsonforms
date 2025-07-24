@@ -97,7 +97,7 @@ class Deposition(Resource):
                 {"metadata.title": {"$regex": q, "$options": "i"}},
                 {"igsn": {"$regex": q, "$options": "i"}},
                 {
-                    "metadata.attributes.alternateIdentifiers.alternateIdentifier": {
+                    "metadata.alternateIdentifiers.alternateIdentifier": {
                         "$regex": q,
                         "$options": "i",
                     }

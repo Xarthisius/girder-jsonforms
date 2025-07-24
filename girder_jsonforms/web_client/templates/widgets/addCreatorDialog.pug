@@ -7,9 +7,9 @@
         h4.modal-title Add Creator
       .modal-body
         .form-check.form-check-inline
-            input(type="radio" name="creatorType" value="person" checked)
+            input(type="radio" name="nameType" value="Personal" checked)
             | Person
-            input(type="radio" name="creatorType" value="organization")
+            input(type="radio" name="nameType" value="Organizational")
             | Organization
         .form-group
           label(for="autocomplete") Search for a person or organization
@@ -22,11 +22,11 @@
           small.form-text.text-muted
             | Type to search for an existing person in ORCID. Upon selection this will auto-fill the fields below. If the person is not found, you can add them manually.
         .form-group(hidden=(creatorType != "person")).person-fields
-          label(for="firstName") First Name
-          input.form-control(type="text" id="firstName" name="firstName" required)
+          label(for="givenName") First Name
+          input.form-control(type="text" id="givenName" name="givenName" required)
         .form-group(hidden=(creatorType != "person")).person-fields
-          label(for="lastName") Last Name
-          input.form-control(type="text" id="lastName" name="lastName" required)
+          label(for="familyName") Last Name
+          input.form-control(type="text" id="familyName" name="familyName" required)
         .form-group(hidden=(creatorType != "organization")).org-fields
           label(for="organizationName") Organization Name
           input.form-control(type="text" id="organizationName" name="organizationName" required)

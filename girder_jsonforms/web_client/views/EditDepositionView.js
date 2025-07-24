@@ -15,6 +15,14 @@ function isDefined(value) {
   return value !== null && value !== undefined && value !== '';
 }
 
+function toCamelCase(str) {
+  // Find a hyphen followed by any word character (-w)
+  // The 'g' flag ensures it replaces all occurrences
+  // The replacer function takes the matched char and uppercases it
+  return str.replace(/-(\w)/g, (match, char) => char.toUpperCase());
+}
+
+
 const EditDepositionView = View.extend({
   events: {
     'dragstart .g-creators-list li': 'addDragging',
@@ -45,11 +53,11 @@ const EditDepositionView = View.extend({
       const batch = document.querySelector('#g-deposition-batch') ? document.querySelector('#g-deposition-batch').value : 0;
       const data = {
         metadata: JSON.stringify({
-          creators: this.creators,
+          creators: this._creatorsDatacite(),
           titles: [{title: metadata.title}],
           descriptions: [{description: metadata.description, descriptionType: 'Abstract'}],
           relatedIdentifiers: this.relatedIdentifiersWidget.identifiers,
-          attributes: {alternateIdentifiers: alternateIdentifiers},
+          alternateIdentifiers: alternateIdentifiers,
         }),
         track: checkbox ? checkbox.checked : false,
         sampleId: metadata.sampleId,
@@ -264,13 +272,35 @@ const EditDepositionView = View.extend({
           for (let i = 0; i < item.attributes.length; i++) {
               const attribute = item.attributes[i];
               if (attribute.name.startsWith('data-creator')) {
-                  const key = attribute.name.replace('data-creator-', '').replace('name', 'Name');
+                  const key = toCamelCase(attribute.name.replace('data-creator-', ''));
                   creator[key] = attribute.value;
               }
           }
           return creator;
       });
-  },  
+  },
+  _creatorsDatacite: function () {
+      return this.creators.map((creator) => {
+          if (creator.nameType !== 'Personal') {
+              return null;
+          }
+
+          return {
+              name: `${creator.familyName}, ${creator.givenName}`,
+              nameType: creator.nameType,
+              givenName: creator.givenName,
+              familyName: creator.familyName,
+              nameIdentifiers: [
+                {
+                  schemeUri: "https://orcid.org",
+                  nameIdentifier: `https://orcid.org/${creator.identifiers.split('orcid:')[1]}`,
+                  nameIdentifierScheme: "ORCID"
+                }
+              ],
+              affiliation: []
+          };
+      }).filter((creator) => creator !== null);
+  },
   addDragging: function (event) {
     this.draggedItem = event.currentTarget;
     $(event.currentTarget).addClass('dragging');

@@ -12,6 +12,9 @@ setup(
     version="2.1.1",
     description="Girder plugin adding forms based on JSON-editor",
     packages=find_packages(),
+    data_files=[
+        ("schemas", ["girder_jsonforms/schemas/datacite-v4.5.json"]),
+    ],
     include_package_data=True,
     license="BSD-3-Clause",
     classifiers=[

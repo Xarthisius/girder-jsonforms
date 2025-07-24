@@ -50,7 +50,7 @@ var AddCreatorDialog = View.extend({
           return {
             value: item.id,
             text: item.text,
-            html: `${data.firstName} ${data.lastName} <span class="text-muted">(${data.orcid})</span><p><span class="text-muted,small">${data.institution}</span></p>`,
+            html: `${data.givenName} ${data.familyName} <span class="text-muted">(${data.orcid})</span><p><span class="text-muted,small">${data.institution}</span></p>`,
           };
         },
         events: {
@@ -63,8 +63,8 @@ var AddCreatorDialog = View.extend({
     );
     $('.basicModalAutoSelect').on('autocomplete.select', function (event, item) {
         const data = view._parseAutocomplete(item);
-        view.$el.find('input[name="firstName"]').val(data.firstName);
-        view.$el.find('input[name="lastName"]').val(data.lastName);
+        view.$el.find('input[name="givenName"]').val(data.givenName);
+        view.$el.find('input[name="familyName"]').val(data.familyName);
         view.$el.find('input[name="identifiers"]').val(`orcid:${data.orcid}`);
         view.$el.find('input[name="affiliations"]').val(data.institution);
         //$('.basicModalAutoSelectSelected').html(JSON.stringify(item, null, 2));   // debug
@@ -75,24 +75,24 @@ var AddCreatorDialog = View.extend({
 
   _parseAutocomplete: function (item) {
     if (!item) {
-      return {firstName: '', lastName: '', orcid: '', institution: ''}
+      return {givenName: '', familyName: '', orcid: '', institution: ''}
     }
 
     let text = item.text;
     if (!text) {
-      return {firstName: '', lastName: '', orcid: '', institution: ''}
+      return {givenName: '', familyName: '', orcid: '', institution: ''}
     }
     let parts = text.split(' - ');
     let institution = parts[1];
     let namesId = parts[0].split(' (');
     let orcid = namesId[1].replace(')', '');
     let names = namesId[0].split(', ');
-    let lastName = names[0];
-    let firstName = names[1];
+    let familyName = names[0];
+    let givenName = names[1];
 
     return {
-      firstName: firstName,
-      lastName: lastName,
+      givenName: givenName,
+      familyName: familyName,
       orcid: orcid,
       institution: institution,
     }
@@ -105,7 +105,7 @@ var AddCreatorDialog = View.extend({
       return obj;
     }, {});
     console.log(creator);
-    if (!creator.firstName || !creator.lastName) {
+    if (!creator.givenName || !creator.familyName) {
       this.$('.g-validation-failed-message').text('Please enter at least a first and last name for this creator.');
       return false;
     }

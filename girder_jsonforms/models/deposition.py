@@ -1,6 +1,8 @@
 import copy
 import datetime
+import json
 import logging
+from pathlib import Path
 
 from girder import events
 from girder.api.rest import getApiUrl
@@ -13,6 +15,7 @@ from girder.utility.model_importer import ModelImporter
 from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
 from pymongo import ReturnDocument
+import jsonschema
 
 from ..lib.project_helpers import batch_indices
 from ..settings import PluginSettings
@@ -74,6 +77,16 @@ class PrefixCounter(Model):
         return f"{counter['prefix']}{counter['seq']:05d}"
 
 
+class SchemaValidator:
+    def __init__(self, filename):
+        with open(filename, "r") as file:
+            schema = json.loads(file.read())
+        self.validator = jsonschema.Draft201909Validator(schema)
+
+    def validate(self, data):
+        return self.validator.validate(data)
+
+
 class Deposition(AccessControlledModel):
     def initialize(self):
         self.name = "deposition"
@@ -97,6 +110,9 @@ class Deposition(AccessControlledModel):
         )
         events.bind("model.entry.save", "jsonforms", self.register_deposition)
         events.bind("model.entry.save.created", "jsonforms", self.updateRelations)
+        self.schema_validator = SchemaValidator(
+            Path(__file__).parent.parent / "schemas" / "datacite-v4.5.json"
+        )
 
     def filter(self, deposition, user=None, additionalKeys=None):
         deposition = super().filter(
@@ -172,7 +188,7 @@ class Deposition(AccessControlledModel):
         master_metadata = {}
         if "title" in igsn_metadata:
             master_metadata["titles"] = [{"title": igsn_metadata.pop("title")}]
-        self.fill_metadata(master_metadata)
+        self.fill_metadata(master_metadata, creator)
         if "descriptionAbstract" in igsn_metadata:
             master_metadata["descriptions"].append(
                 {
@@ -193,7 +209,7 @@ class Deposition(AccessControlledModel):
             )
         if "attributes" in igsn_metadata:
             if "alternateIdentifiers" in igsn_metadata["attributes"]:
-                master_metadata["attributes"]["alternateIdentifiers"] += igsn_metadata[
+                master_metadata["alternateIdentifiers"] += igsn_metadata[
                     "attributes"
                 ].pop("alternateIdentifiers")
 
@@ -273,16 +289,21 @@ class Deposition(AccessControlledModel):
         )
 
     def validate(self, doc):
+        try:
+            import pprint
+            pprint.pprint(doc.get("metadata", {}))
+            self.schema_validator.validate(doc.get("metadata", {}))
+        except jsonschema.ValidationError as e:
+            raise ValidationException(f"Metadata validation failed: {e.message}") from e
         return doc
 
     @staticmethod
     def compute_identifier(metadata, root=True):
         return metadata.get("title", "")
 
-    def fill_metadata(self, metadata):
+    def fill_metadata(self, metadata, creator):
         if "types" not in metadata:
             metadata["types"] = {
-                "schemaOrg": "CreativeWork",
                 "resourceType": "material sample",
                 "resourceTypeGeneral": "PhysicalObject",
             }
@@ -299,7 +320,7 @@ class Deposition(AccessControlledModel):
             ]
 
         if "publicationYear" not in metadata:
-            metadata["publicationYear"] = datetime.datetime.now(datetime.UTC).year
+            metadata["publicationYear"] = str(datetime.datetime.now(datetime.UTC).year)
 
         for key in (
             "creators",
@@ -311,31 +332,25 @@ class Deposition(AccessControlledModel):
             "descriptions",
             "geoLocations",
             "fundingReferences",
-            "identifiers",
+            "alternateIdentifiers",
             "relatedIdentifiers",
             "relatedItems",
         ):
             if key not in metadata:
                 metadata[key] = []
 
+        if not metadata["creators"]:
+            metadata["creators"] = [
+                {
+                    "name": creator.get("lastName", "") + ", " + creator.get("firstName", ""),
+                    "nameType": "Personal",
+                    "givenName": creator.get("firstName", ""),
+                    "familyName": creator.get("lastName", ""),
+                }
+            ]
+
         if "schemaVersion" not in metadata:
             metadata["schemaVersion"] = "http://datacite.org/schema/kernel-4"
-
-        if "agency" not in metadata:
-            metadata["agency"] = "datacite"
-
-        if "attributes" not in metadata:
-            metadata["attributes"] = {
-                "alternateIdentifiers": [],
-            }
-
-        if "alternateIdentifiers" not in metadata["attributes"]:
-            metadata["attributes"]["alternateIdentifiers"] = []
-
-        if "clientId" not in metadata:
-            metadata["clientId"] = Setting().get(PluginSettings.IGSN_CLIENT_ID)
-        if "providerId" not in metadata:
-            metadata["providerId"] = Setting().get(PluginSettings.IGSN_PROVIDER_ID)
 
     def create_deposition(
         self,
@@ -358,7 +373,7 @@ class Deposition(AccessControlledModel):
 
         now = datetime.datetime.now(datetime.UTC)
         metadata = metadata or {}
-        self.fill_metadata(metadata)
+        self.fill_metadata(metadata, creator)
 
         # TODO: better check for valid prefix
         if not igsn:
@@ -422,11 +437,8 @@ class Deposition(AccessControlledModel):
         Generate a local identifier based on the metadata.
         This is used for batch processing to create unique identifiers.
         """
-        if (
-            "attributes" in metadata
-            and "alternateIdentifiers" in metadata["attributes"]
-        ):
-            for alt_id in metadata["attributes"]["alternateIdentifiers"]:
+        if "alternateIdentifiers" in metadata:
+            for alt_id in metadata["alternateIdentifiers"]:
                 if alt_id.get("alternateIdentifierType").lower() == "local":
                     return alt_id.get("alternateIdentifier")
         return None
@@ -467,10 +479,8 @@ class Deposition(AccessControlledModel):
                 "track": main_deposition["track"],
             }
             if local_index:
-                if "attributes" not in deposition["metadata"]:
-                    deposition["metadata"]["attributes"] = {}
                 # Overwrite the alternate identifier
-                deposition["metadata"]["attributes"]["alternateIdentifiers"] = [
+                deposition["metadata"]["alternateIdentifiers"] = [
                     {
                         "alternateIdentifier": local_index,
                         "alternateIdentifierType": "Local",

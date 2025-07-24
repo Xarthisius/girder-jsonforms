@@ -7,15 +7,26 @@ var DepositionModel = AccessControlledModel.extend({
     getFormCreators: function () {
         const metadata = this.get('metadata');
         if (metadata && metadata.creators) {
-            return metadata.creators;
+            return metadata.creators.map(function (creator) {
+              const orcid = creator.nameIdentifiers && creator.nameIdentifiers.length > 0 ? creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/)[1] : '';
+              console.log('orcid', orcid);
+              return {
+                givenName: creator.givenName || '',
+                familyName: creator.familyName || '',
+                identifiers: `orcid:${orcid || ''}`,
+                nameType: creator.nameType || 'Personal',
+                affiliations: creator.affiliation ? creator.affiliation.join(', ') : '',
+                role: creator.role || 'creator',
+              }
+          });
         }
         return [];
     },
 
     getFormIdentifiers: function () {
         const metadata = this.get('metadata');
-        if (metadata && metadata.attributes && metadata.attributes.alternateIdentifiers) {
-            return metadata.attributes.alternateIdentifiers.map(identifier => ({
+        if (metadata && metadata.alternateIdentifiers) {
+            return metadata.alternateIdentifiers.map(identifier => ({
                 type: identifier.alternateIdentifierType,
                 value: identifier.alternateIdentifier
             }));

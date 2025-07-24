@@ -200,6 +200,7 @@ const EditFormView = View.extend({
             }
         };
         this.listenTo(this.dataSelector, 'g:saved', function (val) {
+            console.log('Selected folder:', val);
             this.$('#g-folder-data-id').val(val.attributes.name);
             this.$('#g-folder-data-id').attr('objId', val.id);
             // this.destFolder = val;

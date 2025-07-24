@@ -219,6 +219,7 @@ var DepositionView = View.extend({
             // Find all html elements with entryId and formId
             // and set the text to the name of the entry or form
             $('.g-deposition-info-line').each((index, element) => {
+                console.log(element);
                 if (element.attributes.entryId) {
                     const entryId = element.attributes.entryId.value;
                     const entry = entryMap[entryId];

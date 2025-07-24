@@ -67,8 +67,8 @@ var DepositionListView = View.extend({
 
     _getInfoCallback: function (type, result) {
         // returns {icon: , text: } for every result
-        if (result.metadata && result.metadata.attributes && result.metadata.attributes.alternateIdentifiers) {
-            var id = result.metadata.attributes.alternateIdentifiers.find(
+        if (result.metadata && result.metadata.alternateIdentifiers) {
+            var id = result.metadata.alternateIdentifiers.find(
               (id) => id.alternateIdentifierType.toLowerCase() === 'local'
             );
             if (id) {

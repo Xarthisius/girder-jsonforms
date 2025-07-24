@@ -54,13 +54,16 @@
             for creator in metadata.creators
               .g-deposition-info-line
                 i.icon-user
-                span.test-muted= creator.role + ': '
-                span.g-info-type= creator.firstName + ' ' + creator.lastName + ' (' + creator.identifiers + ')'
-          if metadata.attributes && metadata.attributes.alternateIdentifiers.length > 0
+                if creator.nameIdentifiers && creator.nameIdentifiers.length > 0
+                  - var orcid = creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/);
+                  span.g-info-type= creator.givenName + ' ' + creator.familyName + ' (orcid:' + orcid[1] + ')'
+                else
+                  span.g-info-type= creator.givenName + ' ' + creator.familyName
+          if metadata.alternateIdentifiers && metadata.alternateIdentifiers.length > 0
             .g-deposition-info-line
               h3
                 | Alternate Identifiers:
-            for identifier in metadata.attributes.alternateIdentifiers
+            for identifier in metadata.alternateIdentifiers
               .g-deposition-info-line
                 i.icon-doc
                 span.test-muted= identifier.alternateIdentifierType + ': '

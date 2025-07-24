@@ -21,6 +21,6 @@
         g-deposition-cid=deposition.cid,
         href=depositionUrlFunc && depositionUrlFunc(deposition),
         data-deposition-id=deposition.id)
-      h4.list-group-item-heading.g-execute-deposition-link-header= deposition.attributes.igsn
-      each entity in deposition.attributes.metadata.titles
+      h4.list-group-item-heading.g-execute-deposition-link-header= deposition.get('igsn')
+      each entity in deposition.get('metadata').titles
         .list-group-item-text.g-execute-deposition-link-body= entity.title

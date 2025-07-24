@@ -6,7 +6,7 @@ from pathlib import Path
 
 from girder import events
 from girder.constants import AccessType
-from girder.exceptions import GirderException
+from girder.exceptions import GirderException, ValidationException
 from girder.models.file import File
 from girder.models.item import Item
 from girder.models.setting import Setting
@@ -102,7 +102,7 @@ def igsn_text_search(query, types, user, level, limit, offset):
         "deposition": [
             "_id",
             "igsn",
-            "metadata.attributes.alternateIdentifiers",
+            "metadata.alternateIdentifiers",
             "metadata.titles",
             "metadata.descriptions",
         ],
@@ -111,7 +111,7 @@ def igsn_text_search(query, types, user, level, limit, offset):
         "$or": [
             {"igsn": {"$regex": query, "$options": "i"}},
             {
-                "metadata.attributes.alternateIdentifiers.alternateIdentifier": {
+                "metadata.alternateIdentifiers.alternateIdentifier": {
                     "$regex": query,
                     "$options": "i",
                 }
@@ -133,7 +133,7 @@ def igsn_text_search(query, types, user, level, limit, offset):
         )
     for entry in results["deposition"]:
         local_id = None
-        attrs = entry["metadata"].get("attributes", {}).get("alternateIdentifiers", [])
+        attrs = entry["metadata"].get("alternateIdentifiers", [])
         for attr in attrs:
             if attr["alternateIdentifierType"].lower() == "local":
                 local_id = attr["alternateIdentifier"]
@@ -165,7 +165,10 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
-        DepositionModel().validate({})  # To initialize the model and bind events
+        try:
+            DepositionModel().validate({})  # To initialize the model and bind events
+        except ValidationException:
+            pass
         events.bind("data.process", "jsonforms", annotate_uploads)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)

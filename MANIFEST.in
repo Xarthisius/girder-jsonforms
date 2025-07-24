@@ -1,6 +1,7 @@
 prune girder_jsonforms/web_client
 include girder_jsonforms/web_client/dist/girder-plugin-jsonforms.umd.cjs
 include girder_jsonforms/web_client/dist/style.css
+include girder_jsonforms/schemas/*.json
 prune girder_jsonforms/tests
 exclude girder_jsonformst/tests
 global-prune *.yaml
