@@ -290,8 +290,6 @@ class Deposition(AccessControlledModel):
 
     def validate(self, doc):
         try:
-            import pprint
-            pprint.pprint(doc.get("metadata", {}))
             self.schema_validator.validate(doc.get("metadata", {}))
         except jsonschema.ValidationError as e:
             raise ValidationException(f"Metadata validation failed: {e.message}") from e
