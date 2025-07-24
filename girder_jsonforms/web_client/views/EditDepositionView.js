@@ -298,18 +298,21 @@ const EditDepositionView = View.extend({
               ];
           }
 
+          var nameIdentifiers = [];
+          if (creator.identifiers && creator.identifiers.includes('orcid:') && creator.identifiers.split('orcid:')[1]) {
+              nameIdentifiers.push({
+                schemeUri: "https://orcid.org",
+                nameIdentifier: `https://orcid.org/${creator.identifiers.split('orcid:')[1]}`,
+                nameIdentifierScheme: "ORCID"
+              });
+          }
+
           return {
               name: `${creator.familyName}, ${creator.givenName}`,
               nameType: creator.nameType,
               givenName: creator.givenName,
               familyName: creator.familyName,
-              nameIdentifiers: [
-                {
-                  schemeUri: "https://orcid.org",
-                  nameIdentifier: `https://orcid.org/${creator.identifiers.split('orcid:')[1]}`,
-                  nameIdentifierScheme: "ORCID"
-                }
-              ],
+              nameIdentifiers: nameIdentifiers,
               affiliation: affiliation,
           };
       }).filter((creator) => creator !== null);

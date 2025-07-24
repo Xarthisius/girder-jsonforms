@@ -56,7 +56,11 @@
                 i.icon-user
                 if creator.nameIdentifiers && creator.nameIdentifiers.length > 0
                   - var orcid = creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/);
-                  span.g-info-type= creator.givenName + ' ' + creator.familyName + ' (orcid:' + orcid[1] + ')'
+                  if orcid && orcid.length > 1
+                    a(href='https://orcid.org/' + orcid[1], target='_blank')
+                      span.g-info-type= creator.givenName + ' ' + creator.familyName + ' (orcid:' + orcid[1] + ')'
+                  else
+                      span.g-info-type= creator.givenName + ' ' + creator.familyName
                 else
                   span.g-info-type= creator.givenName + ' ' + creator.familyName
           if metadata.alternateIdentifiers && metadata.alternateIdentifiers.length > 0
