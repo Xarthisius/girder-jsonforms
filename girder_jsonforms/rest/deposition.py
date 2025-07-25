@@ -124,7 +124,7 @@ class Deposition(Resource):
             query["igsn"] = re.compile(f"^{igsnPrefix}.*$")
         elif q is not None:
             query["$or"] = [
-                {"metadata.title": {"$regex": q, "$options": "i"}},
+                {"metadata.titles.title": {"$regex": q, "$options": "i"}},
                 {"igsn": {"$regex": q, "$options": "i"}},
                 {
                     "metadata.alternateIdentifiers.alternateIdentifier": {

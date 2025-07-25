@@ -179,9 +179,9 @@ def default_igsn_materials():
 
 @setting_utilities.validator(PluginSettings.IGSN_INSTITUTIONS)
 def validate_igsn_institutions(doc):
-    if not isinstance(doc, dict):
+    if not isinstance(doc["value"], dict):
         raise ValidationException("Institutions must be a JSON object.")
-    for inst, inst_data in doc.items():
+    for inst, inst_data in doc["value"].items():
         if not INST_CODE.match(inst):
             raise ValidationException("Institutions must have a 2-letter code.")
         if not isinstance(inst_data, dict):
@@ -194,9 +194,9 @@ def validate_igsn_institutions(doc):
 
 @setting_utilities.validator(PluginSettings.IGSN_MATERIALS)
 def validate_igsn_materials(doc):
-    if not isinstance(doc, dict):
+    if not isinstance(doc["value"], dict):
         raise ValidationException("Materials must be a JSON object.")
-    for mat, mat_data in doc.items():
+    for mat, mat_data in doc["value"].items():
         if not INST_CODE.match(mat):
             raise ValidationException("Materials must have a 2-letter code.")
         if not isinstance(mat_data, dict):
