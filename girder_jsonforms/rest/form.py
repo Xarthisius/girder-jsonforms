@@ -223,6 +223,10 @@ class Form(Resource):
         postEntryTask,
         jsHelpers,
     ):
+        try:
+            schema = schema.read().decode("utf-8")
+        except AttributeError:
+            pass
         return FormModel().create_form(
             name,
             description,

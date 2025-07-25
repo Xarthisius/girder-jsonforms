@@ -29,9 +29,10 @@ def test_basic_rest(server, user, admin, basic_schema):
         params={
             "name": "My form",
             "description": "This is a test form",
-            "schema": json.dumps(basic_schema),  # Ensure the schema is JSON-encoded
             "uniqueField": "name",
         },
+        body=json.dumps(basic_schema),  # Ensure the schema is JSON-encoded
+        type="application/json",
         user=admin,
     )
     assertStatusOk(resp)
@@ -81,6 +82,16 @@ def test_basic_rest(server, user, admin, basic_schema):
     assertStatusOk(resp)
 
     resp = server.request(
+        path="/form/%s/access" % form["_id"],
+        method="GET",
+        user=admin,
+    )
+    assertStatusOk(resp)
+    access = resp.json
+    assert len(access["users"]) == 2, "There should be two users with access."
+    assert len(access["groups"]) == 0, "There should be no groups with access."
+
+    resp = server.request(
         path="/form/%s" % form["_id"],
         method="GET",
         user=user,  # Use a regular user to test permissions
@@ -97,6 +108,51 @@ def test_basic_rest(server, user, admin, basic_schema):
     assert len(resp.json) == 1
     assert resp.json[0]["_id"] == form["_id"], \
         "The user should be able to see the form after access was granted."
+
+    resp = server.request(
+        path="/form",
+        method="GET",
+        user=user,
+        params={"entryFileName": "empty"},
+    )
+    assertStatusOk(resp)
+    assert len(resp.json) == 0
+
+    resp = server.request(
+        path=f"/form/{form['_id']}",
+        method="PUT",
+        user=admin,
+        params={
+            "name": "Updated form",
+            "description": "This is an updated test form",
+            "entryFileName": "updated_form.json",
+            "serialize": True,
+            "jsHelpers": "",
+            "uniqueField": "name",
+            "pathTemplate": "somewhere/blah",
+        },
+    )
+    assertStatusOk(resp)
+    updated_form = resp.json
+
+    assert updated_form is not None
+    assert updated_form["_id"] == form["_id"]
+    assert updated_form["name"] == "Updated form"
+    assert updated_form["description"] == "This is an updated test form"
+    assert updated_form["entryFileName"] == "updated_form.json"
+    assert updated_form["serialize"] is True
+    assert updated_form["jsHelpers"] == ""
+    assert updated_form["uniqueField"] == "name"
+    assert updated_form["pathTemplate"] == "somewhere/blah"
+
+    resp = server.request(
+        path="/form",
+        method="GET",
+        user=user,
+        params={"entryFileName": "updated_form.json"},
+    )
+    assertStatusOk(resp)
+    assert len(resp.json) == 1
 
     # Now delete the form
     resp = server.request(
@@ -129,9 +185,10 @@ def test_http_schema(server, user, basic_schema):
         params={
             "name": "My form",
             "description": "This is a test form",
-            "schema": "https://some.url/test/schema",
             "uniqueField": "name",
         },
+        body="https://some.url/test/schema",  # Use the URL as the schema
+        type="plain/text",
         user=user,
     )
     assertStatusOk(resp)

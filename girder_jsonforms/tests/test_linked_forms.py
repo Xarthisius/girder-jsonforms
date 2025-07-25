@@ -56,9 +56,10 @@ def test_form_link(server, user, simple_form):
         params={
             "name": "Linked Form",
             "description": "This is a linked form",
-            "schema": json.dumps(schema),  # Ensure the schema is JSON-encoded
             "uniqueField": "someOtherField",
         },
+        body=json.dumps(schema),
+        type="application/json",
         user=user,
     )
     assertStatusOk(resp)

@@ -3,7 +3,7 @@ import json
 
 import pandas as pd
 import pytest
-from pytest_girder.assertions import assertStatusOk
+from pytest_girder.assertions import assertStatus, assertStatusOk
 
 from girder_jsonforms.models.entry import FormEntry as Entry
 from girder_jsonforms.models.form import Form
@@ -75,6 +75,34 @@ def basic_form(db, user, basic_schema):
     )
     yield form
     Form().remove(form)
+
+
+@pytest.mark.plugin("jsonforms")
+def test_import_errors(server, user, basic_form):
+    # Now dryRun import the modified CSV
+    resp = server.request(
+        path="/form/%s/import" % basic_form["_id"],
+        method="POST",
+        user=user,
+        params={"dryRun": True},
+        body="",
+        type="plain/text",
+        isJson=True,
+    )
+    assertStatus(resp, 400)
+    assert resp.json["message"] == "Invalid file format"
+
+    resp = server.request(
+        path="/form/%s/import" % basic_form["_id"],
+        method="POST",
+        user=user,
+        params={"dryRun": True},
+        body="",
+        type="application/csv",
+        isJson=True,
+    )
+    assertStatus(resp, 400)
+    assert resp.json["message"] == "File is empty"
 
 
 @pytest.mark.plugin("jsonforms")
