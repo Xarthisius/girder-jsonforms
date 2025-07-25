@@ -1,5 +1,6 @@
 const $ = girder.$;
 const _ = girder._;
+const events = girder.events;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const FolderModel = girder.models.FolderModel;
 const BrowserWidget = girder.views.widgets.BrowserWidget;
@@ -79,7 +80,9 @@ const EditFormView = View.extend({
             });
         },
         'click a.g-cancel-form': function () {
-            this.tempFolder.destroy().done(() => {
+            this.tempFolder.destroy({throwError: false}).done(() => {
+              router.navigate(`form/${this.model.id}`, {trigger: true});
+            }).fail((err) => {
               router.navigate(`form/${this.model.id}`, {trigger: true});
             });
         },
@@ -106,19 +109,35 @@ const EditFormView = View.extend({
             if (this.destFolder) {
                 params.destinationId = this.destFolder.id;
             }
-            new FormEntryModel(params).save().done(() => {
-                this.trigger('g:alert', {
-                    text: 'Form entry saved successfully.',
-                    type: 'success',
+
+            if (this.initialValues) {
+                this.initialValues.set(params);
+                this.initialValues.off().on('g:saved', function() {
+                    events.trigger('g:alert', {
+                        text: 'Form entry updated successfully.',
+                        type: 'success',
+                    });
+                    router.navigate(`form/${params.formId}`, {trigger: true});
+                }, this).on('g:error', function(err) {
+                    this.$('.g-validation-failed-message').html(
+                        '<ul><li>' + (err.responseJSON.message || 'An error occurred while saving the form entry.') + '</li></ul>'
+                    );
+                    this.setSubmitEnabled(true);
+                }, this).save();
+            } else {
+                new FormEntryModel(params).save().done(() => {
+                    events.trigger('g:alert', {
+                        text: 'Form entry saved successfully.',
+                        type: 'success',
+                    });
+                    router.navigate(`form/${params.formId}`, {trigger: true});
+                }).fail((err) => {
+                    this.$('.g-validation-failed-message').html(
+                        '<ul><li>' + (err.responseJSON.message || 'An error occurred while saving the form entry.') + '</li></ul>'
+                    );
+                    this.setSubmitEnabled(true);
                 });
-                router.navigate(`form/${params.formId}`, {trigger: true});
-            }).fail((err) => {
-                this.trigger('g:alert', {
-                  text: err.responseJSON.message || 'An error occurred while saving the form entry.',
-                  type: 'danger',
-                });
-                this.setSubmitEnabled(true);
-            });
+            }
         }
     },
 
@@ -179,7 +198,7 @@ const EditFormView = View.extend({
         });
 
         window.addEventListener('beforeunload', function (e) {
-            view.tempFolder.destroy();
+            view.tempFolder.destroy({throwError: false});
         });
 
         JSONEditor.defaults.callbacks.button = {

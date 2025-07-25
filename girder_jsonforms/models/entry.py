@@ -5,6 +5,8 @@ import logging
 import os
 import re
 
+import bson
+import jsondiff
 from girder import events
 from girder.constants import AccessType
 from girder.exceptions import ValidationException
@@ -14,7 +16,6 @@ from girder.models.model_base import Model
 from girder.models.upload import Upload
 from girder.utility import JsonEncoder, RequestBodyStream, acl_mixin
 from girder.utility.model_importer import ModelImporter
-import jsondiff
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class Changeset(acl_mixin.AccessControlMixin, Model):
 
         self.exposeFields(
             level=AccessType.READ,
-            fields=("_id", "entryId", "creatorId", "created", "diff"),
+            fields=("_id", "entryId", "creatorId", "created", "diff", "full"),
         )
 
     def validate(self, doc):
@@ -63,11 +64,17 @@ class Changeset(acl_mixin.AccessControlMixin, Model):
         changeset = {
             "entryId": entry["_id"],
             "diff": diff,
+            "full": None,  # Full entry can be added later
             "created": now,
         }
         if creator:
             changeset["creatorId"] = creator["_id"]
-        return self.save(changeset)
+        try:
+            return self.save(changeset)
+        except bson.errors.InvalidDocument:
+            changeset["diff"] = None
+            changeset["full"] = entry["data"]
+            return self.save(changeset)
 
 
 class FormEntry(acl_mixin.AccessControlMixin, Model):
@@ -125,6 +132,20 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
         except Exception as e:
             print("Error:", e)
             return None
+
+    def update_entry(self, form, entry, data, source, destination, creator):
+        entry["data"].update(data)
+        entry["updated"] = datetime.datetime.now(datetime.UTC)
+
+        # If the source is provided, handle moving files and folders
+        if source is not None:
+            entry = self.handle_source(form, source, destination, entry, creator)
+
+        # If the form requires serialization, handle that
+        if form.get("serialize", False):
+            entry = self.handle_serialization(form, entry, destination, creator)
+
+        return self.save(entry, creator=creator)
 
     def create_entry(self, form, data, source, destination, creator):
         now = datetime.datetime.now(datetime.UTC)
