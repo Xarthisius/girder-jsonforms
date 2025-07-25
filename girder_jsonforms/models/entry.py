@@ -117,6 +117,11 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             raise ValidationException("Form ID is required", "formId")
         model = ModelImporter.model("form", plugin="jsonforms")
         form = model.load(doc["formId"], force=True)
+        if form["uniqueField"] not in doc["data"]:
+            raise ValidationException(
+                f"Unique field {form['uniqueField']} is required",
+                f"data.{form['uniqueField']}",
+            )
         doc["uniqueId"] = doc["data"][form["uniqueField"]]
         return doc
 
@@ -169,7 +174,7 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
         if existing := self.findOne(
             {
                 "formId": form["_id"],
-                f"data.{unique_field}": data[unique_field],
+                f"data.{unique_field}": data.get(unique_field),
             }
         ):
             # Update the existing entry
