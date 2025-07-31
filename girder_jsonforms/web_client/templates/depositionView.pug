@@ -53,17 +53,26 @@
                 | Creators:
             for creator in metadata.creators
               .g-deposition-info-line
-                i.icon-user
-                if creator.nameIdentifiers && creator.nameIdentifiers.length > 0
-                  - var orcid = creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/);
-                  if orcid && orcid.length > 1
-                    a(href='https://orcid.org/' + orcid[1], target='_blank')
-                      span.g-info-type= creator.givenName + ' ' + creator.familyName + ' (orcid:' + orcid[1] + ')'
-                  else
-                      span.g-info-type= creator.givenName + ' ' + creator.familyName
+                if creator.nameType && creator.nameType === 'Organizational'
+                  i.icon-building
+                  span.g-info-type= creator.name
+                  if creator.nameIdentifiers && creator.nameIdentifiers.length > 0
+                    - var ror = creator.nameIdentifiers[0]['nameIdentifier'].match(/ror.org\/(\w+)/);
+                    if ror && ror.length > 1
+                      a(href='https://ror.org/' + ror[1], target='_blank')
+                        span.g-info-type= ' (ROR:' + ror[1] + ')'
                 else
-                  span.g-info-type= creator.givenName + ' ' + creator.familyName
-          if metadata.alternateIdentifiers && metadata.alternateIdentifiers.length > 0
+                  i.icon-user
+                  if creator.nameIdentifiers && creator.nameIdentifiers.length > 0
+                    - var orcid = creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/);
+                    if orcid && orcid.length > 1
+                      a(href='https://orcid.org/' + orcid[1], target='_blank')
+                        span.g-info-type= creator.givenName + ' ' + creator.familyName + ' (orcid:' + orcid[1] + ')'
+                    else
+                        span.g-info-type= creator.givenName + ' ' + creator.familyName
+                  else
+                    span.g-info-type= creator.givenName + ' ' + creator.familyName
+            if metadata.alternateIdentifiers && metadata.alternateIdentifiers.length > 0
             .g-deposition-info-line
               h3
                 | Alternate Identifiers:
