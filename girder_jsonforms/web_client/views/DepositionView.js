@@ -315,5 +315,6 @@ var SearchResultsTypeView = View.extend({
         return this;
     }
 });
-
+// export the view and helpers
 export default DepositionView;
+export { SplitDialog, SearchResultsTypeView };

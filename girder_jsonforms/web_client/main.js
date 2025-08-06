@@ -1,6 +1,7 @@
 // Extends and overrides API
 import './routes';
 import './views/ItemView';
+import './views/UserView';
 
 const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;
@@ -75,4 +76,10 @@ SearchFieldWidget.addMode(
     ['deposition'],
     'Search IGSN by text',
     'You are searching'
+);
+SearchFieldWidget.addMode(
+    'byCreator',
+    ['item', 'folder', 'deposition'],
+    'Search by Creator Id',
+    'You are searching for all data associated with a given Creator Id'
 );

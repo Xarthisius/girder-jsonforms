@@ -134,6 +134,7 @@ def search_by_user(query, types, user, level, limit, offset):
         cursor = model.find(
             {"creatorId": creator["_id"]},
             fields=allowed[modelName] + ["public", "access"],
+            sort=[("created", -1)],
         )
         results[modelName] = [
             model.filter(obj, user)
