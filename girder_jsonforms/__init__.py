@@ -4,12 +4,14 @@ import json
 import logging
 from pathlib import Path
 
+from bson import ObjectId
 from girder import events
 from girder.constants import AccessType
 from girder.exceptions import GirderException, ValidationException
 from girder.models.file import File
 from girder.models.item import Item
 from girder.models.setting import Setting
+from girder.models.user import User
 from girder.plugin import GirderPlugin, registerPluginStaticContent
 from girder.utility import search
 from girder.utility.model_importer import ModelImporter
@@ -84,15 +86,61 @@ def igsn_search(query, types, user, level, limit, offset):
             continue
         if hasattr(model, "filterResultsByPermission"):
             cursor = model.find(query, fields=allowed[modelName] + ["public", "access"])
-            results[modelName] = list(
-                model.filterResultsByPermission(
+            results[modelName] = [
+                model.filter(obj, user)
+                for obj in model.filterResultsByPermission(
                     cursor, user, level, limit=limit, offset=offset
                 )
-            )
+            ]
         else:
             results[modelName] = list(
                 model.find(query, fields=allowed[modelName], limit=limit, offset=offset)
             )
+    return results
+
+
+def search_by_user(query, types, user, level, limit, offset):
+    allowed = {
+        "folder": ["_id", "name", "description", "parentId", "meta.user", "created"],
+        "item": ["_id", "name", "description", "folderId", "meta.user", "created"],
+        "deposition": [
+            "_id",
+            "created",
+            "igsn",
+            "metadata.alternateIdentifiers",
+            "metadata.titles",
+            "metadata.descriptions",
+        ],
+    }
+    results = {_type: [] for _type in types if _type in allowed}
+    if not query:
+        return results
+
+    try:
+        ObjectId(query)
+        creator = User().load(query, level=AccessType.READ, user=user, exc=True)
+    except Exception:
+        return results
+
+    for modelName in types:
+        if modelName not in allowed:
+            continue
+        if modelName == "deposition":
+            model = DepositionModel()
+        else:
+            model = ModelImporter.model(modelName)
+            if model is None:
+                continue
+        cursor = model.find(
+            {"creatorId": creator["_id"]},
+            fields=allowed[modelName] + ["public", "access"],
+        )
+        results[modelName] = [
+            model.filter(obj, user)
+            for obj in model.filterResultsByPermission(
+                cursor, user, level, limit=limit, offset=offset
+            )
+        ]
     return results
 
 
@@ -180,6 +228,11 @@ class JSONFormsPlugin(GirderPlugin):
             search.addSearchMode("igsnText", igsn_text_search)
         except GirderException:
             logger.warning("IGSN text search mode already registered.")
+        try:
+            search.addSearchMode("byCreator", search_by_user)
+        except GirderException:
+            logger.warning("byCreator search mode already registered.")
+
         registerPluginStaticContent(
             plugin="jsonforms",
             css=["/style.css"],
