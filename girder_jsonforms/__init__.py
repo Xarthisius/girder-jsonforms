@@ -6,9 +6,11 @@ from pathlib import Path
 
 from bson import ObjectId
 from girder import events
-from girder.constants import AccessType
+from girder.api import access, rest as girderRest
+from girder.constants import AccessType, TokenScope
 from girder.exceptions import GirderException, ValidationException
 from girder.models.file import File
+from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.models.user import User
@@ -25,6 +27,7 @@ from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
 from .settings import PluginSettings
+from .worker_plugin.delete_folder import run as delete_folder_task
 
 GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
@@ -195,10 +198,48 @@ def igsn_text_search(query, types, user, level, limit, offset):
     return results
 
 
+@access.user(scope=TokenScope.DATA_OWN)
+@girderRest.boundHandler
+def _delayed_delete_folder(self, event):
+    folderId = event.info["id"]
+    user = self.getCurrentUser()
+    folder = Folder().load(folderId, user=user, level=AccessType.ADMIN)
+
+    if not folder:
+        return  # proceed as normal and let girder handle the error
+
+    params = event.info["params"]
+    try:
+        countdown = float(params.get("countdown", '0'))
+        if countdown <= 0:
+            raise ValueError
+    except ValueError:
+        return  # proceed as normal and let girder handle the deletion immediately
+
+
+    delete_folder_task.apply_async(
+        args=(),
+        kwargs={
+            "folderId": str(folder["_id"]),
+            "progress": params.get("progress", False),
+            "userId": str(user["_id"]),
+            "girder_job_title": f"Delete temporary folder '{folder['name']}'",
+        },
+        countdown=countdown,
+    )
+    event.preventDefault().addResponse(
+        {
+            "message": f"Marked folder {folder['name']} for deletion in {countdown} seconds"
+        }
+    )
+
+
 class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
     def load(self, info):
+        from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
+
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
         ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
@@ -219,6 +260,9 @@ class JSONFormsPlugin(GirderPlugin):
         except ValidationException:
             pass
         events.bind("data.process", "jsonforms", annotate_uploads)
+        events.bind(
+            "rest.delete.folder/:id.before", "jsonforms", _delayed_delete_folder
+        )
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:
@@ -233,6 +277,16 @@ class JSONFormsPlugin(GirderPlugin):
             search.addSearchMode("byCreator", search_by_user)
         except GirderException:
             logger.warning("byCreator search mode already registered.")
+
+        FolderResource.deleteFolder.description.param(
+            "countdown",
+            (
+                "Number of seconds into the future that the task should execute. "
+                "Defaults to immediate execution."
+            ),
+            required=False,
+            dataType="float",
+        )
 
         registerPluginStaticContent(
             plugin="jsonforms",

@@ -80,11 +80,7 @@ const EditFormView = View.extend({
             });
         },
         'click a.g-cancel-form': function () {
-            this.tempFolder.destroy({throwError: false}).done(() => {
-              router.navigate(`form/${this.model.id}`, {trigger: true});
-            }).fail((err) => {
-              router.navigate(`form/${this.model.id}`, {trigger: true});
-            });
+            router.navigate(`form/${this.model.id}`, {trigger: true});
         },
         'submit #g-form': function (event) {
             event.preventDefault();
@@ -195,10 +191,10 @@ const EditFormView = View.extend({
         });
         this.tempFolder.save().done(() => {
             this.tempFolder.addMetadata('formId', this.model.id);
-        });
-
-        window.addEventListener('beforeunload', function (e) {
-            view.tempFolder.destroy({throwError: false});
+            restRequest({
+              method: 'DELETE',
+              url: `folder/${this.tempFolder.id}?progress=false&countdown=3600`,
+            });
         });
 
         JSONEditor.defaults.callbacks.button = {
