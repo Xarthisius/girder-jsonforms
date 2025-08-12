@@ -108,6 +108,7 @@ class Deposition(AccessControlledModel):
                 "track",
             ),
         )
+        self.ensureIndices([("igsn", {"unique": True})])
         events.bind("model.entry.save", "jsonforms", self.register_deposition)
         events.bind("model.entry.save.created", "jsonforms", self.updateRelations)
         self.schema_validator = SchemaValidator(
@@ -376,6 +377,9 @@ class Deposition(AccessControlledModel):
         # TODO: better check for valid prefix
         if not igsn:
             igsn = PrefixCounter().get_next(prefix)
+        else:
+            if Deposition().findOne({"igsn": igsn}):
+                raise ValidationException(f"IGSN {igsn} already exists")
 
         deposition = {
             "created": now,
