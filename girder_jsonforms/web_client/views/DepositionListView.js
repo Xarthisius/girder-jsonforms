@@ -7,6 +7,7 @@ const View = girder.views.View;
 const router = girder.router;
 const { cancelRestRequests } = girder.rest;
 const SearchFieldWidget = girder.views.widgets.SearchFieldWidget;
+const SortCollectionWidget = girder.views.widgets.SortCollectionWidget;
 const PaginateWidget = girder.views.widgets.PaginateWidget;
 
 var DepositionListView = View.extend({
@@ -34,6 +35,17 @@ var DepositionListView = View.extend({
             depositionUrlFunc: (deposition) => { return `#deposition/${deposition.id}`; }
         });
 
+        this.sortCollectionWidget = new SortCollectionWidget({
+            collection: this.collection,
+            parentView: this,
+            fields: {
+                igsn: 'IGSN',
+                created: 'Created Date',
+                updated: 'Updated Date',
+                title: 'Title'
+            },
+        });
+
         this.searchWidget = new SearchFieldWidget({
             placeholder: 'Search IGSNs...',
             types: ['deposition'],
@@ -51,6 +63,7 @@ var DepositionListView = View.extend({
         }));
 
         this.paginateWidget.setElement(this.$('.g-deposition-pagination')).render();
+        this.sortCollectionWidget.setElement(this.$('.g-deposition-sort')).render();
         this.searchWidget.setElement(this.$('.g-deposition-search-container')).render();
         return this;
     },
