@@ -47,7 +47,7 @@
               i.icon-doc
               span.test-muted= 'Description (' + d.descriptionType + '): '
               span.g-info-type= d.description
-          if metadata.creators.length > 0
+          if metadata.creators && metadata.creators.length > 0
             .g-deposition-info-line
               h3
                 | Creators:
@@ -72,7 +72,7 @@
                         span.g-info-type= creator.givenName + ' ' + creator.familyName
                   else
                     span.g-info-type= creator.givenName + ' ' + creator.familyName
-            if metadata.alternateIdentifiers && metadata.alternateIdentifiers.length > 0
+          if metadata.alternateIdentifiers && metadata.alternateIdentifiers.length > 0
             .g-deposition-info-line
               h3
                 | Alternate Identifiers:
@@ -81,7 +81,7 @@
                 i.icon-doc
                 span.test-muted= identifier.alternateIdentifierType + ': '
                 span.g-info-type= identifier.alternateIdentifier
-          if relatedIdentifiers.length > 0
+          if relatedIdentifiers && relatedIdentifiers.length > 0
             .g-deposition-info-line
               h3
                 | Related Identifiers:
