@@ -19,6 +19,12 @@ var DepositionListView = View.extend({
         'click button.g-deposition-create-button': function (event) {
             router.navigate('newdeposition', {trigger: true});
         },
+        'click .btn-group[data-toggle="buttons-radio"] .btn': function (event) {
+            $(event.currentTarget).addClass("active").siblings().removeClass("active");
+            const accessLevel = $(event.currentTarget).attr('data-value');
+            this.collection.level = accessLevel;
+            this.collection.fetch({}, true);
+        },
         'input .g-filter-field': 'filter'
     },
 
@@ -65,6 +71,9 @@ var DepositionListView = View.extend({
         this.paginateWidget.setElement(this.$('.g-deposition-pagination')).render();
         this.sortCollectionWidget.setElement(this.$('.g-deposition-sort')).render();
         this.searchWidget.setElement(this.$('.g-deposition-search-container')).render();
+        // find the current access level button and set it to active
+        this.$(`.btn-group[data-toggle="buttons-radio"] .btn[data-value="${this.collection.level}"]`)
+          .addClass("active").siblings().removeClass("active");
         return this;
     },
 

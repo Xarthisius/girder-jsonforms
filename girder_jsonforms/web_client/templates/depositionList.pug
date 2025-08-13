@@ -1,6 +1,13 @@
 .g-deposition-list-header
   .g-deposition-pagination
+
   .g-deposition-sort
+
+  .btn-group(data-toggle="buttons-radio").btn-group-sm
+    button.btn.g-deposition-level.btn-default(data-value="2", type="button") Own
+    button.btn.g-deposition-level.btn-default(data-value="1", type="button") Write
+    button.btn.g-deposition-level.btn-default(data-value="0", type="button") Read
+
   form.g-deposition-search-form.form-inline(role="form")
     .form-group.g-deposition-search-container
 
