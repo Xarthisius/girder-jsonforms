@@ -2,6 +2,7 @@
 import './routes';
 import './views/ItemView';
 import './views/UserView';
+import './views/HierarchyWidget';
 
 const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;
