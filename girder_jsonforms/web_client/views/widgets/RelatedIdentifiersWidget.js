@@ -19,8 +19,8 @@ const RelatedIdentifiersWidget = View.extend({
     },
     'click #g-deposition-removeRelatedIdentifier': function (event) {
       this._updateIdentifiers();
-      let item = $(event.currentTarget).closest('li').get(0);
-      let index = this.$('.g-related-identifiers-list li').index(item);
+      const item = $(event.currentTarget).closest('li').get(0);
+      const index = this.$('.g-related-identifiers-list li').index(item);
       this.identifiers.splice(index, 1);
       this.render();
     },
@@ -58,12 +58,12 @@ const RelatedIdentifiersWidget = View.extend({
   drop: function (event, target) {
     event.preventDefault();
     if (this.draggedItem) {
-        let target = event.target.closest('li');
+        const target = event.target.closest('li');
         if (target && target !== this.draggedItem) {
-            let list = $(target);
-            let items = list.children("li").toArray();
-            let draggedIndex = items.indexOf(this.draggedItem);
-            let targetIndex = items.indexOf(target);
+            const list = $(target);
+            const items = list.children("li").toArray();
+            const draggedIndex = items.indexOf(this.draggedItem);
+            const targetIndex = items.indexOf(target);
 
             if (draggedIndex < targetIndex) {
                 $(target).after(this.draggedItem);
@@ -74,7 +74,7 @@ const RelatedIdentifiersWidget = View.extend({
     }
   },
   _updateIdentifiers: function () {
-      let items = this.$('.g-related-identifiers-list li').toArray();
+      const items = this.$('.g-related-identifiers-list li').toArray();
       this.identifiers = items.map((item) => {
           const result = {
               relatedIdentifier: $(item).find('.g-related-identifier-value').val(),
@@ -82,7 +82,7 @@ const RelatedIdentifiersWidget = View.extend({
               relationType: $(item).find('.g-related-identifier-relation-type').val(),
               // Add scheme if it exists
           };
-          let scheme = $(item).find('.g-related-metadata-scheme').val();
+          const scheme = $(item).find('.g-related-metadata-scheme').val();
           if (scheme) {
               result.relatedMetadataScheme = scheme;
           }

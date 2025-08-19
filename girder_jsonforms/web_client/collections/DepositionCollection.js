@@ -12,13 +12,6 @@ var DepositionCollection = Collection.extend({
     sortDir: 1,
     level: 2,
 
-    /*fetch: function (params, reset) {
-        console.log("In DepositionCollection fetch, access level:", this.level);
-        params = params || {};
-        params.level = this.level;   // this gets ignored when reset is true  :(
-        return Collection.prototype.fetch.call(this, params, reset);
-    }*/
-
     updateFromSession: function () {
         if (window.sessionStorage.getItem(`${this.resourceName}.sortField`) !== null) {
             this.sortField = window.sessionStorage.getItem(`${this.resourceName}.sortField`);

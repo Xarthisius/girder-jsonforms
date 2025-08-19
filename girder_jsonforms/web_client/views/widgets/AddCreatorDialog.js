@@ -17,7 +17,7 @@ var AddCreatorDialog = View.extend({
       this._addCreator();
     },
     'change input[name="creatorType"]': function (event) {
-      let creatorType = event.target.value;
+      const creatorType = event.target.value;
       $('#g-add-creator-form').find('.person-fields').attr('hidden', creatorType !== 'person');
       $('#g-add-creator-form').find('.org-fields').attr('hidden', creatorType !== 'organization');
     },
@@ -67,7 +67,7 @@ var AddCreatorDialog = View.extend({
         view.$el.find('input[name="familyName"]').val(data.familyName);
         view.$el.find('input[name="identifiers"]').val(`orcid:${data.orcid}`);
         view.$el.find('input[name="affiliations"]').val('Fetching institution...');
-        //$('.basicModalAutoSelectSelected').html(JSON.stringify(item, null, 2));   // debug
+        // $('.basicModalAutoSelectSelected').html(JSON.stringify(item, null, 2));   // debug
         $.ajax({
           url: 'https://api.ror.org/v2/organizations',
           data: {query: `"${data.institution}"`},
@@ -81,6 +81,7 @@ var AddCreatorDialog = View.extend({
             }
           },
           error: function (error) {
+            console.error('Error fetching ROR ID:', error);
             view.$el.find('input[name="affiliations"]').val(data.institution);
           }
         });
@@ -94,17 +95,17 @@ var AddCreatorDialog = View.extend({
       return {givenName: '', familyName: '', orcid: '', institution: ''}
     }
 
-    let text = item.text;
+    const text = item.text;
     if (!text) {
       return {givenName: '', familyName: '', orcid: '', institution: ''}
     }
-    let parts = text.split(' - ');
-    let institution = parts[1];
-    let namesId = parts[0].split(' (');
-    let orcid = namesId[1].replace(')', '');
-    let names = namesId[0].split(', ');
-    let familyName = names[0];
-    let givenName = names[1];
+    const parts = text.split(' - ');
+    const institution = parts[1];
+    const namesId = parts[0].split(' (');
+    const orcid = namesId[1].replace(')', '');
+    const names = namesId[0].split(', ');
+    const familyName = names[0];
+    const givenName = names[1];
 
     return {
       givenName: givenName,

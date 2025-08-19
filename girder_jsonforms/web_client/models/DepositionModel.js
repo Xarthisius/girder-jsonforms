@@ -1,5 +1,4 @@
 const AccessControlledModel = girder.models.AccessControlledModel;
-const { getApiRoot } = girder.rest;
 
 var DepositionModel = AccessControlledModel.extend({
     resourceName: 'deposition',
@@ -8,7 +7,7 @@ var DepositionModel = AccessControlledModel.extend({
         const metadata = this.get('metadata');
         if (metadata && metadata.creators) {
             return metadata.creators.map(function (creator) {
-              const orcid = creator.nameIdentifiers && creator.nameIdentifiers.length > 0 ? creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/)[1] : '';
+              const orcid = creator.nameIdentifiers && creator.nameIdentifiers.length > 0 ? creator.nameIdentifiers[0].nameIdentifier.match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/)[1] : '';
               let affiliation = '';
               if (creator.affiliation && creator.affiliation.length > 0) {
                  const aff = creator.affiliation[0];

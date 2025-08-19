@@ -1,5 +1,3 @@
-const $ = girder.$;
-const { wrap } = girder.utilities.PluginUtils;
 const SortCollectionWidget = girder.views.widgets.SortCollectionWidget;
 
 var NamedSortCollectionWidget = SortCollectionWidget.extend({

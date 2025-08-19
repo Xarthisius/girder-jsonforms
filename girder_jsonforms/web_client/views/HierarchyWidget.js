@@ -1,9 +1,9 @@
+import NamedSortCollectionWidget from './widgets/NamedSortCollectionWidget';
+import '../stylesheets/hierarchyWidget.styl';
+
 const $ = girder.$;
 const { wrap } = girder.utilities.PluginUtils;
 const HierarchyWidget = girder.views.widgets.HierarchyWidget;
-
-import NamedSortCollectionWidget from './widgets/NamedSortCollectionWidget';
-import '../stylesheets/hierarchyWidget.styl';
 
 wrap(HierarchyWidget, 'initialize', function (initialize, ...args) {
     this.sortCollectionWidget = null;

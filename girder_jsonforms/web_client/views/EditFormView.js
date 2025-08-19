@@ -1,16 +1,3 @@
-const $ = girder.$;
-const _ = girder._;
-const events = girder.events;
-const AccessWidget = girder.views.widgets.AccessWidget;
-const FolderModel = girder.models.FolderModel;
-const BrowserWidget = girder.views.widgets.BrowserWidget;
-const View = girder.views.View;
-const router = girder.router;
-const UploadWidget = girder.views.widgets.UploadWidget;
-const { getCurrentUser } = girder.auth;
-const { AccessType } = girder.constants;
-const { restRequest } = girder.rest;
-
 import '../stylesheets/editFormView.styl';
 
 import flatpickr from 'flatpickr'; // eslint-disable-line no-unused-vars
@@ -23,6 +10,19 @@ import FormEntryModel from '../models/FormEntryModel';
 
 import 'flatpickr/dist/flatpickr.min.css';
 import '@trevoreyre/autocomplete-js/dist/style.css';
+
+const $ = girder.$;
+const _ = girder._;
+const events = girder.events;
+const AccessWidget = girder.views.widgets.AccessWidget;
+const FolderModel = girder.models.FolderModel;
+const BrowserWidget = girder.views.widgets.BrowserWidget;
+const View = girder.views.View;
+const router = girder.router;
+const UploadWidget = girder.views.widgets.UploadWidget;
+const { getCurrentUser } = girder.auth;
+const { AccessType } = girder.constants;
+const { restRequest } = girder.rest;
 
 function makeid(length) {
     let result = '';
@@ -50,9 +50,9 @@ function accessOrCreate(obj, keys) {
 
 function setField(jseditor, field, value) {
     const formValue = jseditor.jsoneditor.getValue();
-    let keys = field.split('.');
+    const keys = field.split('.');
     keys.shift(); // Remove the first string 'root'
-    let objToUpdate = accessOrCreate(formValue, keys);
+    const objToUpdate = accessOrCreate(formValue, keys);
     objToUpdate[keys[keys.length - 1]] = value;
     jseditor.jsoneditor.setValue(formValue);
 }
@@ -200,17 +200,17 @@ const EditFormView = View.extend({
         JSONEditor.defaults.callbacks.button = {
             'button1CB': function (jseditor, element) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                //setField(jseditor, field, 'Waiting for a file to be uploaded');
+                // setField(jseditor, field, 'Waiting for a file to be uploaded');
                 this.uploadDialog(jseditor, field, false, true);
             }.bind(this),
             'button2CB': function (jseditor, e) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                //setField(jseditor, field, 'Waiting for a directory to be uploaded');
+                // setField(jseditor, field, 'Waiting for a directory to be uploaded');
                 this.uploadDialog(jseditor, field, true);
             }.bind(this),
             'buttonSample': function (jseditor, e) {
                 const field = jseditor.options.path.replace(/\.button(?!.*\.button)/, '.file');
-                //setField(jseditor, field, 'Waiting for a file to be uploaded');
+                // setField(jseditor, field, 'Waiting for a file to be uploaded');
                 this.uploadDialog(jseditor, field, false, true);
             }
         };
@@ -225,7 +225,7 @@ const EditFormView = View.extend({
         this.initialValues = settings.initialValues;
         this.uniqueField = this.model.get('uniqueField', 'sampleId');
         this.originalSampleId = this.initialValues ? this.initialValues.get('data')[this.uniqueField] : null;
-        this.assignedIGSN = this.initialValues ? this.initialValues.get('data')["assignedIGSN"] : null;
+        this.assignedIGSN = this.initialValues ? this.initialValues.get('data').assignedIGSN : null;
         this.form = null;
     },
 

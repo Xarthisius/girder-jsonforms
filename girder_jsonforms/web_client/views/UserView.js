@@ -1,12 +1,12 @@
+import { SearchResultsTypeView } from './DepositionView';
+import UserPageSearchTemplate from '../templates/userPageSearch.pug';
+import UserPageTabsTemplate from '../templates/userPageTabs.pug';
+
 const _ = girder._;
 const { getCurrentUser } = girder.auth;
 const { restRequest } = girder.rest;
 const UserView = girder.views.body.UserView;
-const { wrap } = girder.utilities.PluginUtils;
-
-import { SearchResultsTypeView } from './DepositionView';
-import UserPageSearchTemplate from '../templates/userPageSearch.pug';
-import UserPageTabsTemplate from '../templates/userPageTabs.pug'; 
+const { wrap } = girder.utilities.PluginUtils; 
 
 var _initialize = UserView.prototype.initialize;
 UserView.prototype.initialize = function (settings) {
@@ -21,7 +21,7 @@ UserView.prototype.initialize = function (settings) {
         }
     });
     this._subviews = {};
-    let currentUser = getCurrentUser();
+    const currentUser = getCurrentUser();
     this.owner = currentUser && currentUser.id === settings.user.id;
     _initialize.apply(this, arguments);
 };
@@ -55,7 +55,6 @@ wrap(UserView, 'render', function (render) {
     this._searchRequest.done((results) => {
         this.$('.g-search-pending').hide();
 
-        const resultTypes =  _.keys(results);
         const orderedTypes = ["folder", "item"];
         _.each(orderedTypes, (type) => {
             if (results[type].length) {

@@ -95,7 +95,7 @@ var ImportToFormDialog = View.extend({
     this.fileUploader
         .render()
         .$el.appendTo(this.$('.g-form-upload-container'));
-    //this.$('#g-import-form').on('submit', this._onSubmit.bind(this));
+    // this.$('#g-import-form').on('submit', this._onSubmit.bind(this));
     return this;
   },
 
@@ -138,8 +138,8 @@ var ImportToFormDialog = View.extend({
 
   _onUploadFinished: function (event) {
     console.log('Upload finished:', event.files);
-    //this.$('.g-form-upload-container').addClass('hide');
-    //this.$('.g-form-processing-container').removeClass('hide');
+    // this.$('.g-form-upload-container').addClass('hide');
+    // this.$('.g-form-processing-container').removeClass('hide');
   }
 
 });

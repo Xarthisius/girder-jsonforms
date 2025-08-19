@@ -1,15 +1,15 @@
 import $ from 'jquery';
 import 'bootstrap-autocomplete';
 
-const { restRequest } = girder.rest;
-const View = girder.views.View;
-
 import AddCreatorDialog from './widgets/AddCreatorDialog';
 import CreatorsWidget from './widgets/CreatorsWidget';
 import IdentifiersWidget from './widgets/IdentifiersWidget';
 import RelatedIdentifiersWidget from './widgets/RelatedIdentifiersWidget';
 import '../stylesheets/editDepositionView.styl';
 import template from '../templates/editDepositionView.pug';
+
+const { restRequest } = girder.rest;
+const View = girder.views.View;
 
 function isDefined(value) {
   return value !== null && value !== undefined && value !== '';
@@ -42,8 +42,8 @@ const EditDepositionView = View.extend({
       formData.forEach((item) => {
         metadata[item.name] = item.value;
       });
-      metadata["materialSubtype"] = isDefined(metadata["materialSubtype"]) ? metadata["materialSubtype"] : 'X';
-      metadata["governorLab"] = isDefined(metadata["governorLab"]) ? metadata["governorLab"] : 'X';
+      metadata.materialSubtype = isDefined(metadata.materialSubtype) ? metadata.materialSubtype : 'X';
+      metadata.governorLab = isDefined(metadata.governorLab) ? metadata.governorLab : 'X';
       this.identifiersWidget._updateIdentifiers();  // Saves state
       this.relatedIdentifiersWidget._updateIdentifiers();  // Saves state
       const alternateIdentifiers = this.identifiersWidget.identifiers.map((item) => {
@@ -91,7 +91,7 @@ const EditDepositionView = View.extend({
         parentView: this,
         creators: this.creators,
       }).on('g:creatorAdded', function (params) {
-        //this.creatorsWidget.creators.push(params.creator);
+        // this.creatorsWidget.creators.push(params.creator);
         this.creatorsWidget.render();
       }, this).render();
     },
@@ -102,7 +102,6 @@ const EditDepositionView = View.extend({
         value: 'X',
         text: 'Select a lab (or leave blank)',
       }));
-      let currentChar = 64;
       Object.entries(this.igsnInstitutions[selectedInstitution].labs).forEach(([labCode, labName]) => {
         this.$('#g-deposition-governorLab').append($('<option>', {
           value: labCode,
@@ -164,19 +163,19 @@ const EditDepositionView = View.extend({
       method: 'GET',
       url: 'deposition/settings'
     }).done((resp) => {
-      this.igsnInstitutions = resp['igsn_institutions'];
-      this.igsnMaterials = resp['igsn_materials'];
+      this.igsnInstitutions = resp.igsn_institutions;
+      this.igsnMaterials = resp.igsn_materials;
     });
     $.when(
       settingsPromise,
       samplePromise
     ).done(() => {
       this.render();
-      let sampleField = document.querySelector('input[id="g-sample-id"]');
+      const sampleField = document.querySelector('input[id="g-sample-id"]');
       if (sampleField) {
-        sampleField.value = this.sample ? this.sample['name'] : '';
+        sampleField.value = this.sample ? this.sample.name : '';
       }
-      //document.querySelector('input[id="g-sample-id"]').value = this.sample ? this.sample['name'] : '';
+      // document.querySelector('input[id="g-sample-id"]').value = this.sample ? this.sample['name'] : '';
     }).fail((resp) => {
       this.trigger('g:alert', {
         text: resp.responseJSON.message,
@@ -266,7 +265,7 @@ const EditDepositionView = View.extend({
       return desc ? desc.description : '';
   },
   _updateCreators: function () {
-      let items = this.$('.g-creators-list li').toArray();
+      const items = this.$('.g-creators-list li').toArray();
       this.creators = items.map((item) => {
           const creator = {};
           for (let i = 0; i < item.attributes.length; i++) {
@@ -331,12 +330,12 @@ const EditDepositionView = View.extend({
   drop: function (event, target) {
     event.preventDefault();
     if (this.draggedItem) {
-        let target = event.target.closest('li');
+        const target = event.target.closest('li');
         if (target && target !== this.draggedItem) {
-            let list = $(target);
-            let items = list.children("li").toArray();
-            let draggedIndex = items.indexOf(this.draggedItem);
-            let targetIndex = items.indexOf(target);
+            const list = $(target);
+            const items = list.children("li").toArray();
+            const draggedIndex = items.indexOf(this.draggedItem);
+            const targetIndex = items.indexOf(target);
 
             if (draggedIndex < targetIndex) {
                 $(target).after(this.draggedItem);

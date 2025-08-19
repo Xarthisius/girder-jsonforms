@@ -15,8 +15,8 @@ const IdentifiersWidget = View.extend({
     },
     'click #g-deposition-removeIdentifier': function (event) {
       this._updateIdentifiers();
-      let item = $(event.currentTarget).closest('li').get(0);
-      let index = this.$('.g-identifiers-list li').index(item);
+      const item = $(event.currentTarget).closest('li').get(0);
+      const index = this.$('.g-identifiers-list li').index(item);
       this.identifiers.splice(index, 1);
       this.render();
     },
@@ -50,12 +50,12 @@ const IdentifiersWidget = View.extend({
   drop: function (event, target) {
     event.preventDefault();
     if (this.draggedItem) {
-        let target = event.target.closest('li');
+        const target = event.target.closest('li');
         if (target && target !== this.draggedItem) {
-            let list = $(target);
-            let items = list.children("li").toArray();
-            let draggedIndex = items.indexOf(this.draggedItem);
-            let targetIndex = items.indexOf(target);
+            const list = $(target);
+            const items = list.children("li").toArray();
+            const draggedIndex = items.indexOf(this.draggedItem);
+            const targetIndex = items.indexOf(target);
 
             if (draggedIndex < targetIndex) {
                 $(target).after(this.draggedItem);
@@ -66,7 +66,7 @@ const IdentifiersWidget = View.extend({
     }
   },
   _updateIdentifiers: function () {
-      let items = this.$('.g-identifiers-list li').toArray();
+      const items = this.$('.g-identifiers-list li').toArray();
       this.identifiers = items.map((item) => {
           return {
               type: $(item).find('.g-identifier-type').val(),

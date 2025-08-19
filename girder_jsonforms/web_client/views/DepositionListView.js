@@ -121,7 +121,7 @@ var DepositionListView = View.extend({
             if (!q) {
                 this.collection.filterFunc = null;
             } else {
-                let regex = this._sanitizeRegex(q);
+                const regex = this._sanitizeRegex(q);
                 this.collection.filterFunc = function (model) {
                     var match = model.igsn.match(new RegExp(regex, 'i'));
                     return match;

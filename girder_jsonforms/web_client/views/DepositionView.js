@@ -1,9 +1,15 @@
+import QRCode from 'qrcode';
+
+import SearchResultsTypeTemplate from '@girder/core/templates/body/searchResultsType.pug';
+
 import DepositionModel from '../models/DepositionModel';
 import DepositionTemplate from '../templates/depositionView.pug'; 
+import DepositionSplitDialog from '../templates/depositionSplitDialog.pug';
 
 import '../stylesheets/depositionView.styl';
 
-import QRCode from 'qrcode';
+import '@girder/core/utilities/jquery/girderEnable';
+import '@girder/core/utilities/jquery/girderModal';
 
 const _ = girder._;
 const events = girder.events;
@@ -16,12 +22,6 @@ const AccessWidget = girder.views.widgets.AccessWidget;
 const View = girder.views.View;
 const { restRequest } = girder.rest;
 const SearchPaginateWidget = girder.views.widgets.SearchPaginateWidget;
-
-import SearchResultsTypeTemplate from '@girder/core/templates/body/searchResultsType.pug';
-import DepositionSplitDialog from '../templates/depositionSplitDialog.pug';
-
-import '@girder/core/utilities/jquery/girderEnable';
-import '@girder/core/utilities/jquery/girderModal';
 
 const QRparams = {
   'errorCorrectionLevel': 'H',
@@ -132,7 +132,6 @@ var DepositionView = View.extend({
         this._searchRequest.done((results) => {
             this.$('.g-search-pending').hide();
 
-            const resultTypes =  _.keys(results);
             const orderedTypes = ["folder", "item"];
             _.each(orderedTypes, (type) => {
                 if (results[type].length) {
@@ -168,7 +167,6 @@ var DepositionView = View.extend({
            return; // nothing to transform
         }
         const apiRoot = getApiRoot();
-        const origin = window.location.origin;
         const entryRegex = new RegExp(`${apiRoot}/entry/(\\w+)`);
         const formRegex = new RegExp(`${apiRoot}/form/(\\w+)/schema`);
         const entries = [];

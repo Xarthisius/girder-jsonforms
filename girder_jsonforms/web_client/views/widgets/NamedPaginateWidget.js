@@ -1,5 +1,3 @@
-const $ = girder.$;
-const { wrap } = girder.utilities.PluginUtils;
 const PaginateWidget = girder.views.widgets.PaginateWidget;
 
 var NamedPaginateWidget = PaginateWidget.extend({

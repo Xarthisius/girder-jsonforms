@@ -7,7 +7,6 @@ import './views/HierarchyWidget';
 const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;
 const { getCurrentUser } = girder.auth;
-const eventStream = girder.utilities.eventStream;
 const SearchFieldWidget = girder.views.widgets.SearchFieldWidget;
 
 
