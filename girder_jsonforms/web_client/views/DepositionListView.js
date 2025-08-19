@@ -1,5 +1,7 @@
 import DepositionModel from '../models/DepositionModel';
 import DepositionCollection from '../collections/DepositionCollection';
+import NamedPaginateWidget from './widgets/NamedPaginateWidget';
+import NamedSortCollectionWidget from './widgets/NamedSortCollectionWidget';
 import template from '../templates/depositionList.pug';
 import '../stylesheets/depositionList.styl';
 
@@ -7,8 +9,6 @@ const View = girder.views.View;
 const router = girder.router;
 const { cancelRestRequests } = girder.rest;
 const SearchFieldWidget = girder.views.widgets.SearchFieldWidget;
-const SortCollectionWidget = girder.views.widgets.SortCollectionWidget;
-const PaginateWidget = girder.views.widgets.PaginateWidget;
 
 var DepositionListView = View.extend({
     events: {
@@ -23,6 +23,7 @@ var DepositionListView = View.extend({
             $(event.currentTarget).addClass("active").siblings().removeClass("active");
             const accessLevel = $(event.currentTarget).attr('data-value');
             this.collection.level = accessLevel;
+            window.sessionStorage.setItem(`${this.collection.resourceName}.level`, this.collection.level);
             this.collection.fetch({}, true);
         },
         'input .g-filter-field': 'filter'
@@ -31,17 +32,20 @@ var DepositionListView = View.extend({
     initialize: function () {
         cancelRestRequests('fetch');
         this.collection = new DepositionCollection();
+        this.collection.updateFromSession();
         this.collection.on('g:changed', () => {
             this.render();
+            this.trigger('g:changed');
         }, this).fetch();
 
-        this.paginateWidget = new PaginateWidget({
+        this.paginateWidget = new NamedPaginateWidget({
             parentView: this,
             collection: this.collection,
             depositionUrlFunc: (deposition) => { return `#deposition/${deposition.id}`; }
         });
 
-        this.sortCollectionWidget = new SortCollectionWidget({
+        this.sortCollectionWidget = new NamedSortCollectionWidget({
+            name: 'DepositionSort',
             collection: this.collection,
             parentView: this,
             fields: {
@@ -69,8 +73,8 @@ var DepositionListView = View.extend({
         }));
 
         this.paginateWidget.setElement(this.$('.g-deposition-pagination')).render();
-        this.sortCollectionWidget.setElement(this.$('.g-deposition-sort')).render();
-        this.searchWidget.setElement(this.$('.g-deposition-search-container')).render();
+        if (this.sortCollectionWidget) this.sortCollectionWidget.setElement(this.$('.g-deposition-sort')).render();
+        if (this.searchWidget) this.searchWidget.setElement(this.$('.g-deposition-search-container')).render();
         // find the current access level button and set it to active
         this.$(`.btn-group[data-toggle="buttons-radio"] .btn[data-value="${this.collection.level}"]`)
           .addClass("active").siblings().removeClass("active");

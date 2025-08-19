@@ -19,6 +19,21 @@ var DepositionCollection = Collection.extend({
         return Collection.prototype.fetch.call(this, params, reset);
     }*/
 
+    updateFromSession: function () {
+        if (window.sessionStorage.getItem(`${this.resourceName}.sortField`) !== null) {
+            this.sortField = window.sessionStorage.getItem(`${this.resourceName}.sortField`);
+        }
+        if (window.sessionStorage.getItem(`${this.resourceName}.sortDir`) !== null) {
+            this.sortDir = parseInt(window.sessionStorage.getItem(`${this.resourceName}.sortDir`), 10);
+        }
+        if (window.sessionStorage.getItem(`${this.resourceName}.level`) !== null) {
+            this.level = parseInt(window.sessionStorage.getItem(`${this.resourceName}.level`), 10);
+        }
+        if (window.sessionStorage.getItem(`${this.resourceName}.offset`) !== null) {
+            this.offset = parseInt(window.sessionStorage.getItem(`${this.resourceName}.offset`), 10);
+        }
+    },
+
     fetch: function (params, reset) {
         if (this.altUrl === null && this.resourceName === null) {
             throw new Error('An altUrl or resourceName must be set on the Collection.');
