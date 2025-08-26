@@ -9,6 +9,7 @@ from ..lib.project_tasks import trigger_post_entry_task
 from ..models.entry import FormEntry as FormEntryModel
 from ..models.form import Form as FormModel
 from ..worker_plugin.pull_related_ids import run as pullRelatedIds
+from ..worker_plugin.handle_enumsource import run as handle_enumsource
 
 
 class FormEntry(Resource):
@@ -156,6 +157,7 @@ class FormEntry(Resource):
 
         if task := form.get("postEntryTask"):
             trigger_post_entry_task(task, entry, self.getCurrentUser())
+        self._handle_enumsource(entry, form)
         return entry
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -210,6 +212,7 @@ class FormEntry(Resource):
         )
         if task := form.get("postEntryTask"):
             trigger_post_entry_task(task, entry, self.getCurrentUser())
+        self._handle_enumsource(entry, form)
         return entry
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -225,3 +228,15 @@ class FormEntry(Resource):
             girder_job_title="Updating relatedIdentifiers in Depositions",
         )
         FormEntryModel().remove(entry)
+
+    def _handle_enumsource(self, entry, form):
+        form = FormModel().schemaLoad(form)
+        if enum_sources := FormModel().get_related_form_values(
+            form, _type="enumSource"
+        ):
+            handle_enumsource.delay(
+                str(entry["_id"]),
+                enum_sources,
+                userId=str(self.getCurrentUser()["_id"]),
+                girder_job_title="Updating relatedIdentifiers in Depositions",
+            )

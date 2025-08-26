@@ -57,6 +57,11 @@ def default_igsn_publisher():
 @setting_utilities.default(PluginSettings.IGSN_INSTITUTIONS)
 def default_igsn_institutions():
     return {
+        "AP": {
+            "code": "AP",
+            "name": "JHU Applied Physics Laboratory",
+            "labs": {"L": "APL"},
+        },
         "JH": {
             "code": "JH",
             "name": "Johns Hopkins University",

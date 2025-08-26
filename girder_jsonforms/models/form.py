@@ -140,6 +140,33 @@ class Form(AccessControlledModel):
 
         return self.save(form)
 
+    def get_related_form_values(self, form, _type="enumSource"):
+        form_values = {}
+        for keyPath in find_key_paths(form["schema"], _type):
+            value = get_value(form["schema"], keyPath)
+            if isinstance(value, str) and value.startswith("girder.formId:"):
+                command = value.split(":")
+                formId = command[1]
+                fields = command[2:]
+                if _type == "enumSource":
+                    if len(fields) == 1:
+                        fields.append(None)
+                    if not fields:
+                        fields = ["{entry[_id]}", None]
+                form_values[keyPath] = {
+                    "formId": formId,
+                    "fields": fields,
+                }
+        return form_values
+
+    def schemaLoad(self, form):
+        if isinstance(form["schema"], str):
+            if form["schema"].startswith("http"):
+                form["schema"] = self._loadRemoteSchema(form["schema"])
+            else:
+                form["schema"] = json.loads(form["schema"])
+        return form
+
     def materialize(self, form, user):
         from .entry import FormEntry
 
@@ -154,70 +181,59 @@ class Form(AccessControlledModel):
         ):
             form["jsHelpers"] = requests.get(form["jsHelpers"]).text
 
-        for keyPath in find_key_paths(form["schema"], "preload"):
-            value = get_value(form["schema"], keyPath)
-            if isinstance(value, str) and value.startswith("girder.formId:"):
-                formId = value.split(":")[1]
-                fields = value.split(":")[2:]
-                try:
-                    source_form = self.load(
-                        formId, level=AccessType.READ, user=user, exc=True
-                    )
-                except ValidationException:
-                    raise ValidationException(
-                        f"Form {formId} linked via '{keyPath}' does not exist or is not accessible."
-                    )
-                dependencies = {}
-                for dep in FormEntry().collection.find(
-                    {"formId": source_form["_id"]},
-                    projection={f"data.{_}": 1 for _ in fields},
-                ):
-                    dep_id = str(dep.pop("_id"))
-                    dependencies[dep_id] = convert_to_jq_notation(dep)
-                form["dependencies"] = dependencies
-
-        for keyPath in find_key_paths(form["schema"], "enumSource"):
-            value = get_value(form["schema"], keyPath)
-            if isinstance(value, str) and value.startswith("girder.formId:"):
-                command = value.split(":")
-                formId = command[1]
-                try:
-                    enum_value = command[2]
-                except IndexError:
-                    enum_value = "{entry[_id]}"
-                try:
-                    enum_title = command[3]
-                except IndexError:
-                    enum_title = None
-
+        for keyPath, form_value in self.get_related_form_values(
+            form, "preload"
+        ).items():
+            formId = form_value["formId"]
+            fields = form_value["fields"]
+            try:
                 source_form = self.load(
                     formId, level=AccessType.READ, user=user, exc=True
                 )
-                enum_source = {
-                    "source": [],
-                    "title": "{{item.title}}",
-                    "value": "{{item.value}}",
-                }
+            except ValidationException:
+                raise ValidationException(
+                    f"Form {formId} linked via '{keyPath}' does not exist or is not accessible."
+                )
+            dependencies = {}
+            for dep in FormEntry().collection.find(
+                {"formId": source_form["_id"]},
+                projection={f"data.{_}": 1 for _ in fields},
+            ):
+                dep_id = str(dep.pop("_id"))
+                dependencies[dep_id] = convert_to_jq_notation(dep)
+            form["dependencies"] = dependencies
 
-                for entry in (
-                    FormEntry()
-                    .find(
-                        {"formId": source_form["_id"]},
-                        fields={"_id": 1, source_form["uniqueField"]: 1, "data": 1},
-                    )
-                    .sort([(source_form["uniqueField"], 1)])
-                ):
-                    if enum_title:
-                        title = enum_title.format(entry=entry)
-                    else:
-                        title = entry["data"][source_form["uniqueField"]]
-                    enum_source["source"].append(
-                        {
-                            "value": enum_value.format(entry=entry),
-                            "title": title,
-                        }
-                    )
-                    set_value(form["schema"], keyPath, [enum_source])
+        for keyPath, form_value in self.get_related_form_values(
+            form, "enumSource"
+        ).items():
+            formId = form_value["formId"]
+            enum_value, enum_title = form_value["fields"]
+            source_form = self.load(formId, level=AccessType.READ, user=user, exc=True)
+            enum_source = {
+                "source": [],
+                "title": "{{item.title}}",
+                "value": "{{item.value}}",
+            }
+
+            for entry in (
+                FormEntry()
+                .find(
+                    {"formId": source_form["_id"]},
+                    fields={"_id": 1, source_form["uniqueField"]: 1, "data": 1},
+                )
+                .sort([(source_form["uniqueField"], 1)])
+            ):
+                if enum_title:
+                    title = enum_title.format(entry=entry)
+                else:
+                    title = entry["data"][source_form["uniqueField"]]
+                enum_source["source"].append(
+                    {
+                        "value": enum_value.format(entry=entry),
+                        "title": title,
+                    }
+                )
+                set_value(form["schema"], keyPath, [enum_source])
 
         return form
 

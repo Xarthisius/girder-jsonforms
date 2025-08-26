@@ -278,7 +278,7 @@ def sputter_record():
 
 
 @pytest.mark.plugin("jsonforms")
-def test_full_flow(server, user, sputter_run_form, sputter_record):
+def test_full_flow(server, user, sputter_run_form, sputter_record, eagerWorkerTasks):
     Deposition()  # Ensure the Deposition model is loaded for the test
     resp = server.request(
         path="/entry",
