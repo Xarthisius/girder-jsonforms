@@ -11,6 +11,8 @@ def batch_indices(method, main_deposition, form_data):
         return batch_indices_weihs(main_deposition, form_data)
     elif method == "imqcam":
         return batch_indices_imqcam(main_deposition, form_data)
+    elif method == "croom":
+        return batch_indices_croom(main_deposition, form_data)
     else:
         logger.warning(f"Unknown method: {method}")
         return []
@@ -89,6 +91,48 @@ def batch_indices_imqcam(main_deposition, form_data):
         # Generate igsn indices for this geometry
         for i in range(count):
             local_indices.append(f"{prefix}_{build_geometry}_{i + 1:03d}{suffix}")
+
+    return list(
+        zip([f"{i:03d}" for i in range(1, len(local_indices) + 1)], local_indices)
+    )
+
+
+def batch_indices_croom(main_deposition, form_data):
+    if not form_data.get("buildGeometries"):
+        logger.warning(
+            "No build geometries provided in form_data for batch_indices_croom."
+        )
+        # Return empty list if no substrates or subRows/Cols are provided
+        return []
+
+    local_indices = []
+
+    prefix = (
+        f"{form_data['userParameters']['runDate'].replace('-', '')}_"
+        f"{form_data['userParameters']['location']}_"
+        f"{form_data['buildPlate']['material']}_"
+        f"QC{form_data['buildNumber']:02d}"
+    )
+    suffix = (
+        "_".join(form_data["extraInfo"])
+        if "extraInfo" in form_data and form_data["extraInfo"]
+        else ""
+    )
+    if suffix:
+        suffix = f"_{suffix}"
+
+    for geometry in form_data["buildGeometries"]:
+        """
+        geometry should be a dict with 'buildGeometry', 'count'
+        """
+        logger.info(f"Processing geometry: {geometry}")
+        build_geometry = geometry.get("geometryType")
+        if not build_geometry:
+            continue
+        count = int(geometry.get("count", 1))
+        # Generate igsn indices for this geometry
+        for i in range(count):
+            local_indices.append(f"{prefix}_{build_geometry}{i + 1:02d}{suffix}")
 
     return list(
         zip([f"{i:03d}" for i in range(1, len(local_indices) + 1)], local_indices)
