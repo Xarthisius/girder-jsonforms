@@ -49,12 +49,12 @@ function accessOrCreate(obj, keys) {
 }
 
 function setField(jseditor, field, value) {
-    const formValue = jseditor.jsoneditor.getValue();
-    const keys = field.split('.');
-    keys.shift(); // Remove the first string 'root'
-    const objToUpdate = accessOrCreate(formValue, keys);
-    objToUpdate[keys[keys.length - 1]] = value;
-    jseditor.jsoneditor.setValue(formValue);
+    const editor = jseditor.jsoneditor.getEditor(field);
+    if (!editor) {
+        console.error(`Editor for field ${field} not found.`);
+        return;
+    }
+    editor.setValue(value);
 }
 
 var lastParent = null;
