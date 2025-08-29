@@ -1,5 +1,6 @@
 import re
 
+import jsonschema
 from girder.exceptions import ValidationException
 from girder.utility import setting_utilities
 
@@ -17,17 +18,35 @@ class PluginSettings:
 
 @setting_utilities.validator(
     {
-        PluginSettings.IGSN_PUBLISHER,
         PluginSettings.IGSN_CLIENT_ID,
         PluginSettings.IGSN_PROVIDER_ID,
     }
 )
-def validate_igsn_publisher(doc):
+def validate_igsn_client(doc):
     if not isinstance(doc["value"], str):
         raise ValidationException(
             "Setting must be a string.",
             "value",
         )
+
+
+@setting_utilities.validator(PluginSettings.IGSN_PUBLISHER)
+def validate_igsn_publisher(doc):
+    schema = {
+        "type": "object",
+        "properties": {
+            "lang": {"type": "string"},
+            "name": {"type": "string"},
+            "schemeUri": {"type": "string", "format": "uri"},
+            "publisherIdentifier": {"type": "string"},
+            "publisherIdentifierScheme": {"type": "string"},
+        },
+        "required": ["name"],
+    }
+    try:
+        jsonschema.validate(instance=doc["value"], schema=schema)
+    except jsonschema.ValidationError as e:
+        raise ValidationException(f"Invalid publisher: {e.message}", "value")
 
 
 @setting_utilities.default(PluginSettings.IGSN_CLIENT_ID)
@@ -51,7 +70,13 @@ def default_igsn_publisher():
     """
     Default setting for IGSN publisher.
     """
-    return "Hopkins Extreme Materials Institute"
+    return {
+        "lang": "en",
+        "name": "Hopkins Extreme Materials Institute",
+        "schemeUri": "https://ror.org/",
+        "publisherIdentifier": "https://ror.org/02ed2th17",
+        "publisherIdentifierScheme": "ROR",
+    }
 
 
 @setting_utilities.default(PluginSettings.IGSN_INSTITUTIONS)
@@ -68,16 +93,13 @@ def default_igsn_institutions():
             "labs": {
                 "A": "Hopkins Extreme Materials Institute",
                 "B": "Weihs Group",
-                "X": "Other"
+                "X": "Other",
             },
         },
         "TM": {
             "code": "TM",
             "name": "Texas A&M University",
-            "labs": {
-                "A": "MESAM",
-                "X": "Other"
-            },
+            "labs": {"A": "MESAM", "X": "Other"},
         },
         "SB": {
             "code": "SB",

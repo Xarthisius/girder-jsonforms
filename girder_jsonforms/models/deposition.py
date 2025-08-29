@@ -307,9 +307,7 @@ class Deposition(AccessControlledModel):
                 "resourceTypeGeneral": "PhysicalObject",
             }
         if "publisher" not in metadata:
-            metadata["publisher"] = {
-                "name": Setting().get(PluginSettings.IGSN_PUBLISHER),
-            }
+            metadata["publisher"] = Setting().get(PluginSettings.IGSN_PUBLISHER)
         if "dates" not in metadata:
             metadata["dates"] = [
                 {
