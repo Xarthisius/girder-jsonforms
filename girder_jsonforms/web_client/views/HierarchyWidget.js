@@ -32,3 +32,10 @@ wrap(HierarchyWidget, 'render', function (render) {
     }
     return this;
 });
+
+wrap(HierarchyWidget, 'updateChecked', function (updateChecked) {
+    // This is called when descends/ascends the hierarchy. We need to update the collection
+    updateChecked.call(this);
+    this.sortCollectionWidget.collection = this.folderListView.collection;
+    return this;
+});
