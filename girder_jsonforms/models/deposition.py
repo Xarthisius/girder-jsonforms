@@ -294,6 +294,8 @@ class Deposition(AccessControlledModel):
             self.schema_validator.validate(doc.get("metadata", {}))
         except jsonschema.ValidationError as e:
             raise ValidationException(f"Metadata validation failed: {e.message}") from e
+        if not doc["metadata"].get("doi"):
+            doc["metadata"]["doi"] = f"{Setting().get(PluginSettings.IGSN_PREFIX)}/{doc['igsn']}"
         return doc
 
     @staticmethod

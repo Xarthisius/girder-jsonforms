@@ -14,12 +14,14 @@ class PluginSettings:
     IGSN_PUBLISHER = "jsonforms.igsn_publisher"
     IGSN_CLIENT_ID = "jsonforms.igsn_client_id"
     IGSN_PROVIDER_ID = "jsonforms.igsn_provider_id"
+    IGSN_PREFIX = "jsonforms.igsn_prefix"
 
 
 @setting_utilities.validator(
     {
         PluginSettings.IGSN_CLIENT_ID,
         PluginSettings.IGSN_PROVIDER_ID,
+        PluginSettings.IGSN_PREFIX,
     }
 )
 def validate_igsn_client(doc):
@@ -49,12 +51,20 @@ def validate_igsn_publisher(doc):
         raise ValidationException(f"Invalid publisher: {e.message}", "value")
 
 
+@setting_utilities.default(PluginSettings.IGSN_PREFIX)
+def default_igsn_prefix():
+    """
+    Default setting for IGSN prefix.
+    """
+    return "10.34863"
+
+
 @setting_utilities.default(PluginSettings.IGSN_CLIENT_ID)
 def default_igsn_client_id():
     """
     Default setting for IGSN client ID.
     """
-    return "hemi.igsn"
+    return "jhu.paradim"
 
 
 @setting_utilities.default(PluginSettings.IGSN_PROVIDER_ID)
@@ -62,7 +72,7 @@ def default_igsn_provider_id():
     """
     Default setting for IGSN provider ID.
     """
-    return "hemi"
+    return "jhu"
 
 
 @setting_utilities.default(PluginSettings.IGSN_PUBLISHER)
