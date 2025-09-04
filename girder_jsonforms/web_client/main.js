@@ -43,24 +43,28 @@ function createNavItem(navItem) {
 
 wrap(GlobalNavView, 'render', function (render) {
     render.call(this);
+    const navList = document.querySelector('.g-global-nav-li:last-of-type');
     if (getCurrentUser()) {
         const formsNav = createNavItem({
             name: 'Forms',
             icon: 'icon-doc',
             target: 'forms'
         });
-        const depositionsNav = createNavItem({
-            name: 'IGSN',
-            icon: 'icon-barcode',
-            target: 'depositions'
-        });
-        const navList = document.querySelector('.g-global-nav-li:last-of-type');
         if (navList) {
-              navList.parentElement.appendChild(formsNav);
-              navList.parentElement.appendChild(depositionsNav);
+            navList.parentElement.appendChild(formsNav);
         } else {
-              console.warn('No existing .g-global-nav-li elements found.');
+            console.warn('No existing .g-global-nav-li elements found.');
         }
+    }
+    const depositionsNav = createNavItem({
+        name: 'IGSN',
+        icon: 'icon-barcode',
+        target: 'depositions'
+    });
+    if (navList) {
+        navList.parentElement.appendChild(depositionsNav);
+    } else {
+        console.warn('No existing .g-global-nav-li elements found.');
     }
 });
 
