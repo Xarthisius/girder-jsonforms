@@ -3,6 +3,7 @@ import datetime
 import json
 import logging
 from pathlib import Path
+import os
 
 from girder import events
 from girder.api.rest import getApiUrl
@@ -11,6 +12,7 @@ from girder.exceptions import GirderException, ValidationException
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
 from girder.models.user import User
+from girder.settings import SettingKey
 from girder.utility.model_importer import ModelImporter
 from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
@@ -295,7 +297,13 @@ class Deposition(AccessControlledModel):
         except jsonschema.ValidationError as e:
             raise ValidationException(f"Metadata validation failed: {e.message}") from e
         if not doc["metadata"].get("doi"):
-            doc["metadata"]["doi"] = f"{Setting().get(PluginSettings.IGSN_PREFIX)}/{doc['igsn']}"
+            doc["metadata"][
+                "doi"
+            ] = f"{Setting().get(PluginSettings.IGSN_PREFIX)}/{doc['igsn']}"
+        if not doc["metadata"].get("url"):
+            doc["metadata"]["url"] = os.path.join(
+                Setting().get(SettingKey.SERVER_ROOT), "#igsn", doc["igsn"]
+            )
         return doc
 
     @staticmethod
@@ -341,7 +349,9 @@ class Deposition(AccessControlledModel):
         if not metadata["creators"]:
             metadata["creators"] = [
                 {
-                    "name": creator.get("lastName", "") + ", " + creator.get("firstName", ""),
+                    "name": creator.get("lastName", "")
+                    + ", "
+                    + creator.get("firstName", ""),
                     "nameType": "Personal",
                     "givenName": creator.get("firstName", ""),
                     "familyName": creator.get("lastName", ""),
@@ -381,6 +391,14 @@ class Deposition(AccessControlledModel):
             if Deposition().findOne({"igsn": igsn}):
                 raise ValidationException(f"IGSN {igsn} already exists")
 
+        metadata.update(
+            {
+                "doi": f"{Setting().get(PluginSettings.IGSN_PREFIX)}/{igsn}",
+                "url": os.path.join(
+                    Setting().get(SettingKey.SERVER_ROOT), "#igsn", igsn
+                ),
+            }
+        )
         deposition = {
             "created": now,
             "creatorId": creator["_id"],
@@ -453,22 +471,29 @@ class Deposition(AccessControlledModel):
         }
 
         depositions = []
+        server_root = Setting().get(SettingKey.SERVER_ROOT)
+        igsn_prefix = Setting().get(PluginSettings.IGSN_PREFIX)
         for index in indices:
             metadata = copy.deepcopy(main_deposition["metadata"])
             metadata["relatedIdentifiers"].append(relatedIdentifier)
+            metadata.pop("url", None)
+            metadata.pop("doi", None)
             titles = metadata.pop("titles")
             igsn_index, local_index = index
             logger.info(
                 f"Creating deposition for {main_deposition['igsn']} with index {igsn_index} "
                 f"and local index {local_index}"
             )
+            child_igsn = f"{main_deposition['igsn']}-{igsn_index}"
             deposition = {
                 "access": main_deposition["access"],
                 "created": main_deposition["created"],
                 "creatorId": main_deposition["creatorId"],
-                "igsn": f"{main_deposition['igsn']}-{igsn_index}",
+                "igsn": child_igsn,
                 "metadata": {
                     "titles": [{"title": f"{titles[0]['title']} - {igsn_index}"}],
+                    "url": os.path.join(server_root, "#igsn", child_igsn),
+                    "doi": f"{igsn_prefix}/{child_igsn}",
                     **metadata.copy(),
                 },
                 "parentId": main_deposition["_id"],
