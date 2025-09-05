@@ -321,7 +321,7 @@ class Deposition(AccessControlledModel):
         if "dates" not in metadata:
             metadata["dates"] = [
                 {
-                    "date": datetime.datetime.now(datetime.UTC).isoformat(),
+                    "date": datetime.datetime.now(datetime.UTC).strftime("%Y-%m-%d"),
                     "dateType": "Submitted",
                 }
             ]
