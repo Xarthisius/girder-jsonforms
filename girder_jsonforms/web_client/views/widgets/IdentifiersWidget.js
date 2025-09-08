@@ -10,7 +10,7 @@ const IdentifiersWidget = View.extend({
     'dragover .g-identifiers-list': 'dragOver',
     'click #g-deposition-addIdentifier': function () {
       this._updateIdentifiers();
-      this.identifiers.push({"type": "local", "value": ""});
+      this.identifiers.push({"type": "Local", "value": ""});
       this.render();
     },
     'click #g-deposition-removeIdentifier': function (event) {

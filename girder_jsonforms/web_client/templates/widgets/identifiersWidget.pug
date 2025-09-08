@@ -9,8 +9,8 @@ ul.g-identifiers-list(name="identifiers").list-group
             i.icon-move
         select.form-control.g-identifier-type(name="type").list-group-item-action
           option(value="") Select a type
-          option(value="local", selected=(identifier.type == "local")) Local
-          option(value="doi", selected=(identifier.type == "doi")) DOI
+          option(value="Local", selected=(identifier.type.toLowerCase() == "local")) Local
+          option(value="DOI", selected=(identifier.type.toLowerCase() == "doi")) DOI
         span.input-group-btn(style="width:0px;")
         input.form-control.g-identifier-value(type="text" name="value" required value=identifier.value)
         span.input-group-btn
