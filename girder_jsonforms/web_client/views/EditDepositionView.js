@@ -245,6 +245,9 @@ const EditDepositionView = View.extend({
         }
         document.querySelector('input[name="sampleId"]').value = item._id;
     });
+    if (this.model && this.model.get('sampleId')) {
+        document.querySelector('input[name="sampleId"]').value = this.model.get('sampleId');
+    }
     return this;
   },
   updateDeposition: function(data) {
