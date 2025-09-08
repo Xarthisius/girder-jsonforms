@@ -76,7 +76,7 @@ def setup_settings(db, igsn_settings):
     institutions, materials = igsn_settings
     Setting().set(PluginSettings.IGSN_INSTITUTIONS, institutions)
     Setting().set(PluginSettings.IGSN_MATERIALS, materials)
-    Setting().set(PluginSettings.IGSN_PUBLISHER, "Test Publisher")
+    Setting().set(PluginSettings.IGSN_PUBLISHER, {"name": "Test Publisher"})
     yield
     # Cleanup settings after test
     Setting().unset(PluginSettings.IGSN_INSTITUTIONS)
