@@ -33,6 +33,10 @@ const EditDepositionView = View.extend({
         this._updateCreators();
     },
     'click #g-deposition-cancel': function () {
+      if (this.model) {
+        girder.router.navigate(`deposition/${this.model.id}`, { trigger: true });
+        return;
+      }
       girder.router.navigate(`depositions`, { trigger: true });
     },
     'submit #g-deposition-form': function (event) {
@@ -249,7 +253,7 @@ const EditDepositionView = View.extend({
               text: 'Deposition updated successfully',
               type: 'success',
           });
-          girder.router.navigate('depositions', { trigger: true });
+          girder.router.navigate(`deposition/${this.model.id}`, { trigger: true });
       }).fail((resp) => {
           this.trigger('g:alert', {
               text: resp.responseJSON.message,
