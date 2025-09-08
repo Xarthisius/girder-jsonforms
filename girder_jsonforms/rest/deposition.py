@@ -290,6 +290,9 @@ class Deposition(Resource):
         )
     )
     def update_deposition(self, deposition, sampleId, metadata):
+        if sampleId is None:
+            sampleId = deposition["sampleId"]
+
         # Logic to update an existing deposition
         return DepositionModel().update_deposition(
             deposition, metadata, sampleId, user=self.getCurrentUser()
