@@ -49,18 +49,30 @@ class Form(Resource):
             default=AccessType.READ,
             enum=[AccessType.NONE, AccessType.READ, AccessType.WRITE, AccessType.ADMIN],
         )
+        .param(
+            "expanded",
+            "Whether to return the full form object or just the metadata",
+            required=False,
+            dataType="boolean",
+            default=False,
+        )
         .pagingParams(defaultSort="name", defaultSortDir=SortDir.ASCENDING)
     )
     @filtermodel(model="form", plugin="jsonforms")
-    def listForm(self, entryFileName, level, limit, offset, sort):
+    def listForm(self, entryFileName, level, expanded, limit, offset, sort):
         query = {}
         if entryFileName is not None:
             query["entryFileName"] = entryFileName
+
+        fields = None
+        if not expanded:
+            fields = {"jsHelpers": 0, "schema": 0}
 
         return FormModel().findWithPermissions(
             query=query,
             offset=offset,
             limit=limit,
+            fields=fields,
             sort=sort,
             user=self.getCurrentUser(),
             level=level,
