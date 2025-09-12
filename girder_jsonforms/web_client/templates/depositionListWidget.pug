@@ -1,0 +1,32 @@
+if showFilters
+  .g-page-size-container
+    span Page size
+    select.g-page-size
+      each val in pageSizes
+        option(selected=val===pageSize)= val
+
+if showPageSizeSelector
+  .g-deposition-filter-container.clearfix
+    .name
+      .btn-group
+        .g-deposition-regex
+          a.g-deposition-regex-options.btn.btn-sm(title="Show filter help")
+            i.g-deposition-regex-icon.icon-filter
+          input.g-deposition-regex-field.form-control.input-sm(type="text" placeholder="Filter by name" mode-select="off")
+
+      .btn-group(data-toggle="buttons-radio").btn-group-sm
+        button.btn.g-deposition-level.btn-default(data-value="2", type="button") Own
+        button.btn.g-deposition-level.btn-default(data-value="1", type="button") Write
+        button.btn.g-deposition-level.btn-default(data-value="0", type="button") Read
+ 
+      .btn-group.btn-group-sm
+        .g-depositions-actions
+          button.g-deposition-create-button.btn.btn-sm.btn-success(style="margin-left: 10px;")
+            i.icon-plus
+            | Create New IGSN
+
+.g-main-content
+
+.g-deposition-pagination
+
+.g-no-deposition-record No records found

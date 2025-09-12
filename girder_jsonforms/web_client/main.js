@@ -3,6 +3,7 @@ import './routes';
 import './views/ItemView';
 import './views/UserView';
 import './views/HierarchyWidget';
+import './views/widgets/DepositionListWidget';
 
 const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;

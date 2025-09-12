@@ -7,19 +7,29 @@ import FormView from './views/FormView';
 import FormListView from './views/FormListView';
 import EditFormView from './views/EditFormView';
 import EditDepositionView from './views/EditDepositionView';
+import DepositionListWidget from './views/widgets/DepositionListWidget';
 
 const router = girder.router;
 const events = girder.events;
 const { restRequest } = girder.rest;
 const $ = girder.$;
 
+router.route('depositions', 'igsns', function () {
+    events.trigger('g:navigateTo', DepositionListWidget, {
+        allDepositionsMode: true,
+        view: 'list',
+        showFilters: true,
+        showPageSizeSelector: true,
+    });
+});
+
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
 });
 
-router.route('depositions', 'depositions', function () {
+/*router.route('depositions', 'depositions', function () {
     events.trigger('g:navigateTo', DepositionListView);
-});
+});*/
 
 router.route('newdeposition', 'deposition', function () {
     events.trigger('g:navigateTo', EditDepositionView);

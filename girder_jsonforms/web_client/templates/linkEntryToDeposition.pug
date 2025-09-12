@@ -1,0 +1,32 @@
+.modal-dialog
+  .modal-content
+    form#g-link-entry-form.modal-form(role="form")
+      .modal-header
+        button.close(data-dismiss="modal", aria-hidden="true", type="button") &times;
+        h4.modal-title Update related indentifiers
+      .modal-body
+        p You are updating relation between a form entry and #{depositionCount} IGSN(s).
+        .form-group
+          label(for="g-link-action") Action
+          select#g-link-action.form-control(name="action", required)
+            option(value="1") Link Entry to IGSN(s)
+            option(value="-1") Remove Entry from IGSN(s)
+        .form-group
+          label(for="g-form-select") Form
+          select#g-form-select.form-control(name="form", required)
+            each form in forms
+              option(value=form.id, g-form-cid=form.cid)= form.get('name')
+        .form-group
+          label(for="entryId") Form Entry
+          select.g-entry-autocomplete.form-control(
+            name="entryId"
+            id="entryId"
+            autocomplete="off"
+            required
+          )
+          small.form-text.text-muted
+            | Start typing to search for a form entry.
+        .g-validation-failed-message
+      .modal-footer
+        button.btn.btn-default(type="button", data-dismiss="modal") Cancel
+        button#submit-link-btn.btn.btn-primary(type="submit") Update

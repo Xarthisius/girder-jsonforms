@@ -40,12 +40,12 @@
         .g-deposition-content-body-left-item
           .g-deposition-info-line
             i.icon-doc
-            span.test-muted= 'IGSN: '
+            span.text-muted= 'IGSN: '
             span.g-info-type= deposition.get("igsn")
           for d in metadata.descriptions
             .g-deposition-info-line
               i.icon-doc
-              span.test-muted= 'Description (' + d.descriptionType + '): '
+              span.text-muted= 'Description (' + d.descriptionType + '): '
               span.g-info-type= d.description
           if metadata.creators && metadata.creators.length > 0
             .g-deposition-info-line
@@ -79,7 +79,7 @@
             for identifier in metadata.alternateIdentifiers
               .g-deposition-info-line
                 i.icon-doc
-                span.test-muted= identifier.alternateIdentifierType + ': '
+                span.text-muted= identifier.alternateIdentifierType + ': '
                 span.g-info-type= identifier.alternateIdentifier
           if relatedIdentifiers && relatedIdentifiers.length > 0
             .g-deposition-info-line
@@ -88,7 +88,7 @@
             for identifier in metadata.relatedIdentifiers
               .g-deposition-info-line(entryId=identifier.entryId)
                 i.icon-doc
-                span.test-muted= identifier.relationType + ': '
+                span.text-muted= identifier.relationType + ': '
                 a(href=identifier.relatedIdentifier)
                   if identifier.relatedIdentifierTitle
                     span.g-info-type= identifier.relatedIdentifierTitle
@@ -97,7 +97,7 @@
               if identifier.relatedMetadataScheme
                 .g-deposition-info-line(formId=identifier.formId)
                   i.icon-doc-text
-                  span.test-muted
+                  span.text-muted
                     | Schema: 
                   a(href=identifier.relatedMetadataScheme)
                     if identifier.relatedMetadataSchemeTitle

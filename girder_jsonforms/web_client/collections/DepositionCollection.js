@@ -25,6 +25,9 @@ var DepositionCollection = Collection.extend({
         if (window.sessionStorage.getItem(`${this.resourceName}.offset`) !== null) {
             this.offset = parseInt(window.sessionStorage.getItem(`${this.resourceName}.offset`), 10);
         }
+        if (window.sessionStorage.getItem(`${this.resourceName}.pageLimit`) !== null) {
+            this.pageLimit = parseInt(window.sessionStorage.getItem(`${this.resourceName}.pageLimit`), 10);
+        }
     },
 
     fetch: function (params, reset) {
