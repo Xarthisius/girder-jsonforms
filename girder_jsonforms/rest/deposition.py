@@ -1,22 +1,24 @@
 import datetime
 import re
 import urllib.parse
-import requests
 
+import requests
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import (
     Resource,
     filtermodel,
+    getApiUrl,
 )
 from girder.constants import AccessType, SortDir, TokenScope
-from girder.exceptions import RestException
+from girder.exceptions import GirderException, RestException
 from girder.models.setting import Setting
 from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
-from ..models.deposition import Deposition as DepositionModel
-from ..settings import PluginSettings
 
+from ..models.deposition import Deposition as DepositionModel
+from ..models.entry import FormEntry as EntryModel
+from ..settings import PluginSettings
 
 orcid_headers = None
 
@@ -56,6 +58,7 @@ class Deposition(Resource):
         self.route("POST", (), self.create_deposition)
         self.route("GET", ("autocomplete",), self.autocomplete)
         self.route("GET", ("settings",), self.get_settings)
+        self.route("POST", ("relation",), self.update_deposition_relations)
         self.route("DELETE", (":id",), self.delete_deposition)
         self.route("GET", (":id",), self.get_deposition)
         self.route("PUT", (":id",), self.update_deposition)
@@ -346,6 +349,66 @@ class Deposition(Resource):
             setPublic=public,
             publicFlags=publicFlags,
         )
+
+    @access.user(scope=TokenScope.DATA_WRITE)
+    @autoDescribeRoute(
+        Description("Update the relations of depositions")
+        .jsonParam(
+            "depositionIds",
+            "List of deposition IDs to update.",
+            requireArray=True,
+            paramType="body",
+            required=True,
+        )
+        .modelParam(
+            "entryId",
+            "The form entry being (un)linked to.",
+            model=EntryModel,
+            destName="entry",
+            required=True,
+            paramType="query",
+            level=AccessType.READ,
+        )
+        .param(
+            "action",
+            "The action to perform: add (1) or remove (-1).",
+            required=False,
+            enum=[-1, 1],
+            dataType="integer",
+            default=1,
+        )
+    )
+    def update_deposition_relations(self, depositionIds, entry, action):
+        print(depositionIds, entry, action)
+        user = self.getCurrentUser()
+        try:
+            api_url = getApiUrl()
+        except GirderException:
+            api_url = "/api/v1"
+        relatedIdentifier = {
+            "relationType": "HasMetadata",
+            "relatedIdentifier": "/".join((api_url, "entry", str(entry["_id"]))),
+            "relatedIdentifierType": "URL",
+            "relatedMetadataScheme": "/".join(
+                (api_url, "form", str(entry["formId"]), "schema")
+            ),
+        }
+
+        # Validate all deposition IDs first
+        ids = [
+            DepositionModel().load(
+                depositionId, user=user, level=AccessType.WRITE, exc=True
+            )["_id"]
+            for depositionId in depositionIds
+        ]
+
+        op = "$pull" if action == -1 else "$addToSet"
+        DepositionModel().collection.update_many(
+            {"_id": {"$in": ids}},
+            {op: {"metadata.relatedIdentifiers": relatedIdentifier}},
+        )
+
+        return True
 
     @access.public
     @autoDescribeRoute(
