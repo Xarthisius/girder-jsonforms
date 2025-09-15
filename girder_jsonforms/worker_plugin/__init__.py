@@ -14,6 +14,7 @@ class JSONFormsWorkerPlugin(GirderWorkerPluginABC):
 
     def task_imports(self):
         return [
+            "girder_jsonforms.worker_plugin.relate_entry_to_igsn",
             "girder_jsonforms.worker_plugin.pull_related_ids",
             "girder_jsonforms.worker_plugin.amdee",
         ]
