@@ -7,6 +7,7 @@ import re
 
 import bson
 import jsondiff
+import jsonschema
 from girder import events
 from girder.constants import AccessType
 from girder.exceptions import ValidationException
@@ -14,6 +15,7 @@ from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.model_base import Model
 from girder.models.upload import Upload
+from girder.models.user import User
 from girder.utility import JsonEncoder, RequestBodyStream, acl_mixin
 from girder.utility.model_importer import ModelImporter
 
@@ -123,6 +125,23 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 f"data.{form['uniqueField']}",
             )
         doc["uniqueId"] = doc["data"][form["uniqueField"]]
+
+        try:
+            json.dumps(
+                doc["data"], allow_nan=False, cls=JsonEncoder, separators=(",", ": ")
+            )
+        except (TypeError, ValueError) as e:
+            raise ValidationException(f"Data is not valid JSON: {e}", "data")
+
+        creator = User().load(doc.get("creatorId"), force=True)
+        form = model.materialize(form, creator)
+        try:
+            jsonschema.Draft7Validator(form["schema"]).validate(doc["data"])
+        except jsonschema.ValidationError as e:
+            raise ValidationException(
+                f"Data does not match schema: {e.message}", "data"
+            )
+
         return doc
 
     def _getExtraPath(self, template, data):
