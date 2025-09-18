@@ -56,7 +56,7 @@ def default_igsn_prefix():
     """
     Default setting for IGSN prefix.
     """
-    return "10.34863"
+    return "10.82581"  # HEMI IGSN  (10.83961 is HEMI IGSN test)
 
 
 @setting_utilities.default(PluginSettings.IGSN_CLIENT_ID)
@@ -64,7 +64,7 @@ def default_igsn_client_id():
     """
     Default setting for IGSN client ID.
     """
-    return "jhu.paradim"
+    return "jhu.hemi-igsn"  # jhu.igsn-test for testing
 
 
 @setting_utilities.default(PluginSettings.IGSN_PROVIDER_ID)
