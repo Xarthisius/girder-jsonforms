@@ -23,6 +23,7 @@ class Form(Resource):
         self.resourceName = "form"
         self.route("GET", (), self.listForm)
         self.route("GET", (":id",), self.getForm)
+        self.route("GET", (":id", "schema"), self.getFormSchema)
         self.route("POST", (), self.createForm)
         self.route("PUT", (":id",), self.updateForm)
         self.route("DELETE", (":id",), self.deleteForm)
@@ -149,6 +150,16 @@ class Form(Resource):
     @filtermodel(model="form", plugin="jsonforms")
     def getForm(self, form):
         return FormModel().materialize(form, self.getCurrentUser())
+
+    @access.public
+    @autoDescribeRoute(
+        Description("Get JSON schema from form").modelParam(
+            "id", "The ID of the form", model=FormModel, level=AccessType.READ
+        ).produces("application/json")
+    )
+    def getFormSchema(self, form):
+        form = FormModel().materialize(form, self.getCurrentUser())
+        return form["schema"]
 
     @access.user
     @autoDescribeRoute(
