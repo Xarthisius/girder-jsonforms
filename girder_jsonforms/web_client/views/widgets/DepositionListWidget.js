@@ -4,7 +4,6 @@ import '../../stylesheets/depositionListWidget.styl';
 import DepositionListTemplate from '../../templates/depositionCheckboxList.pug';
 import LinkEntryToDepositionWidget from './LinkEntryToDepositionWidget';
 
-const CheckBoxMenu = girder.plugins.jobs.views.CheckBoxMenu;
 const PaginateWidget = girder.views.widgets.PaginateWidget;
 const View = girder.views.View;
 const router = girder.router;
