@@ -6,7 +6,8 @@ from pathlib import Path
 
 from bson import ObjectId
 from girder import events
-from girder.api import access, rest as girderRest
+from girder.api import access
+from girder.api import rest as girderRest
 from girder.constants import AccessType, TokenScope
 from girder.exceptions import GirderException, ValidationException
 from girder.models.file import File
@@ -210,12 +211,11 @@ def _delayed_delete_folder(self, event):
 
     params = event.info["params"]
     try:
-        countdown = float(params.get("countdown", '0'))
+        countdown = float(params.get("countdown", "0"))
         if countdown <= 0:
             raise ValueError
     except ValueError:
         return  # proceed as normal and let girder handle the deletion immediately
-
 
     delete_folder_task.apply_async(
         args=(),

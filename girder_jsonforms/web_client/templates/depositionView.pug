@@ -42,6 +42,12 @@
             i.icon-doc
             span.text-muted= 'IGSN: '
             span.g-info-type= deposition.get("igsn")
+          if deposition.get('state') && deposition.get('state') !== 'draft'
+            .g-deposition-info-line
+              i.icon-doc
+              span.text-muted= 'DOI: '
+              a(href='https://doi.org/' + metadata.doi, target='_blank')
+                span.g-info-type= 'https://doi.org/' + metadata.doi
           for d in metadata.descriptions
             .g-deposition-info-line
               i.icon-doc
