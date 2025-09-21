@@ -236,7 +236,7 @@ def sputter_run_form(server, user, admin, gun_form, target_form, ps_form):
 @pytest.fixture
 def sputter_record():
     return {
-        "assignedIGSN": "JHABOX",
+        "assignedIGSN": "JHAMAA",
         "basePressure": 1e-06,
         "bilayerSpacing": 100,
         "blueGun": {"used": False},
@@ -248,7 +248,7 @@ def sputter_record():
             "_text1": "",
             "batch": {"method": "weihs"},
             "field": "assignedIGSN",
-            "prefix": "JHABOX",
+            "prefix": "JHAMAA",
             "request": True,
             "suffix": "",
             "track": True,
@@ -256,10 +256,10 @@ def sputter_record():
         "igsnMeta": {
             "groupJH": "A",
             "institution": "JH",
-            "material": "BO",
+            "material": "MA",
             "subCols": 2,
             "subRows": 2,
-            "submaterialBO": "X",
+            "submaterialMA": "A",
             "substrates": ["2", "8"],
             "title": "res",
         },
@@ -268,7 +268,7 @@ def sputter_record():
         "name": "test",
         "orangeGun": {"used": False},
         "purpleGun": {"used": False},
-        "sputterRunId": "JHABOX",
+        "sputterRunId": "JHAMAA",
         "sputterType": "Horizontal",
         "substrateOrientation": 0,
         "substrateType": "Si",
@@ -293,7 +293,7 @@ def test_full_flow(server, user, sputter_run_form, sputter_record, eagerWorkerTa
     entry = resp.json
     assert not entry["data"]["igsn"]["request"], "IGSN request should be consumed"
     assert (
-        entry["data"]["assignedIGSN"] == "JHABOX00001"
+        entry["data"]["assignedIGSN"] == "JHAMAA00001"
     ), "sputterRunId should match the expected value"
     assert (
         entry["data"]["igsn"]["suffix"] == "00001"
@@ -304,18 +304,18 @@ def test_full_flow(server, user, sputter_run_form, sputter_record, eagerWorkerTa
         method="GET",
         user=user,
         params={
-            "q": "JHABOX00001",  # The IGSN we expect from the sputter run
+            "q": "JHAMAA00001",  # The IGSN we expect from the sputter run
         },
     )
     assertStatusOk(resp)
     assert {_["igsn"] for _ in resp.json} == {
-        "JHABOX00001",
-        "JHABOX00001-S2R1C1",
-        "JHABOX00001-S2R1C2",
-        "JHABOX00001-S2R2C1",
-        "JHABOX00001-S2R2C2",
-        "JHABOX00001-S8R1C1",
-        "JHABOX00001-S8R1C2",
-        "JHABOX00001-S8R2C1",
-        "JHABOX00001-S8R2C2",
+        "JHAMAA00001",
+        "JHAMAA00001-S2R1C1",
+        "JHAMAA00001-S2R1C2",
+        "JHAMAA00001-S2R2C1",
+        "JHAMAA00001-S2R2C2",
+        "JHAMAA00001-S8R1C1",
+        "JHAMAA00001-S8R1C2",
+        "JHAMAA00001-S8R2C1",
+        "JHAMAA00001-S8R2C2",
     }
