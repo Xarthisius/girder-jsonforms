@@ -4,6 +4,7 @@ import 'bootstrap-autocomplete';
 import AddCreatorDialog from './widgets/AddCreatorDialog';
 import CreatorsWidget from './widgets/CreatorsWidget';
 import IdentifiersWidget from './widgets/IdentifiersWidget';
+import DescriptionsWidget from './widgets/DescriptionsWidget';
 import RelatedIdentifiersWidget from './widgets/RelatedIdentifiersWidget';
 import '../stylesheets/editDepositionView.styl';
 import template from '../templates/editDepositionView.pug';
@@ -50,6 +51,7 @@ const EditDepositionView = View.extend({
       metadata.governorLab = isDefined(metadata.governorLab) ? metadata.governorLab : 'X';
       this.identifiersWidget._updateIdentifiers();  // Saves state
       this.relatedIdentifiersWidget._updateIdentifiers();  // Saves state
+      this.descriptionsWidget._updateDescriptions();  // Saves state
       const alternateIdentifiers = this.identifiersWidget.identifiers.map((item) => {
         return { alternateIdentifier: item.value, alternateIdentifierType: item.type };
       });
@@ -59,7 +61,7 @@ const EditDepositionView = View.extend({
         metadata: JSON.stringify({
           creators: this._creatorsDatacite(),
           titles: [{title: metadata.title}],
-          descriptions: [{description: metadata.description, descriptionType: 'Abstract'}],
+          descriptions: this.descriptionsWidget.descriptions,
           relatedIdentifiers: this.relatedIdentifiersWidget.identifiers,
           alternateIdentifiers: alternateIdentifiers,
         }),
@@ -145,6 +147,8 @@ const EditDepositionView = View.extend({
     this.creators = settings && settings.model ? settings.model.getFormCreators() : [];
     this.identifiers = settings && settings.model ? settings.model.getFormIdentifiers() : [];
     this.relatedIdentifiers = settings && settings.model ? settings.model.getFormRelatedIdentifiers() : [];
+    var descriptions = settings && settings.model ? settings.model.get('metadata').descriptions : [];
+    this.descriptionsWidget = new DescriptionsWidget({parentView: this, descriptions: descriptions});
     this.creatorsWidget = new CreatorsWidget({creators: this.creators, parentView: this})
     this.identifiersWidget = new IdentifiersWidget({parentView: this, identifiers: this.identifiers});
     this.relatedIdentifiersWidget = new RelatedIdentifiersWidget({parentView: this, identifiers: this.relatedIdentifiers});
@@ -209,6 +213,7 @@ const EditDepositionView = View.extend({
     this.creatorsWidget.setElement(this.$('.g-creators-container')).render();
     this.identifiersWidget.setElement(this.$('.g-identifiers-container')).render();
     this.relatedIdentifiersWidget.setElement(this.$('.g-related-identifiers-container')).render();
+    this.descriptionsWidget.setElement(this.$('.g-descriptions-container')).render();
     $('.sampleSelect').autoComplete(
       {
         bootstrapVersion: "3" ,
