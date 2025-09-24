@@ -118,14 +118,15 @@ var DepositionView = View.extend({
 
     render: function () {
         const relatedIdentifiers = this.model.get("metadata").relatedIdentifiers;
-        this.transformRelatedIdentifiers(relatedIdentifiers);
+        const reducedIdentifiers = this._processRelatedIdentifiers(relatedIdentifiers, 10);
+        this.transformRelatedIdentifiers(reducedIdentifiers.reducedIdentifiers);
         this.$el.html(DepositionTemplate({
             deposition: this.model,
             metadata: this.model.get("metadata"),
             renderMarkdown: renderMarkdown,
             trackerUrl: `#sample/${this.model.get('sampleId')}`,
             AccessType: AccessType,
-            relatedIdentifiers: relatedIdentifiers,
+            relIds: reducedIdentifiers,
             level: this.model.getAccessLevel()
         }));
         this._subviews = {};
@@ -160,6 +161,70 @@ var DepositionView = View.extend({
             QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl, QRparams);
         }
         return this;
+    },
+    /**
+     * Processes an array of related identifiers to reduce the number of items
+     * per relation type to a specified maximum, and reports on the changes.
+     *
+     * @param {Array<Object>} relatedIdentifiers - The input array of identifier objects.
+     * Each object is expected to have a 'relationType' property.
+     * @param {number} maxItemsPerType - The maximum number of items to keep for each 'relationType'.
+     * @returns {{
+     * originalCount: number,
+     * newCount: number,
+     * removedCounts: Object<string, number>,
+     * reducedIdentifiers: Array<Object>
+     * }} An object containing the original count, the new count,
+     * the reduced array of identifiers, and a map of how many
+     * items were removed per type.
+     */
+     _processRelatedIdentifiers: function (relatedIdentifiers, maxItemsPerType) {
+      // 1. Get the total number of elements.
+      const originalCount = relatedIdentifiers.length;
+
+      if (!Array.isArray(relatedIdentifiers) || maxItemsPerType < 0) {
+        console.error("Invalid input provided.");
+        return {
+          originalCount: 0,
+          newCount: 0,
+          removedCounts: {},
+          reducedIdentifiers: []
+        };
+      }
+
+      // Group identifiers by their 'relationType'.
+      const groupedByIdentifier = relatedIdentifiers.reduce((acc, item) => {
+        const { relationType } = item;
+        // Initialize the array for this relationType if it doesn't exist.
+        if (!acc[relationType]) {
+          acc[relationType] = [];
+        }
+        acc[relationType].push(item);
+        return acc;
+      }, {});
+
+      const reducedIdentifiers = [];
+      const removedCounts = {};
+
+      // 2. Reduce elements and 3. Track removed elements.
+      for (const relationType in groupedByIdentifier) {
+        const items = groupedByIdentifier[relationType];
+        const itemsToRemoveCount = Math.max(0, items.length - maxItemsPerType);
+
+        removedCounts[relationType] = itemsToRemoveCount;
+
+        // Add the allowed number of items to the final array.
+        reducedIdentifiers.push(...items.slice(0, maxItemsPerType));
+      }
+
+      const newCount = reducedIdentifiers.length;
+
+      return {
+        originalCount,
+        newCount,
+        removedCounts,
+        reducedIdentifiers,
+      };
     },
 
     transformRelatedIdentifiers: function (relatedIdentifiers) {
