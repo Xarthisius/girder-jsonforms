@@ -1,11 +1,13 @@
 import collections
 import json
 import logging
+import os
 import xml.etree.ElementTree as ET
 from io import BytesIO
 
 import numpy as np
 import pandas as pd
+import requests
 from girder.constants import AccessType
 from girder.models.file import File
 from girder.models.folder import Folder
@@ -30,6 +32,33 @@ vega_schema = json.dumps(
         },
     }
 )
+aimd_portal_url = os.getenv("AIMD_PORTAL_URL", "https://10.99.65.104")
+aimd_portal_token = os.getenv("AIMD_PORTAL_TOKEN")
+
+
+@app.task(queue="local")
+def register_deposition_with_aimd(deposition):
+    with requests.session() as s:
+        s.verify = False
+        s.headers.update(
+            {
+                "Authorization": f"Bearer {aimd_portal_token}",
+                "Host": "ds.aimd.hemi.jhu.edu",
+            }
+        )
+        req = s.get(aimd_portal_url + "/base/sample/" + deposition["_id"])
+
+        if req.status_code == 200:
+            print("Sample already exists in AIMD Portal")
+            print(req.json())
+            return
+
+        req = s.post(
+            url=aimd_portal_url + "/base/sample/",
+            data={"id": deposition["_id"], "igsn": deposition["igsn"]},
+        )
+        if req.status_code < 500 and req.status_code >= 200:
+            print(req.json())
 
 
 @app.task(queue="local")
@@ -51,6 +80,7 @@ def run(user, form, deposition, folder, progress=False):
     except Exception as exc:
         print(f"Error during task execution: {exc} (print)")
         import traceback
+
         print(traceback.format_exc())
         Job().updateJob(
             job, log=f"\nError during task execution: {exc}", status=JobStatus.ERROR

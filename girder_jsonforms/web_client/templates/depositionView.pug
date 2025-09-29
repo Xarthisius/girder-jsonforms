@@ -7,16 +7,33 @@
       button.g-edit-deposition.btn.btn-sm.btn-warning(title="Edit")
         i.icon-pencil
         | Edit
-      button.g-split-deposition.btn.btn-sm.btn-warning(title="Split")
-        i.icon-unlink
-        | Split
     if (level >= AccessType.ADMIN)
       button.g-access-deposition.g-edit-access.btn.btn-sm.btn-warning(title="Access control")
         i.icon-lock
         | Access control
-      button.g-delete-deposition.btn.btn-sm.btn-danger(title="Delete")
-        i.icon-trash
-        | Delete
+    .btn-group
+      button.g-extra-deposition-actions-button.btn.btn-default.dropdown-toggle(
+          data-toggle="dropdown", title="IGSN actions")
+        i.icon-barcode
+        |  Actions
+        i.icon-down-dir
+      ul.g-depositions-actions-menu.dropdown-menu.pull-right(role="menu")
+        li(role="presentation")
+          a.g-register-aimd-deposition(role="menuitem")
+            i.icon-barcode
+            | Register with AIMD-L
+        if (level >= AccessType.WRITE)
+          li.divider(role="presentation")
+          li(role="presentation")
+            a.g-split-deposition(role="menuitem")
+              i.icon-unlink
+              | Split
+        if (level >= AccessType.ADMIN)
+          li.divider(role="presentation")
+          li(role="presentation")
+            a.g-delete-deposition(role="menuitem")
+              i.icon-trash
+              | Delete
 
   h1.g-deposition-title
     | IGSN

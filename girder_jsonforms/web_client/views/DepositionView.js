@@ -99,6 +99,46 @@ var DepositionView = View.extend({
                 model: this.model,
                 parentView: this
             }).render();
+        },
+        'click .g-delete-deposition': function () {
+            this.model.destroy({
+                error: null
+            }).done(() => {
+                events.trigger('g:alert', {
+                    icon: 'ok',
+                    text: 'The deposition has been deleted.',
+                    type: 'success',
+                    timeout: 4000
+                });
+                router.navigate('depositions', {trigger: true});
+            }).fail((resp) => {
+                events.trigger('g:alert', {
+                    text: resp.responseJSON.message || 'An error occurred while deleting the deposition.',
+                    type: 'danger'
+                });
+            });
+        },
+        'click .g-register-aimd-deposition': function () {
+            restRequest({
+                type: 'PUT',
+                url: `deposition/${this.model.id}/task`,
+                data: {action: 'register_aimd'},
+                error: null
+            }).done((resp) => {
+                events.trigger('g:alert', {
+                    icon: 'ok',
+                    text: 'The deposition has been registered with AIMD.',
+                    type: 'success',
+                    timeout: 4000
+                });
+                this.model.set(resp);
+                this.render();
+            }).fail((resp) => {
+                events.trigger('g:alert', {
+                    text: resp.responseJSON.message || 'An error occurred while registering the deposition with AIMD.',
+                    type: 'danger'
+                });
+            });
         }
     },
 

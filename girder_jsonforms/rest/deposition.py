@@ -19,6 +19,7 @@ from girder_sample_tracker.models.sample import Sample
 from ..models.deposition import Deposition as DepositionModel
 from ..models.entry import FormEntry as EntryModel
 from ..settings import PluginSettings
+from ..worker_plugin.amdee import register_deposition_with_aimd
 
 orcid_headers = None
 
@@ -64,6 +65,7 @@ class Deposition(Resource):
         self.route("PUT", (":id",), self.update_deposition)
         self.route("GET", (":id", "access"), self.get_deposition_access)
         self.route("PUT", (":id", "access"), self.update_deposition_access)
+        self.route("PUT", (":id", "task"), self.submit_deposition_task)
         self.route("POST", (":id", "split"), self.create_child_deposition)
 
     @access.public
@@ -456,6 +458,36 @@ class Deposition(Resource):
             for i, _ in enumerate(response.json()["expanded-result"])
         ]
 
+    @access.user(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description("Submit a deposition task")
+        .modelParam(
+            "id",
+            model=DepositionModel,
+            plugin="jsonforms",
+            paramType="path",
+            required=True,
+            level=AccessType.READ,
+        )
+        .param(
+            "action",
+            "The action to perform: register_aimd or tba.",
+            required=True,
+            enum=["register_aimd"],
+            dataType="string",
+        )
+    )
+    @filtermodel(model="job", plugin="jobs")
+    def submit_deposition_task(self, deposition, action):
+        if action == "register_aimd":
+            task = register_deposition_with_aimd.delay(
+                {"_id": str(deposition["_id"]), "igsn": deposition["igsn"]},
+                girder_job_title=f"Registering {deposition['igsn']} with AIMD portal",
+            )
+        else:
+            raise RestException(f"Unknown action: {action}")
+        return task.job
+
     @access.admin
     @autoDescribeRoute(
         Description("Delete a deposition").modelParam(
@@ -469,4 +501,6 @@ class Deposition(Resource):
     )
     def delete_deposition(self, deposition):
         # Logic to delete a deposition
+        if deposition["state"] != "draft":
+            raise RestException("Only draft depositions can be deleted.")
         DepositionModel().remove(deposition)
