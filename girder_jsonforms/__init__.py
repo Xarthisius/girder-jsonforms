@@ -22,6 +22,7 @@ from girder.utility import search
 from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
+from .lib.jq import convert_dates
 from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
@@ -247,6 +248,7 @@ def _delayed_delete_folder(self, event):
 @girderRest.boundHandler
 def _item_advanced_search(self, query, limit, offset, sort):
     user = self.getCurrentUser()
+    query = convert_dates(query)
     cursor = Item().findWithPermissions(
         query, sort=sort, user=user, level=AccessType.READ, limit=limit, offset=offset
     )
