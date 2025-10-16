@@ -4,10 +4,12 @@ import json
 import logging
 from pathlib import Path
 
+import cherrypy
 from bson import ObjectId
 from girder import events
 from girder.api import access
 from girder.api import rest as girderRest
+from girder.api.describe import Description, autoDescribeRoute
 from girder.constants import AccessType, TokenScope
 from girder.exceptions import GirderException, ValidationException
 from girder.models.file import File
@@ -234,6 +236,25 @@ def _delayed_delete_folder(self, event):
     )
 
 
+@access.user
+@autoDescribeRoute(
+    Description("Search items using mongo query syntax.")
+    .jsonParam("query", "The MongoDB query to apply.", requireObject=True)
+    .pagingParams(defaultSort="lowerName")
+    .errorResponse()
+    .errorResponse("You are not authorized to search items.", 403)
+)
+@girderRest.boundHandler
+def _item_advanced_search(self, query, limit, offset, sort):
+    user = self.getCurrentUser()
+    cursor = Item().findWithPermissions(
+        query, sort=sort, user=user, level=AccessType.READ, limit=limit, offset=offset
+    )
+    if callable(getattr(cursor, "count", None)):
+        cherrypy.response.headers["Girder-Total-Count"] = cursor.count()
+    return [Item().filter(doc, user) for doc in cursor]
+
+
 class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
@@ -252,6 +273,7 @@ class JSONFormsPlugin(GirderPlugin):
                 GDRIVE_SERVICE = authenticate_gdrive()
             except ValueError:
                 logger.exception("Failed to authenticate with Google Drive")
+        info["apiRoot"].item.route("GET", ("query",), _item_advanced_search)
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
