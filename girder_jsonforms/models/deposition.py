@@ -238,6 +238,7 @@ class Deposition(AccessControlledModel):
             data["igsn"]["suffix"] = suffix
             data["igsn"]["request"] = False
             data[data["igsn"]["field"]] = f"{prefix}{suffix}"
+        entry["uniqueId"] = data[form["uniqueField"]]
         event.addResponse(entry)
 
     def updateRelations(self, event: events.Event) -> None:
@@ -534,6 +535,19 @@ class Deposition(AccessControlledModel):
             for deposition, sample_id in zip(depositions, sample_result.inserted_ids):
                 deposition["sampleId"] = sample_id
 
+        # HasPart for the main deposition
+        has_parts = [
+            {
+                "relationType": "HasPart",
+                "relatedIdentifier": _["igsn"],
+                "relatedIdentifierType": "IGSN",
+            }
+            for _ in depositions
+        ]
+        self.collection.update_one(
+            {"_id": main_deposition["_id"]},
+            {"$addToSet": {"metadata.relatedIdentifiers": {"$each": has_parts}}},
+        )
         return self.collection.insert_many(depositions)
 
     def update_deposition(self, deposition, metadata, sampleId, user=None):
