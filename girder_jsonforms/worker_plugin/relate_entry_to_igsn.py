@@ -13,7 +13,7 @@ def run(entry, igsn_field="assignedIGSN"):
     regex = re.compile(f"/entry/{entry['_id']}$")
     query = {"metadata.relatedIdentifiers.relatedIdentifier": regex}
     update = {"$pull": {"metadata.relatedIdentifiers": {"relatedIdentifier": regex}}}
-    Deposition().update(query, update)
+    Deposition().collection.update_many(query, update)
 
     # define new relatedIdentifier
     try:
@@ -31,6 +31,8 @@ def run(entry, igsn_field="assignedIGSN"):
 
     # add relatedIdentifier to all depositions with the same IGSN
     igsn = entry["data"].get(igsn_field)
-    query = {"igsn": igsn}
+    if not isinstance(igsn, list):
+        igsn = [igsn]
+    query = {"igsn": {"$in": igsn}}
     update = {"$addToSet": {"metadata.relatedIdentifiers": related_identifier}}
-    Deposition().update(query, update)
+    Deposition().collection.update_many(query, update)
