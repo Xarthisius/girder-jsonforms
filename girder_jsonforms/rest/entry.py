@@ -18,6 +18,7 @@ class FormEntry(Resource):
         self.resourceName = "entry"
         self.route("GET", (), self.listFormEntry)
         self.route("GET", ("search",), self.searchFormEntry)
+        self.route("GET", ("query",), self.queryFormEntry)
         self.route("GET", (":id",), self.getFormEntry)
         self.route("PUT", (":id",), self.updateFormEntry)
         self.route("POST", (), self.createFormEntry)
@@ -96,6 +97,42 @@ class FormEntry(Resource):
             sort=sort,
         )
         return [f"{_['_id']};{_['data'][field]}" for _ in cursor]
+
+    @access.user(scope=TokenScope.DATA_READ)
+    @autoDescribeRoute(
+        Description("Filter entries using general mongo query")
+        .jsonParam(
+            "query",
+            "A MongoDB query to filter entries",
+            required=True,
+        )
+        .modelParam(
+            "formId",
+            "The ID of the form",
+            model=FormModel,
+            level=AccessType.READ,
+            paramType="query",
+            required=True,
+            destName="form",
+        )
+        .pagingParams(defaultSort="created")
+    )
+    def queryFormEntry(self, query, form, limit, offset, sort):
+        if not isinstance(query, dict):
+            raise RestException("Query must be a valid MongoDB query object")
+        q = query
+        q["formId"] = form["_id"]
+
+        cursor = FormEntryModel().findWithPermissions(
+            q,
+            sort=sort,
+            user=self.getCurrentUser(),
+            level=AccessType.READ,
+            limit=limit,
+            offset=offset,
+        )
+
+        return [FormEntryModel().filter(_, self.getCurrentUser()) for _ in cursor]
 
     @access.public
     @autoDescribeRoute(
