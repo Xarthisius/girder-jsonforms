@@ -323,7 +323,8 @@ const EditFormView = View.extend({
                 disable_edit_json: true,
                 disable_properties: true,
                 disable_collapse: true,
-                show_errors: 'always'
+                show_errors: 'always',
+                **this.schema.jseditorOptions || {}
             });
             if (this.model.get('folderId')) {
                 this.$('#g-folder-data-id').attr('objId', this.model.get('folderId'));
