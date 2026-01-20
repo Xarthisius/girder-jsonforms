@@ -30,11 +30,13 @@ from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
+from .models.project import Project as ProjectModel
 from .rest.aimdl import AIMDL, append_vega
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
 from .settings import IGSN_REGEX, PluginSettings
+from .rest.project import Project
 from .worker_plugin.amdee import register_deposition_with_aimd
 from .worker_plugin.folder_ops import assign_igsn_task, delete_folder_task
 
@@ -404,6 +406,7 @@ class JSONFormsPlugin(GirderPlugin):
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
         ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
+        ModelImporter.registerModel("project", ProjectModel, plugin="jsonforms")
         ModelImporter.registerModel(
             "prefixcounter", PrefixCounterModel, plugin="jsonforms"
         )
@@ -421,6 +424,7 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
+        info["apiRoot"].project = Project()
         try:
             DepositionModel().validate({})  # To initialize the model and bind events
         except ValidationException:
