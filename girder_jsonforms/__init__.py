@@ -473,6 +473,13 @@ class JSONFormsPlugin(GirderPlugin):
             dataType="string",
         )
 
+        Collection().createCollection(
+            Setting().get(PluginSettings.PROJECTS_COLLECTION_NAME),
+            creator=User().findOne({"admin": True}),
+            public=True,
+            reuseExisting=True,
+        )
+
         registerPluginStaticContent(
             plugin="jsonforms",
             css=["/style.css"],
