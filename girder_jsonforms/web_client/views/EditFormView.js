@@ -316,7 +316,7 @@ const EditFormView = View.extend({
         }));
         const formContainer = this.$('.g-form-container');
         if (this.schema) {
-            this.form = new JSONEditor(formContainer[0], {
+            let options = {
                 schema: this.schema,
                 theme: 'bootstrap3',
                 template: 'handlebars',
@@ -324,8 +324,10 @@ const EditFormView = View.extend({
                 disable_properties: true,
                 disable_collapse: true,
                 show_errors: 'always',
-                **this.schema.jseditorOptions || {}
-            });
+            }
+            options = Object.assign(options, this.schema.jseditorOptions || {});
+
+            this.form = new JSONEditor(formContainer[0], options);
             if (this.model.get('folderId')) {
                 this.$('#g-folder-data-id').attr('objId', this.model.get('folderId'));
                 this.$('#g-folder-data-id').val(this.model.get('folderId'));
