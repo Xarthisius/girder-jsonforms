@@ -8,7 +8,7 @@ ul.g-descriptions-list(name="descriptions").list-group
           button.btn.btn-sm.g-button(type="button" disabled)
             i.icon-move
         .form-group
-          select.form-control.g-description-type(name="type").list-group-item-action
+          select.list-group-item-action.form-control(id="g-description-type" name="type" required)
             option(value="") Select a type
             option(value="Abstract", selected=(description.descriptionType == "Abstract")) Abstract
             option(value="Methods", selected=(description.descriptionType == "Methods")) Methods
