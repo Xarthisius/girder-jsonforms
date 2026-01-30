@@ -11,7 +11,7 @@ from girder import events
 from girder.api import access
 from girder.api import rest as girderRest
 from girder.api.describe import Description, autoDescribeRoute
-from girder.constants import AccessType, TokenScope
+from girder.constants import AccessType, TokenScope, registerAccessFlag
 from girder.exceptions import GirderException, ValidationException
 from girder.models.collection import Collection
 from girder.models.file import File
@@ -442,6 +442,7 @@ class JSONFormsPlugin(GirderPlugin):
         events.bind(
             "rest.get.system/public_settings.after", "jsonforms", add_public_settings
         )
+        events.bind("model.project.save", "jsonforms", ProjectModel().ensure_group)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:
@@ -486,4 +487,10 @@ class JSONFormsPlugin(GirderPlugin):
             js=["/girder-plugin-jsonforms.umd.cjs"],
             staticDir=Path(__file__).parent / "web_client" / "dist",
             tree=info["serverRoot"],
+        )
+
+        registerAccessFlag(
+            key="jsonforms.review_projects",
+            name="Review Projects",
+            description="Allow users to review and approve projects.",
         )

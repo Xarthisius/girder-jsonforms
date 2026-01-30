@@ -8,6 +8,7 @@ from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
+from girder.models.group import Group
 from girder.models.user import User
 from pymongo import ReturnDocument
 
@@ -68,7 +69,15 @@ project_schema = {
         },
         "samples": {
             "type": "array",
-            "items": {"type": "string"},
+            "items": {
+                "type": "object",
+                "properties": {
+                    "_id": {"type": "objectId"},
+                    "igsn": {"type": "string"},
+                },
+                "additionalProperties": False,
+                "required": ["_id", "igsn"],
+            },
             "default": [],
         },
         "status": {
@@ -165,6 +174,34 @@ class Project(AccessControlledModel):
             jsv.Draft7Validator, type_checker=custom_type_checker
         )
 
+    def ensure_group(self, event):
+        document = event.info
+        if "_id" not in document:
+            return document
+
+        original = self.load(document["_id"], force=True)
+        if (
+            original["status"] != document["status"]
+            and document["status"] == "accepted"
+        ):
+            project_group = Group().createGroup(
+                document["projectId"],
+                User().findOne({"admin": True}),
+                description="Group for project {}:{}".format(
+                    document["projectId"], document["name"]
+                ),
+                public=document.get("public", False),
+            )
+            for member in document.get("members", []):
+                if "userId" in member and member["userId"] is not None:
+                    user = User().load(member["userId"], force=True)
+                    if user:
+                        Group().addUser(project_group, user, level=AccessType.READ)
+            return self.setGroupAccess(
+                document, project_group, AccessType.READ, save=False
+            )
+        return document
+
     def validate(self, doc):
         if "status" not in doc:
             doc["status"] = "draft"
@@ -228,7 +265,13 @@ class Project(AccessControlledModel):
         super().remove(project)
 
     def update_project(self, project, updates, user):
-        protected_fields = {"_id", "creatorId", "created", "projectId", "submissionFolderId"}
+        protected_fields = {
+            "_id",
+            "creatorId",
+            "created",
+            "projectId",
+            "submissionFolderId",
+        }
         for key, value in updates.items():
             if key in protected_fields:
                 continue

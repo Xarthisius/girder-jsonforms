@@ -5,6 +5,7 @@ from girder.api.rest import (
     filtermodel,
 )
 from girder.constants import AccessType, SortDir
+from girder.exceptions import AccessException, RestException
 
 from ..models.project import Project as ProjectModel
 
@@ -34,6 +35,7 @@ class Project(Resource):
         )
         .pagingParams(defaultSort="name", defaultSortDir=SortDir.ASCENDING)
     )
+    @filtermodel(model="project", plugin="jsonforms")
     def list_project(self, level, limit, offset, sort):
         """
         List all projects.
@@ -100,6 +102,15 @@ class Project(Resource):
         Update an existing project.
         """
         user = self.getCurrentUser()
+        if project["status"] != "draft":
+            try:
+                ProjectModel().requireAccessFlags(
+                    project, user=user, flags="jsonforms.review_projects"
+                )
+            except AccessException:
+                raise RestException(
+                    "Only projects in draft status can be updated.", 403
+                )
         updates.pop("_id", None)
         return ProjectModel().update_project(project, updates, user)
 
