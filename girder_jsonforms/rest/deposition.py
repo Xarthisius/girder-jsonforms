@@ -16,6 +16,7 @@ from girder.exceptions import GirderException, RestException
 from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.utility.progress import noProgress
+from girder_oauth import providers
 from girder_sample_tracker.models.sample import Sample
 
 from ..models.deposition import Deposition as DepositionModel
@@ -29,8 +30,9 @@ orcid_headers = None
 def get_orcid_headers():
     global orcid_headers
     if orcid_headers is None:
+        provider = providers.idMap.get("orcid")
         # ORCID API endpoint
-        url = "https://pub.orcid.org/oauth/token"
+        url = provider._TOKEN_URL
 
         # Headers and payload
         data = {
@@ -50,6 +52,7 @@ def get_orcid_headers():
             "Authorization": "Bearer " + token_response.json()["access_token"],
         }
 
+    print("Using ORCID headers:", orcid_headers)
     return orcid_headers
 
 
@@ -472,11 +475,15 @@ class Deposition(Resource):
         )
     )
     def autocomplete(self, query, limit):
-        url = (
-            "https://pub.orcid.org/v3.0/expanded-search/?q="
+        provider = providers.idMap.get("orcid")
+
+        path = (
+            "expanded-search/?q="
             + urllib.parse.quote(query)
             + f"&start=0&rows={limit}"
         )
+        url = provider._API_USER_URL.format(orcid="", path=path)
+        print(f"Making ORCID API request to {url} with headers {get_orcid_headers()}")
         response = requests.get(
             url,
             headers=get_orcid_headers(),

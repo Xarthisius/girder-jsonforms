@@ -8,7 +8,6 @@ from girder.models.collection import Collection
 from girder.models.folder import Folder
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
-from girder.models.group import Group
 from girder.models.user import User
 from pymongo import ReturnDocument
 
@@ -89,6 +88,19 @@ project_schema = {
         "projectId": {"type": "string"},
         "updated": {"type": "string", "format": "date-time"},
         "submissionFolderId": {"type": "objectId"},
+        "orcidResourceUrl": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "orcid": {"type": "string"},
+                    "url": {"type": "string", "format": "uri"},
+                },
+                "required": ["orcid", "url"],
+                "additionalProperties": False,
+            },
+            "default": [],
+        },
     },
     "required": ["name", "projectId"],
     "additionalProperties": False,
@@ -159,6 +171,7 @@ class Project(AccessControlledModel):
                 "name",
                 "metadata",
                 "members",
+                "orcidResourceUrl",
                 "projectId",
                 "public",
                 "publicFlags",
@@ -174,34 +187,6 @@ class Project(AccessControlledModel):
             jsv.Draft7Validator, type_checker=custom_type_checker
         )
 
-    def ensure_group(self, event):
-        document = event.info
-        if "_id" not in document:
-            return document
-
-        original = self.load(document["_id"], force=True)
-        if (
-            original["status"] != document["status"]
-            and document["status"] == "accepted"
-        ):
-            project_group = Group().createGroup(
-                document["projectId"],
-                User().findOne({"admin": True}),
-                description="Group for project {}:{}".format(
-                    document["projectId"], document["name"]
-                ),
-                public=document.get("public", False),
-            )
-            for member in document.get("members", []):
-                if "userId" in member and member["userId"] is not None:
-                    user = User().load(member["userId"], force=True)
-                    if user:
-                        Group().addUser(project_group, user, level=AccessType.READ)
-            return self.setGroupAccess(
-                document, project_group, AccessType.READ, save=False
-            )
-        return document
-
     def validate(self, doc):
         if "status" not in doc:
             doc["status"] = "draft"
@@ -215,6 +200,8 @@ class Project(AccessControlledModel):
                 member["userId"] = bson.ObjectId(member["userId"])
         if "submissionFolderId" in doc and isinstance(doc["submissionFolderId"], str):
             doc["submissionFolderId"] = bson.ObjectId(doc["submissionFolderId"])
+        if "orcidResourceUrl" not in doc:
+            doc["orcidResourceUrl"] = []
         try:
             self.validator(project_schema).validate(doc)
         except jsonschema.ValidationError as ve:
@@ -269,6 +256,7 @@ class Project(AccessControlledModel):
             "_id",
             "creatorId",
             "created",
+            "orcidResourceUrl",
             "projectId",
             "submissionFolderId",
         }

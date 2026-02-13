@@ -9,8 +9,6 @@ from girder.exceptions import AccessException, RestException
 
 from ..models.project import Project as ProjectModel
 
-orcid_headers = None
-
 
 class Project(Resource):
     def __init__(self):
