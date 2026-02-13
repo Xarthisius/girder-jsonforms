@@ -143,6 +143,7 @@ var DepositionListWidget = View.extend({
 
     render: function () {
         this.$el.html(DepositionListWidgetTemplate({
+            user: getCurrentUser(),
             currentView: this.currentView,
             pageSize: this.collection.pageLimit,
             pageSizes: this.pageSizes,

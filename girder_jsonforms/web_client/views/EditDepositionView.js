@@ -9,6 +9,7 @@ import RelatedIdentifiersWidget from './widgets/RelatedIdentifiersWidget';
 import '../stylesheets/editDepositionView.styl';
 import template from '../templates/editDepositionView.pug';
 
+const { getCurrentUser } = girder.auth;
 const { restRequest } = girder.rest;
 const View = girder.views.View;
 
@@ -193,6 +194,10 @@ const EditDepositionView = View.extend({
 
   },
   render: function () {
+    if (!getCurrentUser()) {
+      this.$el.text("Must be logged in to edit or submit a deposition.");
+      return this;
+    }
     if (this.model) {
       this.form = this.$el.html(template({
         igsn: this.model.get('igsn'),

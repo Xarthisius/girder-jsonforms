@@ -21,9 +21,10 @@ if showPageSizeSelector
  
       .btn-group.btn-group-sm
         .g-depositions-actions
-          button.g-deposition-create-button.btn.btn-sm.btn-success(style="margin-left: 10px;")
-            i.icon-plus
-            | Create New IGSN
+          if user
+            button.g-deposition-create-button.btn.btn-sm.btn-success(style="margin-left: 10px;")
+              i.icon-plus
+              | Create New IGSN
 
 .g-main-content
 
