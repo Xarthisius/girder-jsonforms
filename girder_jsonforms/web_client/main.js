@@ -3,6 +3,8 @@ import './routes';
 import './views/ItemView';
 import './views/UserView';
 import './views/HierarchyWidget';
+import './views/ItemListWidget';
+import './views/FolderListWidget';
 import './views/widgets/DepositionListWidget';
 
 const { wrap } = girder.utilities.PluginUtils;

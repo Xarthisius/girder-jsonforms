@@ -1,0 +1,26 @@
+const $ = girder.$;
+const ItemListWidget = girder.views.widgets.ItemListWidget;
+const { wrap } = girder.utilities.PluginUtils;
+const router = girder.router;
+
+import '../stylesheets/itemListWidget.styl';
+
+wrap(ItemListWidget, 'render', function (render) {
+    render.call(this);
+
+    if (this.collection.length) {
+        this.$('.g-item-list-link').each((i, el) => {
+            const $el = $(el);
+            const cid = $el.attr("g-item-cid");
+            const item = this.collection.get(cid);
+            // show the date as Feb 16 09:24
+            const updated = new Date(item.get('updated')).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            // create a div with icon and updated date
+            const icon = '<i class="icon-pencil"></i>';
+            const updatedHtml = `<span class="g-item-updated">${icon} ${updated}</span>`;
+            $el.nextAll().last().after(updatedHtml);
+        });
+    }
+
+    return this;
+});
