@@ -13,8 +13,9 @@ wrap(FolderListWidget, 'render', function (render) {
             const $el = $(el);
             const cid = $el.attr("g-folder-cid");
             const folder = this.collection.get(cid);
-            // show the date as Feb 16 09:24
-            const updated = new Date(folder.get('updated')).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+            // show the date as Feb 16 2024, 09:24
+            const options = { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' };
+            const updated = new Date(folder.get('updated')).toLocaleString('en-US', options);
             // create a div with icon and updated date
             const icon = '<i class="icon-pencil"></i>';
             const updatedHtml = `<span class="g-folder-updated">${icon} ${updated}</span>`;
