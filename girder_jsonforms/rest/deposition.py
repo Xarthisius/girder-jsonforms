@@ -12,6 +12,7 @@ from girder.api.rest import (
 )
 from girder.constants import AccessType, SortDir, TokenScope
 from girder.exceptions import GirderException, RestException
+from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.utility.progress import noProgress
 from girder_sample_tracker.models.sample import Sample
@@ -64,6 +65,7 @@ class Deposition(Resource):
         self.route("GET", (":id",), self.get_deposition)
         self.route("PUT", (":id",), self.update_deposition)
         self.route("GET", (":id", "access"), self.get_deposition_access)
+        self.route("GET", (":id", "assets"), self.get_deposition_assets)
         self.route("PUT", (":id", "access"), self.update_deposition_access)
         self.route("PUT", (":id", "task"), self.submit_deposition_task)
         self.route("POST", (":id", "split"), self.create_child_deposition)
@@ -173,6 +175,13 @@ class Deposition(Resource):
     )
     @filtermodel(model="deposition", plugin="jsonforms")
     def get_deposition(self, deposition):
+        assets_folder = DepositionModel()._get_assets_folder(deposition)
+        image = Item().findOne(
+            {"folderId": assets_folder["_id"], "meta.type": "deposition_image"},
+            sort=[("created", SortDir.DESCENDING)]
+        )
+        if image:
+            deposition["imageId"] = image["_id"]
         return deposition
 
     @access.user
@@ -504,3 +513,19 @@ class Deposition(Resource):
         if deposition["state"] != "draft":
             raise RestException("Only draft depositions can be deleted.")
         DepositionModel().remove(deposition)
+
+    @access.public
+    @autoDescribeRoute(
+        Description("Get the assets folder associated with a deposition")
+        .modelParam(
+            "id",
+            model=DepositionModel,
+            plugin="jsonforms",
+            paramType="path",
+            required=True,
+            level=AccessType.READ,
+        )
+    )
+    @filtermodel(model="folder")
+    def get_deposition_assets(self, deposition):
+        return DepositionModel()._get_assets_folder(deposition)

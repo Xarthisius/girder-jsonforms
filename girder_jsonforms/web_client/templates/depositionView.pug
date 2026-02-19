@@ -25,6 +25,10 @@
         if (level >= AccessType.WRITE)
           li.divider(role="presentation")
           li(role="presentation")
+            a.g-upload-deposition-image(role="menuitem")
+              i.icon-upload
+              | Upload Image
+          li(role="presentation")
             a.g-split-deposition(role="menuitem")
               i.icon-unlink
               | Split
@@ -38,22 +42,17 @@
   h1.g-deposition-title
     | IGSN
 
-  .g-sample-code
-    canvas#g-qr-code
-    if trackerUrl !== "#sample/null"
-      p.center-text
-        i.icon-compass
-        a.g-sample-tracker-link(href=trackerUrl, title="Tracker link")
-          | See Sample Tracker
+  .g-three-column-layout
+    .g-main-content
+      .g-left-column
+        .g-deposition-content
+        .g-deposition-content-header
+          .g-deposition-content-header-left
+            h2.g-deposition-content-header-title
+              = metadata.titles[0]["title"]
 
-  .g-deposition-content
-    .g-deposition-content-header
-      .g-deposition-content-header-left
-        h2.g-deposition-content-header-title
-          = metadata.titles[0]["title"]
-
-    .g-deposition-content-body
-      .g-deposition-content-body-left
+        .g-deposition-content-body
+          .g-deposition-content-body-left
         .g-deposition-content-body-left-item
           .g-deposition-info-line
             i.icon-doc
@@ -131,7 +130,21 @@
               if val > 0
                 .g-deposition-info-line
                   span.text-muted= 'Hidden "' + key + '" related identifiers (' + val + ')'
-        .g-deposition-content-body-left-item
+          .g-deposition-content-body-left-item
+
+      .g-middle-column
+        .g-sample-image-container
+          if imageUrl
+            img.g-sample-image(src=imageUrl, alt="Sample Image")
+
+    .g-qr-column
+      .g-sample-code
+        canvas#g-qr-code
+        if trackerUrl !== "#sample/null"
+          p.center-text
+            i.icon-compass
+            a.g-sample-tracker-link(href=trackerUrl, title="Tracker link")
+              | See Sample Tracker
 
 .g-search-container
   h3

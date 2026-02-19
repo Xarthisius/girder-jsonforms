@@ -38,6 +38,10 @@ logger = logging.getLogger(__name__)
 
 
 def annotate_uploads(event):
+    file = event.info["file"]
+    if "itemId" not in file:
+        return
+
     info = event.info
     if "reference" not in info:
         return
@@ -54,6 +58,14 @@ def annotate_uploads(event):
         reference.pop("file", None)
         reference.pop("annotate", None)
         Item().setMetadata(parent, reference)
+
+    if not isinstance(reference, dict) or not reference.get("igsn") or not reference.get("type"):
+        return
+
+    item = Item().load(file["itemId"], force=True)
+    if item is None:
+        return
+    Item().setMetadata(item, {"igsn": reference["igsn"], "type": reference["type"]})
 
 
 def upload_to_gdrive(event):

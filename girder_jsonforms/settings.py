@@ -5,6 +5,7 @@ from girder.exceptions import ValidationException
 from girder.utility import setting_utilities
 
 INST_CODE = re.compile(r"^[A-Z]{2}$")
+COLLECTION_NAME = "IGSN Assets"
 
 
 class PluginSettings:

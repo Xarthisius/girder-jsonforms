@@ -22,6 +22,8 @@ const AccessWidget = girder.views.widgets.AccessWidget;
 const View = girder.views.View;
 const { restRequest } = girder.rest;
 const SearchPaginateWidget = girder.views.widgets.SearchPaginateWidget;
+const UploadWidget = girder.views.widgets.UploadWidget;
+const FolderModel = girder.models.FolderModel;
 
 const QRparams = {
   'errorCorrectionLevel': 'H',
@@ -92,6 +94,36 @@ var DepositionView = View.extend({
         },
         'click .g-back': function () {
             girder.router.navigate('depositions', {trigger: true});
+        },
+        'click .g-upload-deposition-image': function() {
+            var container = $('#g-dialog-container');
+            restRequest({
+                "type": 'GET',
+                "url": `deposition/${this.model.id}/assets`,
+                error: null
+            }).done((resp) => {
+                var folder = new FolderModel();
+                folder.set(resp);
+                new UploadWidget({
+                    el: container,
+                    parentView: this,
+                    parentType: 'folder',
+                    parent: folder,
+                    title: 'Upload Deposition Image',
+                    multiFile: false,
+                    onlyFiles: true,
+                    otherParams: {reference: JSON.stringify({igsn: this.model.get('igsn'), type: 'deposition_image'})},
+                }).on('g:uploadFinished', (info) => {
+                    const fileId = info.files[0].id;
+                    $('.g-sample-image').attr('src', `${getApiRoot()}/file/${fileId}/download?contentDisposition=inline`);
+                    handleClose('upload');
+                }, this).render();
+            }).fail((resp) => {
+                events.trigger('g:alert', {
+                    text: resp.responseJSON.message || 'An error occurred while fetching the deposition assets.',
+                    type: 'danger'
+                });
+            });
         },
         'click .g-split-deposition': function () {
             new SplitDialog({
@@ -167,7 +199,8 @@ var DepositionView = View.extend({
             trackerUrl: `#sample/${this.model.get('sampleId')}`,
             AccessType: AccessType,
             relIds: reducedIdentifiers,
-            level: this.model.getAccessLevel()
+            level: this.model.getAccessLevel(),
+            imageUrl: this.model.get('imageId') ? `${getApiRoot()}/item/${this.model.get('imageId')}/download?contentDisposition=inline` : null,
         }));
         this._subviews = {};
         this._searchRequest.done((results) => {

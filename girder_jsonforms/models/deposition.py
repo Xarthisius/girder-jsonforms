@@ -9,6 +9,8 @@ from girder import events
 from girder.api.rest import getApiUrl
 from girder.constants import AccessType
 from girder.exceptions import GirderException, ValidationException
+from girder.models.collection import Collection
+from girder.models.folder import Folder
 from girder.models.model_base import AccessControlledModel, Model
 from girder.models.setting import Setting
 from girder.models.user import User
@@ -20,7 +22,7 @@ from pymongo import ReturnDocument
 import jsonschema
 
 from ..lib.project_helpers import batch_indices
-from ..settings import PluginSettings
+from ..settings import COLLECTION_NAME, PluginSettings
 from .form import Form
 
 logger = logging.getLogger(__name__)
@@ -99,6 +101,7 @@ class Deposition(AccessControlledModel):
                 "created",
                 "creatorId",
                 "igsn",
+                "imageId",
                 "metadata",
                 "parentId",
                 "public",
@@ -588,6 +591,7 @@ class Deposition(AccessControlledModel):
             )
 
         doc = super().setAccessList(doc, access, user=user, save=save, force=force)
+        self._get_assets_folder(doc)
 
         if recurse:
             children = self.findWithPermissions(
@@ -630,3 +634,23 @@ class Deposition(AccessControlledModel):
                 )
 
         return doc
+
+    def _get_assets_folder(self, deposition):
+        collection = Collection().createCollection(
+            COLLECTION_NAME,
+            public=False,
+            reuseExisting=True
+        )
+        folder = Folder().createFolder(
+            collection,
+            deposition["igsn"],
+            parentType="collection",
+            public=True,
+            reuseExisting=True
+        )
+        current_access = Folder().getFullAccessList(folder)
+        access = self.getFullAccessList(deposition)
+        if current_access != access:
+            folder = Folder().setAccessList(folder, access, save=True, user=None, force=True)
+
+        return folder
