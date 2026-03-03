@@ -79,6 +79,26 @@ project_schema = {
             },
             "default": [],
         },
+        "instruments": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                },
+                "additionalProperties": False,
+                "required": ["name"],
+            },
+            "default": [],
+        },
+        "projectType": {
+            "type": "string",
+            "enum": ["integrated", "singleInstrument", "development"],
+            "default": "integrated",
+        },
+        "priority": {
+            "type": "number",
+        },
         "status": {
             "type": "string",
             "enum": ["draft", "under review", "accepted", "rejected"],
@@ -168,11 +188,14 @@ class Project(AccessControlledModel):
                 "creatorId",
                 "description",
                 "files",
+                "instruments",
                 "name",
                 "metadata",
                 "members",
                 "orcidResourceUrl",
+                "priority",
                 "projectId",
+                "projectType",
                 "public",
                 "publicFlags",
                 "submissionFolderId",
@@ -202,6 +225,14 @@ class Project(AccessControlledModel):
             doc["submissionFolderId"] = bson.ObjectId(doc["submissionFolderId"])
         if "orcidResourceUrl" not in doc:
             doc["orcidResourceUrl"] = []
+        if "instruments" not in doc:
+            doc["instruments"] = []
+        if "projectType" not in doc:
+            doc["projectType"] = "integrated"
+        try:
+            doc["priority"] = int(doc.get("priority", 0))
+        except (ValueError, TypeError):
+            raise ValidationException("Priority must be an integer")
         try:
             self.validator(project_schema).validate(doc)
         except jsonschema.ValidationError as ve:
