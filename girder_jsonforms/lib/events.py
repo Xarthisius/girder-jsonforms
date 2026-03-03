@@ -1,4 +1,5 @@
 from girder.constants import AccessType
+from girder.models.collection import Collection
 from girder.models.group import Group
 from girder.models.user import User
 
@@ -13,12 +14,11 @@ def ensure_group(event):
 
     original = Project().load(document["_id"], force=True)
     if original["status"] != document["status"] and document["status"] == "accepted":
+        admin = User().findOne({"admin": True})
         project_group = Group().createGroup(
             document["projectId"],
-            User().findOne({"admin": True}),
-            description="Group for project {}:{}".format(
-                document["projectId"], document["name"]
-            ),
+            admin,
+            description="Group for project {}".format(document["projectId"]),
             public=document.get("public", False),
         )
         for member in document.get("members", []):
@@ -26,7 +26,15 @@ def ensure_group(event):
                 user = User().load(member["userId"], force=True)
                 if user:
                     Group().addUser(project_group, user, level=AccessType.READ)
-        return Project().setGroupAccess(
+        project_collection = Collection().createCollection(
+            document["projectId"],
+            admin,
+            description="Collection for project {}".format(document["projectId"]),
+        )
+        project_collection = Collection().setGroupAccess(
+            project_collection, project_group, AccessType.READ
+        )
+        document = Project().setGroupAccess(
             document, project_group, AccessType.READ, save=False
         )
     register_project_with_orcid.delay(
