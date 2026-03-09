@@ -27,22 +27,7 @@ _resource_items = [
     {
         "resource-name": "MAXIMA",
         "resource-type": "equipment",
-        "hosts": {
-            "organization": [
-                {
-                    "name": "Hopkins Extreme Materials Institute",
-                    "address": {
-                        "city": "Baltimore",
-                        "region": "Maryland",
-                        "country": "US",
-                    },
-                    "disambiguated-organization": {
-                        "disambiguated-organization-identifier": "https://ror.org/02ed2th17",
-                        "disambiguation-source": "ROR",
-                    },
-                }
-            ]
-        },
+        "hosts": _hosts,
         "external-ids": {
             "external-id": [
                 {
@@ -58,22 +43,7 @@ _resource_items = [
     {
         "resource-name": "HELIX",
         "resource-type": "equipment",
-        "hosts": {
-            "organization": [
-                {
-                    "name": "Hopkins Extreme Materials Institute",
-                    "address": {
-                        "city": "Baltimore",
-                        "region": "Maryland",
-                        "country": "US",
-                    },
-                    "disambiguated-organization": {
-                        "disambiguated-organization-identifier": "https://ror.org/02ed2th17",
-                        "disambiguation-source": "ROR",
-                    },
-                }
-            ]
-        },
+        "hosts": _hosts,
         "external-ids": {
             "external-id": [
                 {
@@ -85,6 +55,22 @@ _resource_items = [
             ]
         },
         "url": "https://hemi.jhu.edu/caimee/center-facilities/aimd-l/#1745356027264-0fcae1de-66a4",
+    },
+    {
+        "resource-name": "SPHINX",
+        "resource-type": "equipment",
+        "hosts": _hosts,
+        "external-ids": {
+            "external-id": [
+                {
+                    "external-id-type": "doi",
+                    "external-id-value": "10.34863/0njd-tk10",
+                    "external-id-url": "https://doi.org/10.34863/0njd-tk10",
+                    "external-id-relationship": "self",
+                }
+            ]
+        },
+        "url": "https://hemi.jhu.edu/caimee/center-facilities/aimd-l/#1745438879173-208b1f97-0fd2",
     },
 ]
 
@@ -125,7 +111,6 @@ def register_project_with_orcid(user_id, project_id):
         url = api_url.format(orcid=token["orcid"], path="/research-resource")
         method = "POST"
 
-
     now = datetime.datetime.now(datetime.UTC)
     end = now + datetime.timedelta(days=180)
     payload = {
@@ -152,7 +137,9 @@ def register_project_with_orcid(user_id, project_id):
                 "month": {"value": end.month},
                 "day": {"value": end.day},
             },
-            "url": {"value": f"https://projects.{_domain}/proposa/{project['projectId']}"},
+            "url": {
+                "value": f"https://projects.{_domain}/proposa/{project['projectId']}"
+            },
         },
         "resource-item": _resource_items,
     }
