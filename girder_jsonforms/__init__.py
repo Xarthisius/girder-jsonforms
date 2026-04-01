@@ -27,6 +27,7 @@ from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
+from .rest.aimdl import AIMDL
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
@@ -275,6 +276,7 @@ class JSONFormsPlugin(GirderPlugin):
     def load(self, info):
         from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
 
+        Item().ensureIndices([("meta.data_type", {"unique": False})])
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
         ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
@@ -288,6 +290,7 @@ class JSONFormsPlugin(GirderPlugin):
             except ValueError:
                 logger.exception("Failed to authenticate with Google Drive")
         info["apiRoot"].item.route("GET", ("query",), _item_advanced_search)
+        info["apiRoot"].aimdl = AIMDL()
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
