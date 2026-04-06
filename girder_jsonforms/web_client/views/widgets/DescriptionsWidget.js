@@ -66,15 +66,14 @@ const DescriptionsWidget = View.extend({
     }
   },
   _updateDescriptions: function () {
-      const items = this.$('.g-descriptions-list li').toArray();
-      console.log(items);
-      this.descriptions = items.map((item) => {
+      const items = document.querySelectorAll('.g-description-item');
+      const descriptions = Array.from(items).map(item => {
           return {
-              descriptionType: $(item).find('.g-description-type').val(),
-              description: $(item).find('.g-description-description').val()
+              descriptionType: item.querySelector('select[name="type"]').value,
+              description: item.querySelector('textarea[name="description"]').value
           };
       });
-      console.log(this.descriptions);
+      this.descriptions = descriptions;
   },
 
 });
