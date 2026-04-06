@@ -437,10 +437,10 @@ class Deposition(AccessControlledModel):
             deposition = self.save(deposition)
 
         if batch > 0:
-            igsn_indices = [f"{i+1:02d}" for i in range(batch)]
+            igsn_indices = [f"{i+1:03d}" for i in range(batch)]
             if local_identifier := self.local_identifier(metadata):
                 # If a local identifier is provided, use it for all indices
-                local_indices = [f"{local_identifier}-{i+1:02d}" for i in range(batch)]
+                local_indices = [f"{local_identifier}-{i+1:03d}" for i in range(batch)]
             else:
                 local_indices = [None] * batch
             indices = list(zip(igsn_indices, local_indices))

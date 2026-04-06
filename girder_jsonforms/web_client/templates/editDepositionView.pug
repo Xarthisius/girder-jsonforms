@@ -77,10 +77,10 @@ form#g-deposition-form(role="form")
                     | Enable Sample Tracking of this IGSN
               .form-group
                 label(for="g-deposition-batch") Number of subsamples
-                input#g-deposition-batch.form-control(type="number" name="batch" value="0" min="0" max="99")
+                input#g-deposition-batch.form-control(type="number" name="batch" value="0" min="0" max="999")
                 small.form-text.text-muted
                   | If the number of subsamples is greater than 0, the additional IGSNs will be generated
-                  | with a suffix -01, -02, ... up to N. If 0, a single IGSN will be generated.
+                  | with a suffix -001, -002, ... up to N. If 0, a single IGSN will be generated.
 
   button#g-deposition-cancel.btn.btn-secondary(type="button") Cancel
     button#g-add-deposition-btn.btn.btn-primary(type="submit") Save
