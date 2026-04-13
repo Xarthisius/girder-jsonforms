@@ -178,7 +178,7 @@ class Deposition(Resource):
         assets_folder = DepositionModel()._get_assets_folder(deposition)
         image = Item().findOne(
             {"folderId": assets_folder["_id"], "meta.type": "deposition_image"},
-            sort=[("created", SortDir.DESCENDING)]
+            sort=[("created", SortDir.DESCENDING)],
         )
         if image:
             deposition["imageId"] = image["_id"]
@@ -241,13 +241,20 @@ class Deposition(Resource):
             required=True,
             level=AccessType.WRITE,
         )
-        .param("suffix", "The suffix for IGSN", required=True, dataType="string")
+        .param("suffix", "The suffix for IGSN", required=False, dataType="string")
         .param(
             "track",
             "Create a sample tracker for IGSN",
             required=False,
             dataType="boolean",
             default=False,
+        )
+        .param(
+            "batch",
+            "The number of subsamples to create in the deposition",
+            required=False,
+            dataType="integer",
+            default=0,
         )
         .jsonParam(
             "metadata",
@@ -257,20 +264,45 @@ class Deposition(Resource):
         )
     )
     @filtermodel(model="deposition", plugin="jsonforms")
-    def create_child_deposition(self, deposition, suffix, track, metadata):
+    def create_child_deposition(self, deposition, suffix, track, batch, metadata):
+        if suffix and batch > 0:
+            raise RestException("Cannot specify both suffix and batch parameters.")
+        if not (suffix or batch > 0):
+            raise RestException("Must specify either suffix or batch parameter.")
         # check if suffix is valid (non empty and alphanumeric)
-        if not suffix or not re.match(r"^[a-zA-Z0-9]+$", suffix):
+        if suffix and not re.match(r"^[a-zA-Z0-9]+$", suffix):
             raise RestException("Suffix must be a non-empty alphanumeric string.")
-
-        new_igsn = f"{deposition['igsn']}-{suffix}"
-        if DepositionModel().findOne({"igsn": new_igsn}):
-            raise RestException(f"Deposition with IGSN {new_igsn} already exists.")
+            new_igsn = f"{deposition['igsn']}-{suffix}"
+            if DepositionModel().findOne({"igsn": new_igsn}):
+                raise RestException(f"Deposition with IGSN {new_igsn} already exists.")
 
         local_identifier = DepositionModel().local_identifier(deposition["metadata"])
-        if local_identifier:
-            local_identifier = f"{local_identifier}-{suffix}"
-        indices = [(suffix, local_identifier)]
+        if batch > 0:
+            # find the highest existing batch number for this deposition
+            existing_batches = DepositionModel().find(
+                {"igsn": {"$regex": f"^{deposition['igsn']}-(\\d+)$"}}
+            )
+            max_batch = 0
+            for batch_deposition in existing_batches:
+                batch_num = int(batch_deposition["igsn"].split("-")[-1])
+                max_batch = max(max_batch, batch_num)
+
+            suffix = f"batch{max_batch + 1}"
+            indices = []
+            for i in range(batch):
+                batch_suffix = f"{max_batch + 1 + i:03d}"
+                indices.append(
+                    (
+                        batch_suffix,
+                        f"{local_identifier}-{batch_suffix}"
+                        if local_identifier
+                        else None,
+                    )
+                )
+        else:
+            indices = [(suffix, f"{local_identifier}-{suffix}" if local_identifier else None)]
         # Is not saved, but that's what's checked
+        print(indices)
         deposition.update(
             {
                 "created:": datetime.datetime.now(datetime.UTC),
@@ -516,8 +548,7 @@ class Deposition(Resource):
 
     @access.public
     @autoDescribeRoute(
-        Description("Get the assets folder associated with a deposition")
-        .modelParam(
+        Description("Get the assets folder associated with a deposition").modelParam(
             "id",
             model=DepositionModel,
             plugin="jsonforms",

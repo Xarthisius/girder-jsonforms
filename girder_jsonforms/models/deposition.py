@@ -480,6 +480,13 @@ class Deposition(AccessControlledModel):
         for index in indices:
             metadata = copy.deepcopy(main_deposition["metadata"])
             metadata["relatedIdentifiers"].append(relatedIdentifier)
+            # remove all hasPart relations from the child metadata to avoid circular references
+            relatedIdentifiers = metadata.get("relatedIdentifiers", [])
+            metadata["relatedIdentifiers"] = [
+                relatedIdentifier
+                for relatedIdentifier in relatedIdentifiers
+                if relatedIdentifier["relationType"] != "HasPart"
+            ]
             metadata.pop("url", None)
             metadata.pop("doi", None)
             titles = metadata.pop("titles")

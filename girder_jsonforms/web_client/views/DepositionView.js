@@ -42,11 +42,30 @@ var SplitDialog = View.extend({
       const data = $(e.currentTarget).serializeArray();
       const params = new Map(data.map((obj) => [obj.name, obj.value]));
       const suffix = params.get('suffix') || '';
-      // validate that the suffix is not empty and only consist of alphanumeric characters
-      if (!suffix || !/^[a-zA-Z0-9]+$/.test(suffix)) {
+      const batch = parseInt(params.get('batch'), 10);
+
+      // validate that batch or suffix is provided, but not both
+      // if batch is provided, validate that it's a positive integer
+      // if both batch and suffix are provided, or neither is provided, show an error message
+      if ((!batch && !suffix) || (batch && suffix)) {
         this.$('#g-split-btn').girderEnable(true);
-        this.$('.g-validation-failed-message').text('Suffix must be a non-empty alphanumeric string.');
+        this.$('.g-validation-failed-message').text('Please provide either a batch size or a suffix, but not both.');
         return ;
+      }
+      if (batch) {
+        if (isNaN(batch) || batch <= 0) {
+          this.$('#g-split-btn').girderEnable(true);
+          this.$('.g-validation-failed-message').text('Batch size must be a positive integer.');
+          return ;
+        }
+        params.set('batch', batch);
+      }
+      if (suffix) {
+        if (!/^[a-zA-Z0-9]+$/.test(suffix)) {
+          this.$('#g-split-btn').girderEnable(true);
+          this.$('.g-validation-failed-message').text('Suffix must be a non-empty alphanumeric string.');
+          return ;
+        }
       }
       restRequest({
         type: 'POST',
