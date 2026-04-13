@@ -61,7 +61,7 @@ class AIMDL(Resource):
         if since:
             q["updated"] = {"$gt": dateutil.parser.parse(since)}
 
-        if dataType == "xrd_raw":
+        if dataType in ("xrd_raw", "xrd_calibrant_raw"):
             return self._xrd_map(q, user=user)
         else:
             raise RestException(
@@ -77,7 +77,13 @@ class AIMDL(Resource):
     )
     @filtermodel(model=Item)
     def get_partition(self, key, dataType):
-        igsn, experiment_date = key.split("//")
+        try:
+            igsn, experiment_date = key.split("//")
+        except ValueError:
+            raise RestException(
+                "Invalid partition key format. Expected 'igsn//experiment_date',"
+                f"got '{key}'."
+            )
         print(igsn, experiment_date)
         user = self.getCurrentUser()
         aimdl_collection = Collection().load(
