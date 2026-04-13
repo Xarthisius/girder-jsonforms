@@ -16,10 +16,36 @@ class AIMDL(Resource):
     def __init__(self):
         super().__init__()
         self.resourceName = "aimdl"
+        self.route("GET", ("count",), self.count_datafiles)
         self.route("GET", ("datatype",), self.get_datatypes)
         self.route("GET", ("datafiles",), self.get_items_by_datatype)
         self.route("GET", ("partition",), self.list_partitions)
         self.route("GET", ("partition", "details"), self.get_partition)
+
+    @access.public
+    @autoDescribeRoute(
+        Description("Count the number of data files per type in the AIMDL collection.")
+    )
+    def count_datafiles(self):
+        aimdl_collection = Collection().load(_AIMDL_COLLECTION_ID, force=True)
+        if not aimdl_collection:
+            raise RestException("AIMDL collection not found.", code=404)
+        pipeline = [
+            {
+                "$match": {
+                    "baseParentId": aimdl_collection["_id"],
+                    "baseParentType": "collection",
+                }
+            },
+            {"$group": {"_id": "$meta.data_type", "count": {"$sum": 1}}},
+        ]
+        results = {}
+        for result in Item().collection.aggregate(pipeline):
+            if result["_id"] is not None:
+                results[result["_id"]] = result["count"]
+            else:
+                results["unclassified"] = result["count"]
+        return results
 
     @access.user
     @autoDescribeRoute(
