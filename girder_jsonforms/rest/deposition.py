@@ -2,6 +2,7 @@ import datetime
 import re
 import urllib.parse
 
+import pymongo
 import requests
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
@@ -270,8 +271,9 @@ class Deposition(Resource):
         if not (suffix or batch > 0):
             raise RestException("Must specify either suffix or batch parameter.")
         # check if suffix is valid (non empty and alphanumeric)
-        if suffix and not re.match(r"^[a-zA-Z0-9]+$", suffix):
-            raise RestException("Suffix must be a non-empty alphanumeric string.")
+        if suffix:
+            if not re.match(r"^[a-zA-Z0-9]+$", suffix):
+                raise RestException("Suffix must be a non-empty alphanumeric string.")
             new_igsn = f"{deposition['igsn']}-{suffix}"
             if DepositionModel().findOne({"igsn": new_igsn}):
                 raise RestException(f"Deposition with IGSN {new_igsn} already exists.")
@@ -300,9 +302,10 @@ class Deposition(Resource):
                     )
                 )
         else:
-            indices = [(suffix, f"{local_identifier}-{suffix}" if local_identifier else None)]
+            indices = [
+                (suffix, f"{local_identifier}-{suffix}" if local_identifier else None)
+            ]
         # Is not saved, but that's what's checked
-        print(indices)
         deposition.update(
             {
                 "created:": datetime.datetime.now(datetime.UTC),
@@ -311,7 +314,10 @@ class Deposition(Resource):
                 "track": track,
             }
         )
-        result = DepositionModel().create_batch(deposition, indices)
+        try:
+            result = DepositionModel().create_batch(deposition, indices)
+        except pymongo.errors.BulkWriteError as e:
+            raise RestException(f"Error creating child depositions: {e.details}")
         return DepositionModel().load(
             result.inserted_ids[0], user=self.getCurrentUser()
         )
