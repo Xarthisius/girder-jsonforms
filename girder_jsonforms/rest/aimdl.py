@@ -1,4 +1,5 @@
 import hashlib
+import logging
 
 import dateutil.parser
 from girder.api import access
@@ -10,6 +11,7 @@ from girder.models.collection import Collection
 from girder.models.item import Item
 
 _AIMDL_COLLECTION_ID = "665de536bcc722774ce53754"  # TODO: make this configurable
+logger = logging.getLogger(__name__)
 
 
 class AIMDL(Resource):
@@ -87,8 +89,8 @@ class AIMDL(Resource):
         if since:
             q["updated"] = {"$gt": dateutil.parser.parse(since)}
 
-        if dataType in ("xrd_raw", "xrd_calibrant_raw"):
-            return self._xrd_map(q, user=user)
+        if dataType.startswith("xrd"):
+            return self._igsn_date_map(q, user=user)
         else:
             raise RestException(
                 f"Data type {dataType} is not supported for partitions."
@@ -110,7 +112,6 @@ class AIMDL(Resource):
                 "Invalid partition key format. Expected 'igsn//experiment_date',"
                 f"got '{key}'."
             )
-        print(igsn, experiment_date)
         user = self.getCurrentUser()
         aimdl_collection = Collection().load(
             _AIMDL_COLLECTION_ID, user=user, level=AccessType.READ, exc=True
@@ -127,7 +128,7 @@ class AIMDL(Resource):
         return Item().findWithPermissions(q, user=user, level=AccessType.READ)
 
     @staticmethod
-    def _xrd_map(q, user=None):
+    def _igsn_date_map(q, user=None):
         fields = {
             "meta.igsn": 1,
             "meta.checksum": 1,
@@ -145,7 +146,7 @@ class AIMDL(Resource):
             try:
                 key = item["meta"]["igsn"] + "//" + item["meta"]["experiment_date"]
             except KeyError:
-                print(
+                logger.warning(
                     "Item {} is missing either an IGSN or an experiment date.".format(
                         item["_id"]
                     )
@@ -157,11 +158,13 @@ class AIMDL(Resource):
             try:
                 igsn_map[key].append(item["meta"]["checksum"]["sha256"])
             except KeyError:
-                print("Item {} is missing a sha256 checksum.".format(item["_id"]))
+                logger.warning(
+                    "Item {} is missing a sha256 checksum.".format(item["_id"])
+                )
         result = {}
-        for key, scans in igsn_map.items():
+        for key, checksums in igsn_map.items():
             sha256 = hashlib.sha256()
-            sha256.update("".join(sorted(scans)).encode("utf-8"))
+            sha256.update("".join(sorted(checksums)).encode("utf-8"))
             result[key] = sha256.hexdigest()
         return result
 
