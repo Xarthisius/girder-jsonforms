@@ -1,11 +1,12 @@
 import hashlib
+import json
 import logging
 
 import dateutil.parser
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import Resource, filtermodel
-from girder.constants import AccessType
+from girder.api.rest import Resource, boundHandler, filtermodel
+from girder.constants import AccessType, TokenScope
 from girder.exceptions import RestException
 from girder.models.collection import Collection
 from girder.models.item import Item
@@ -222,3 +223,41 @@ class AIMDL(Resource):
             offset=offset,
             fields=fields,
         )
+
+
+@access.public(scope=TokenScope.DATA_READ)
+@boundHandler
+def append_vega(self, event):
+    item_response = event.info["returnVal"]
+    item_response["meta"] = item_response.get("meta", {})
+    vega_meta = {}
+    vega_spec = {
+        "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+        "width": "container",
+        "mark": "line",
+        "encoding": {
+            "x": {"field": "x", "title": "placeholder", "type": "quantitative"},
+            "y": {"field": "y", "title": "Intensity", "type": "quantitative"},
+        },
+    }
+    if item_response["name"].endswith(".xrf"):
+        vega_spec["encoding"]["x"]["title"] = "Channel"
+        vega_meta.update(
+            {
+                "vega": json.dumps(vega_spec),
+                "vega:separator": " ",
+                "vega:skipRows": 11,
+            }
+        )
+    elif item_response["name"].endswith("xrd.csv"):
+        vega_spec["encoding"]["x"]["title"] = "Angle 2θ"
+        vega_meta.update(
+            {
+                "vega": json.dumps(vega_spec),
+                "vega:separator": ",",
+                "vega:skipRows": 1,
+            }
+        )
+    vega_meta.update(item_response["meta"])  # preserve existing metadata
+    item_response["meta"] = vega_meta
+    event.addResponse(item_response)

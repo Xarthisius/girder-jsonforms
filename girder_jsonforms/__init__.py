@@ -27,7 +27,7 @@ from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
-from .rest.aimdl import AIMDL
+from .rest.aimdl import AIMDL, append_vega
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
@@ -302,6 +302,7 @@ class JSONFormsPlugin(GirderPlugin):
         events.bind(
             "rest.delete.folder/:id.before", "jsonforms", _delayed_delete_folder
         )
+        events.bind("rest.get.item/:id.after", "jsonforms", append_vega)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:
