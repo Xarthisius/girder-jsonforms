@@ -10,6 +10,7 @@ from girder.constants import AccessType, TokenScope
 from girder.exceptions import RestException
 from girder.models.collection import Collection
 from girder.models.item import Item
+from girder.models.user import User
 
 _AIMDL_COLLECTION_ID = "665de536bcc722774ce53754"  # TODO: make this configurable
 logger = logging.getLogger(__name__)
@@ -25,21 +26,43 @@ class AIMDL(Resource):
         self.route("GET", ("partition",), self.list_partitions)
         self.route("GET", ("partition", "details"), self.get_partition)
 
+    @staticmethod
+    def _get_base_parent(parentType=None, parentId=None, user=None):
+        if not parentType or not parentId:
+            aimdl_collection = Collection().load(_AIMDL_COLLECTION_ID, force=True)
+            return {
+                "baseParentId": aimdl_collection["_id"],
+                "baseParentType": "collection",
+            }
+        if parentType == "collection":
+            parent = Collection().load(
+                parentId, user=user, level=AccessType.READ, exc=True
+            )
+        elif parentType == "user":
+            parent = User().load(parentId, user=user, level=AccessType.READ, exc=True)
+        else:
+            raise RestException("Invalid parent type: {}".format(parentType), code=400)
+        return {"baseParentId": parent["_id"], "baseParentType": parentType}
+
     @access.public
     @autoDescribeRoute(
         Description("Count the number of data files per type in the AIMDL collection.")
+        .param(
+            "baseParentId",
+            "The ID of the parent collection to count items in.",
+            required=False,
+        )
+        .param(
+            "baseParentType",
+            "The type of the parent",
+            enum=["user", "collection"],
+            required=False,
+        )
     )
-    def count_datafiles(self):
-        aimdl_collection = Collection().load(_AIMDL_COLLECTION_ID, force=True)
-        if not aimdl_collection:
-            raise RestException("AIMDL collection not found.", code=404)
+    def count_datafiles(self, baseParentType, baseParentId):
+        base_parent = self._get_base_parent(baseParentType, baseParentId, user=self.getCurrentUser())
         pipeline = [
-            {
-                "$match": {
-                    "baseParentId": aimdl_collection["_id"],
-                    "baseParentType": "collection",
-                }
-            },
+            {"$match": base_parent},
             {"$group": {"_id": "$meta.data_type", "count": {"$sum": 1}}},
         ]
         results = {}
@@ -71,26 +94,34 @@ class AIMDL(Resource):
             "Only return items updated since this date (ISO 8601 format).",
             required=False,
         )
+        .param(
+            "baseParentId",
+            "The ID of the parent collection to count items in.",
+            required=False,
+        )
+        .param(
+            "baseParentType",
+            "The type of the parent",
+            enum=["user", "collection"],
+            required=False,
+        )
         .errorResponse("You are not authorized to access this resource.", 403)
     )
-    def list_partitions(self, dataType, since):
+    def list_partitions(self, dataType, since, baseParentType, baseParentId):
         """
         Get a list of IGSNS and correspoding items
         """
         user = self.getCurrentUser()
-        aimdl_collection = Collection().load(
-            _AIMDL_COLLECTION_ID, user=user, level=AccessType.READ, exc=True
-        )
+        base_parent = self._get_base_parent(baseParentType, baseParentId, user)
         q = {
-            "baseParentId": aimdl_collection["_id"],
-            "baseParentType": "collection",
             "meta.data_type": dataType,
             "meta.igsn": {"$exists": True},
         }
+        q.update(base_parent)
         if since:
             q["updated"] = {"$gt": dateutil.parser.parse(since)}
 
-        if dataType.startswith("xrd"):
+        if dataType.startswith("xrd") or dataType.startswith("xrf"):
             return self._igsn_date_map(q, user=user)
         else:
             raise RestException(
@@ -102,10 +133,21 @@ class AIMDL(Resource):
         Description("Get a Dagster partition for a given dataType")
         .param("key", "The partition key", required=True)
         .param("dataType", "The data type to filter items by.", required=False)
+        .param(
+            "baseParentId",
+            "The ID of the parent collection to count items in.",
+            required=False,
+        )
+        .param(
+            "baseParentType",
+            "The type of the parent",
+            enum=["user", "collection"],
+            required=False,
+        )
         .errorResponse("You are not authorized to access this resource.", 403)
     )
     @filtermodel(model=Item)
-    def get_partition(self, key, dataType):
+    def get_partition(self, key, dataType, baseParentType, baseParentId):
         try:
             igsn, experiment_date = key.split("//")
         except ValueError:
@@ -114,15 +156,12 @@ class AIMDL(Resource):
                 f"got '{key}'."
             )
         user = self.getCurrentUser()
-        aimdl_collection = Collection().load(
-            _AIMDL_COLLECTION_ID, user=user, level=AccessType.READ, exc=True
-        )
+        base_parent = self._get_base_parent(baseParentType, baseParentId, user)
         q = {
-            "baseParentId": aimdl_collection["_id"],
-            "baseParentType": "collection",
             "meta.igsn": igsn,
             "meta.experiment_date": experiment_date,
         }
+        q.update(base_parent)
         if dataType:
             q["meta.data_type"] = dataType
 
@@ -174,10 +213,21 @@ class AIMDL(Resource):
     @autoDescribeRoute(
         Description("Get a list of items with a specific data type.")
         .param("dataType", "The data type to filter items by.", required=True)
+        .param(
+            "baseParentId",
+            "The ID of the parent collection to count items in.",
+            required=False,
+        )
+        .param(
+            "baseParentType",
+            "The type of the parent",
+            enum=["user", "collection"],
+            required=False,
+        )
         .pagingParams(defaultSort="lowerName")
         .errorResponse("You are not authorized to access this resource.", 403)
     )
-    def get_items_by_datatype(self, dataType, limit, offset, sort):
+    def get_items_by_datatype(self, dataType, baseParentId, baseParentType, limit, offset, sort):
         """
         Get a list of items with a specific data type.
         """
@@ -189,15 +239,12 @@ class AIMDL(Resource):
             raise RestException("Limit cannot exceed 100.")
 
         user = self.getCurrentUser()
-        aimdl_collection = Collection().load(
-            _AIMDL_COLLECTION_ID, user=user, level=AccessType.READ, exc=True
-        )
+        base_parent = self._get_base_parent(baseParentType, baseParentId, user)
         q = {
             "meta.igsn": {"$exists": True},
             "meta.data_type": dataType,
-            "baseParentId": aimdl_collection["_id"],
-            "baseParentType": "collection",
         }
+        q.update(base_parent)
 
         fields = {
             "name": 1,
