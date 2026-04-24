@@ -37,7 +37,10 @@ aimd_portal_token = os.getenv("AIMD_PORTAL_TOKEN")
 
 
 @app.task(queue="local")
-def register_deposition_with_aimd(deposition):
+def register_deposition_with_aimd(depositions):
+    if not aimd_portal_token:
+        logger.warning("AIMD_PORTAL_TOKEN is not set. Skipping registration with AIMD Portal.")
+        return
     with requests.session() as s:
         s.verify = False
         s.headers.update(
@@ -46,19 +49,28 @@ def register_deposition_with_aimd(deposition):
                 "Host": "ds.aimd.hemi.jhu.edu",
             }
         )
-        req = s.get(aimd_portal_url + "/base/sample/" + deposition["_id"])
+        for deposition in depositions:
+            req = s.get(f"{aimd_portal_url}/base/sample/{deposition['_id']}")
 
-        if req.status_code == 200:
-            print("Sample already exists in AIMD Portal")
-            print(req.json())
-            return
+            if req.status_code == 200:
+                logger.info(
+                    f"Sample {deposition['igsn']} already exists in AIMD Portal"
+                )
+                logger.debug(req.json())
+                continue
 
-        req = s.post(
-            url=aimd_portal_url + "/base/sample/",
-            data={"id": deposition["_id"], "igsn": deposition["igsn"]},
-        )
-        if req.status_code < 500 and req.status_code >= 200:
-            print(req.json())
+            req = s.post(
+                url=f"{aimd_portal_url}/base/sample/",
+                data={"id": deposition["_id"], "igsn": deposition["igsn"]},
+            )
+            if req.ok:
+                logger.info(
+                    f"Successfully registered sample {deposition['igsn']} with AIMD Portal"
+                )
+            else:
+                logger.warning(
+                    f"Failed to register sample {deposition['igsn']} with AIMD Portal: {req.status_code} {req.text}"
+                )
 
 
 @app.task(queue="local")

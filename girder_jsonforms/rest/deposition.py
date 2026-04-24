@@ -528,7 +528,7 @@ class Deposition(Resource):
     def submit_deposition_task(self, deposition, action):
         if action == "register_aimd":
             task = register_deposition_with_aimd.delay(
-                {"_id": str(deposition["_id"]), "igsn": deposition["igsn"]},
+                [{"_id": str(deposition["_id"]), "igsn": deposition["igsn"]}],
                 girder_job_title=f"Registering {deposition['igsn']} with AIMD portal",
             )
         else:

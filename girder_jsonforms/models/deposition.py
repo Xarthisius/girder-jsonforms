@@ -435,6 +435,7 @@ class Deposition(AccessControlledModel):
 
         if save:
             deposition = self.save(deposition)
+            events.trigger("deposition.created", {"ids": [deposition["_id"]]})
 
         if batch > 0:
             igsn_indices = [f"{i+1:03d}" for i in range(batch)]
@@ -558,7 +559,9 @@ class Deposition(AccessControlledModel):
             {"_id": main_deposition["_id"]},
             {"$addToSet": {"metadata.relatedIdentifiers": {"$each": has_parts}}},
         )
-        return self.collection.insert_many(depositions)
+        new_depositions = self.collection.insert_many(depositions)
+        events.trigger("deposition.created", {"ids": new_depositions.inserted_ids})
+        return new_depositions
 
     def update_deposition(self, deposition, metadata, sampleId, user=None):
         try:

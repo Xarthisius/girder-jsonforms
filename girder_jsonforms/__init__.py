@@ -33,6 +33,8 @@ from .rest.entry import FormEntry
 from .rest.form import Form
 from .settings import PluginSettings
 from .worker_plugin.delete_folder import run as delete_folder_task
+from .worker_plugin.amdee import register_deposition_with_aimd
+
 
 GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
@@ -60,7 +62,11 @@ def annotate_uploads(event):
         reference.pop("annotate", None)
         Item().setMetadata(parent, reference)
 
-    if not isinstance(reference, dict) or not reference.get("igsn") or not reference.get("type"):
+    if (
+        not isinstance(reference, dict)
+        or not reference.get("igsn")
+        or not reference.get("type")
+    ):
         return
 
     item = Item().load(file["itemId"], force=True)
@@ -270,6 +276,19 @@ def _item_advanced_search(self, query, limit, offset, sort):
     return [Item().filter(doc, user) for doc in cursor]
 
 
+def handle_deposition_registration(event: events.Event) -> None:
+    ids = event.info.get("ids", [])
+    if not ids:
+        return
+    cursor = DepositionModel().collection.find(
+        {"_id": {"$in": [ObjectId(_id) for _id in ids]}}, {"_id": 1, "igsn": 1}
+    )
+    data = [{"_id": str(doc["_id"]), "igsn": doc.get("igsn")} for doc in cursor]
+    register_deposition_with_aimd.delay(
+        data, girder_job_title=f"Registering {len(data)} deposition(s) with AIMD"
+    )
+
+
 class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
@@ -299,6 +318,7 @@ class JSONFormsPlugin(GirderPlugin):
         except ValidationException:
             pass
         events.bind("data.process", "jsonforms", annotate_uploads)
+        events.bind("deposition.created", "jsonforms", handle_deposition_registration)
         events.bind(
             "rest.delete.folder/:id.before", "jsonforms", _delayed_delete_folder
         )

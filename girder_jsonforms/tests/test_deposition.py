@@ -85,7 +85,7 @@ def setup_settings(db, igsn_settings):
 
 
 @pytest.fixture
-def test_deposition(server, admin, sample_metadata, setup_settings):
+def test_deposition(server, admin, sample_metadata, setup_settings, eagerWorkerTasks):
     """Create a test deposition for testing."""
     resp = server.request(
         path="/deposition",
@@ -155,7 +155,7 @@ class TestDepositionResource:
     """Test cases for the Deposition Resource."""
 
     def test_create_deposition_success(
-        self, server, admin, sample_metadata, setup_settings
+        self, server, admin, sample_metadata, setup_settings, eagerWorkerTasks
     ):
         """Test successful deposition creation."""
         resp = server.request(
@@ -179,7 +179,7 @@ class TestDepositionResource:
         assert "updated" in deposition
 
     def test_create_deposition_with_tracking(
-        self, server, admin, sample_metadata, setup_settings
+        self, server, admin, sample_metadata, setup_settings, eagerWorkerTasks
     ):
         """Test creating deposition with sample tracking enabled."""
         resp = server.request(
@@ -199,7 +199,7 @@ class TestDepositionResource:
         assert deposition["sampleId"] is not None
 
     def test_create_deposition_with_batch(
-        self, server, admin, sample_metadata, setup_settings
+        self, server, admin, sample_metadata, setup_settings, eagerWorkerTasks
     ):
         """Test creating deposition with batch subsamples."""
         resp = server.request(
