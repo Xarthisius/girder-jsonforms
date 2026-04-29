@@ -60,7 +60,9 @@ class AIMDL(Resource):
         )
     )
     def count_datafiles(self, baseParentType, baseParentId):
-        base_parent = self._get_base_parent(baseParentType, baseParentId, user=self.getCurrentUser())
+        base_parent = self._get_base_parent(
+            baseParentType, baseParentId, user=self.getCurrentUser()
+        )
         pipeline = [
             {"$match": base_parent},
             {"$group": {"_id": "$meta.data_type", "count": {"$sum": 1}}},
@@ -159,10 +161,11 @@ class AIMDL(Resource):
             )
         user = self.getCurrentUser()
         base_parent = self._get_base_parent(baseParentType, baseParentId, user)
-        q = {
-            "meta.igsn": igsn,
-            "meta.experiment_date": {"$regex": f"^{experiment_date}"},
-        }
+        q = {"meta.igsn": igsn}
+        if dataType.startswith("xrd") or dataType.startswith("xrf"):
+            q["meta.experiment_date"] = experiment_date
+        elif dataType.startswith("pdv"):
+            q["meta.experiment_date"] = {"$regex": f"^{experiment_date}"}
         q.update(base_parent)
         if dataType:
             q["meta.data_type"] = dataType
@@ -187,9 +190,11 @@ class AIMDL(Resource):
             # group by 'igsn//experiment_date'
             try:
                 if ignore_time:
-                    experiment_date = dateutil.parser.parse(
-                        item["meta"]["experiment_date"]
-                    ).date().isoformat()
+                    experiment_date = (
+                        dateutil.parser.parse(item["meta"]["experiment_date"])
+                        .date()
+                        .isoformat()
+                    )
                 else:
                     experiment_date = item["meta"]["experiment_date"]
                 key = item["meta"]["igsn"] + "//" + experiment_date
@@ -235,7 +240,9 @@ class AIMDL(Resource):
         .pagingParams(defaultSort="lowerName")
         .errorResponse("You are not authorized to access this resource.", 403)
     )
-    def get_items_by_datatype(self, dataType, baseParentId, baseParentType, limit, offset, sort):
+    def get_items_by_datatype(
+        self, dataType, baseParentId, baseParentType, limit, offset, sort
+    ):
         """
         Get a list of items with a specific data type.
         """
