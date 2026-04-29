@@ -123,6 +123,8 @@ class AIMDL(Resource):
 
         if dataType.startswith("xrd") or dataType.startswith("xrf"):
             return self._igsn_date_map(q, user=user)
+        elif dataType.startswith("pdv"):
+            return self._igsn_date_map(q, user=user, ignore_time=True)
         else:
             raise RestException(
                 f"Data type {dataType} is not supported for partitions."
@@ -159,7 +161,7 @@ class AIMDL(Resource):
         base_parent = self._get_base_parent(baseParentType, baseParentId, user)
         q = {
             "meta.igsn": igsn,
-            "meta.experiment_date": experiment_date,
+            "meta.experiment_date": {"$regex": f"^{experiment_date}"},
         }
         q.update(base_parent)
         if dataType:
@@ -168,7 +170,7 @@ class AIMDL(Resource):
         return Item().findWithPermissions(q, user=user, level=AccessType.READ)
 
     @staticmethod
-    def _igsn_date_map(q, user=None):
+    def _igsn_date_map(q, user=None, ignore_time=False):
         fields = {
             "meta.igsn": 1,
             "meta.checksum": 1,
@@ -184,7 +186,13 @@ class AIMDL(Resource):
         ):
             # group by 'igsn//experiment_date'
             try:
-                key = item["meta"]["igsn"] + "//" + item["meta"]["experiment_date"]
+                if ignore_time:
+                    experiment_date = dateutil.parser.parse(
+                        item["meta"]["experiment_date"]
+                    ).date().isoformat()
+                else:
+                    experiment_date = item["meta"]["experiment_date"]
+                key = item["meta"]["igsn"] + "//" + experiment_date
             except KeyError:
                 logger.warning(
                     "Item {} is missing either an IGSN or an experiment date.".format(
