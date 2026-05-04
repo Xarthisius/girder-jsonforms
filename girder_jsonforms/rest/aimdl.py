@@ -16,6 +16,15 @@ _AIMDL_COLLECTION_ID = "665de536bcc722774ce53754"  # TODO: make this configurabl
 logger = logging.getLogger(__name__)
 
 
+def deterministic_sort(sort):
+    # Ensure that the sort order is deterministic by adding _id as a tiebreaker
+    if sort is None:
+        return [("_id", 1)]
+    if not any(field == "_id" for field, _ in sort):
+        sort.append(("_id", 1))
+    return sort
+
+
 class AIMDL(Resource):
     def __init__(self):
         super().__init__()
@@ -280,7 +289,7 @@ class AIMDL(Resource):
             q,
             user=user,
             level=AccessType.READ,
-            sort=sort,
+            sort=deterministic_sort(sort),
             limit=limit,
             offset=offset,
             fields=fields,
