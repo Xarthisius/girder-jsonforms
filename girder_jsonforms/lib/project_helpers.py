@@ -46,8 +46,8 @@ def batch_indices_weihs(main_deposition, form_data):
         "S{}R{}C{}".format(*row)
         for row in itertools.product(
             meta["substrates"],
-            range(1, int(meta["subRows"]) + 1),
-            range(1, int(meta["subCols"]) + 1),
+            range(0, int(meta["subRows"])),
+            range(0, int(meta["subCols"])),
         )
     ]
 
