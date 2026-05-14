@@ -198,6 +198,8 @@ var DepositionView = View.extend({
         this._query = this.model.get('igsn');
         this._mode = 'igsn';
         this._subviews = {};
+        this.formMap = {};
+        this.entryMap = {};
         this._searchRequest = restRequest({
             url: 'resource/search',
             data: {
@@ -237,22 +239,40 @@ var DepositionView = View.extend({
               this.render();
             }, this).fetch();
         }
+        const relatedIdentifiers = this.model.get("metadata").relatedIdentifiers;
+        this.reducedIdentifiers = this._processRelatedIdentifiers(relatedIdentifiers, 10);
+        this.transformRelatedIdentifiers(this.reducedIdentifiers.reducedIdentifiers);
     },
 
     render: function () {
-        const relatedIdentifiers = this.model.get("metadata").relatedIdentifiers;
-        const reducedIdentifiers = this._processRelatedIdentifiers(relatedIdentifiers, 10);
-        this.transformRelatedIdentifiers(reducedIdentifiers.reducedIdentifiers);
         this.$el.html(DepositionTemplate({
             deposition: this.model,
             metadata: this.model.get("metadata"),
             renderMarkdown: renderMarkdown,
             trackerUrl: `#sample/${this.model.get('sampleId')}`,
             AccessType: AccessType,
-            relIds: reducedIdentifiers,
+            relIds: this.reducedIdentifiers,
             level: this.model.getAccessLevel(),
             imageUrl: this.model.get('imageId') ? `${getApiRoot()}/item/${this.model.get('imageId')}/download?contentDisposition=inline` : null,
         }));
+        // Find all html elements with entryId and formId
+        // and set the text to the name of the entry or form
+        $('.g-deposition-info-line').each((index, element) => {
+            if (element.attributes.entryId) {
+                const entryId = element.attributes.entryId.value;
+                const entry = this.entryMap[entryId];
+                if (entry) {
+                    $(element).find('span.g-info-type').text(`Entry for ${entry.uniqueId}`);
+                }
+            }
+            if (element.attributes.formId) {
+                const formId = element.attributes.formId.value;
+                const form = this.formMap[formId];
+                if (form) {
+                    $(element).find('span.g-info-type').text(`Form "${form.name}"`);
+                }
+            }
+        });
         if (this._searchRequest.state() === 'resolved') {
             this.$('.g-search-pending').hide();
             // for each subview that's not null, render it and append it to the container but make sure they are not duplicated if they already exist
@@ -273,12 +293,11 @@ var DepositionView = View.extend({
             const addEventUrl = `${window.location.origin}/#sample/${this.model.get('sampleId')}/add`;
             QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl, QRparams);
         }
-        if (this.image && this.image.id && this.image.get('meta')) {
+        if (this.image && this.image.id && this.image.get('meta') && this.image.get('meta').shape) {
             const imageUrl = `${getApiRoot()}/item/${this.image.id}/download?contentDisposition=inline`;
             const links = this.image.get('meta').links || [];
-            const width = this.image.get('meta').shape[0] || 1000;
-            const height = this.image.get('meta').shape[1] || 1000;
-            const interactiveImage = this.createInteractiveSVG(imageUrl, links, width, height);
+            const shape = this.image.get('meta').shape || [1000, 1000];
+            const interactiveImage = this.createInteractiveSVG(imageUrl, links, shape[0], shape[1]);
             this.$('.g-sample-image-container').html(interactiveImage);
         }
 
@@ -392,34 +411,15 @@ var DepositionView = View.extend({
             // response is a dictionary with keys 'form' and 'entry' poiniting to dictionaries
             // with keys being the formId or entryId and values being the form or entry
             // convert it to map
-            const formMap = {};
-            const entryMap = {};
             response["jsonforms.form"].forEach((form) => {
-                formMap[form._id] = form;
+                this.formMap[form._id] = form;
             });
             response["jsonforms.entry"].forEach((entry) => {
-                entryMap[entry._id] = entry;
+                this.entryMap[entry._id] = entry;
             });
-
-            // Find all html elements with entryId and formId
-            // and set the text to the name of the entry or form
-            $('.g-deposition-info-line').each((index, element) => {
-                if (element.attributes.entryId) {
-                    const entryId = element.attributes.entryId.value;
-                    const entry = entryMap[entryId];
-                    if (entry) {
-                        $(element).find('span.g-info-type').text(`Entry for ${entry.uniqueId}`);
-                    }
-                }
-                if (element.attributes.formId) {
-                    const formId = element.attributes.formId.value;
-                    const form = formMap[formId];
-                    if (form) {
-                        $(element).find('span.g-info-type').text(`Form "${form.name}"`);
-                    }
-                }
-            });
+            this.render();
         });
+
     },
 
     editAccess: function () {
