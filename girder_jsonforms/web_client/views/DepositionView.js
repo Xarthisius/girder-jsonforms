@@ -23,6 +23,7 @@ const View = girder.views.View;
 const { restRequest } = girder.rest;
 const SearchPaginateWidget = girder.views.widgets.SearchPaginateWidget;
 const UploadWidget = girder.views.widgets.UploadWidget;
+const ItemModel = girder.models.ItemModel;
 const FolderModel = girder.models.FolderModel;
 
 const QRparams = {
@@ -205,6 +206,17 @@ var DepositionView = View.extend({
                 limit: 10,
             }
         });
+        this.image = new ItemModel();
+        if (this.model.get('imageId')) {
+            this.image.set({
+              _id: this.model.get('imageId')
+            }).on('g:fetched', function() {
+              this.render();
+            }, this).on('g:error', function() {
+              this.item = null;
+              this.render();
+            }, this).fetch();
+        }
     },
 
     render: function () {
@@ -252,6 +264,15 @@ var DepositionView = View.extend({
             const addEventUrl = `${window.location.origin}/#sample/${this.model.get('sampleId')}/add`;
             QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl, QRparams);
         }
+        if (this.image && this.image.id && this.image.get('meta')) {
+            const imageUrl = `${getApiRoot()}/item/${this.image.id}/download?contentDisposition=inline`;
+            const links = this.image.get('meta').links || [];
+            const width = this.image.get('meta').shape[0] || 1000;
+            const height = this.image.get('meta').shape[1] || 1000;
+            const interactiveImage = this.createInteractiveSVG(imageUrl, links, width, height);
+            this.$('.g-sample-image-container').html(interactiveImage);
+        }
+
         return this;
     },
     /**
@@ -399,6 +420,52 @@ var DepositionView = View.extend({
             modelType: 'deposition',
             parentView: this
         }).render();
+    },
+
+    createInteractiveSVG(imageUrl, regions, vbW, vbH) {
+        const svgNS = "http://www.w3.org/2000/svg";
+
+        const svg = document.createElementNS(svgNS, "svg");
+        svg.setAttribute("viewBox", `0 0 ${vbW} ${vbH}`);
+        svg.setAttribute("preserveAspectRatio", "xMidYMid meet");
+
+        const img = document.createElementNS(svgNS, "image");
+        img.setAttributeNS(null, "href", imageUrl);
+        img.setAttributeNS(null, "width", vbW);
+        img.setAttributeNS(null, "height", vbH);
+        svg.appendChild(img);
+
+        regions.forEach(data => {
+            const anchor = document.createElementNS(svgNS, "a");
+            anchor.setAttributeNS(null, "href", data.href);
+            anchor.setAttributeNS(null, "target", "_blank");
+
+            let shape;
+            if (data.shape === "rect") {
+                shape = document.createElementNS(svgNS, "rect");
+                shape.setAttributeNS(null, "x", data.pos[0]);
+                shape.setAttributeNS(null, "y", data.pos[1]);
+                shape.setAttributeNS(null, "width", data.size[0]);
+                shape.setAttributeNS(null, "height", data.size[1]);
+            } else if (data.shape === "circle") {
+                shape = document.createElementNS(svgNS, "circle");
+                shape.setAttributeNS(null, "cx", data.pos[0]);
+                shape.setAttributeNS(null, "cy", data.pos[1]);
+                shape.setAttributeNS(null, "r", data.radius);
+            }
+
+            if (shape) {
+                // Default style: very lightly opaque
+                shape.setAttributeNS(null, "fill", "white");
+                shape.setAttributeNS(null, "fill-opacity", "0.1");
+                shape.style.cursor = "pointer";
+
+                anchor.appendChild(shape);
+                svg.appendChild(anchor);
+            }
+        });
+
+        return svg;
     }
 });
 

@@ -54,3 +54,16 @@
     border 1px solid #ddd
     border-radius 4px
     box-shadow 0 2px 4px rgba(0, 0, 0, 0.1)
+
+  svg a rect,
+  svg a circle {
+    transition: fill-opacity 0.2s, stroke-width 0.2s;
+    stroke: white;
+    stroke-width: 0;
+  }
+
+  svg a:hover rect,
+  svg a:hover circle {
+    fill-opacity: 0.4; /* Becomes more visible on hover */
+    stroke-width: 2;   /* Adds a slight border highlight */
+  }
