@@ -197,6 +197,7 @@ var DepositionView = View.extend({
     initialize: function (settings) {
         this._query = this.model.get('igsn');
         this._mode = 'igsn';
+        this._subviews = {};
         this._searchRequest = restRequest({
             url: 'resource/search',
             data: {
@@ -205,6 +206,25 @@ var DepositionView = View.extend({
                 types: JSON.stringify(['folder', 'item']),
                 limit: 10,
             }
+        }).done((results) => {
+            const orderedTypes = ["folder", "item"];
+            _.each(orderedTypes, (type) => {
+                if (results[type].length) {
+                    this._subviews[type] = new SearchResultsTypeView({
+
+                        parentView: this,
+                        query: this._query,
+                        mode: this._mode,
+                        type: type,
+                        limit: this.pageLimit,
+                        initResults: results[type],
+                        sizeOneElement: this._sizeOneElement
+                    })
+                } else {
+                    this._subviews[type] = null;
+                }
+            });
+            this.render();
         });
         this.image = new ItemModel();
         if (this.model.get('imageId')) {
@@ -233,33 +253,22 @@ var DepositionView = View.extend({
             level: this.model.getAccessLevel(),
             imageUrl: this.model.get('imageId') ? `${getApiRoot()}/item/${this.model.get('imageId')}/download?contentDisposition=inline` : null,
         }));
-        this._subviews = {};
-        this._searchRequest.done((results) => {
+        if (this._searchRequest.state() === 'resolved') {
             this.$('.g-search-pending').hide();
-
-            const orderedTypes = ["folder", "item"];
-            _.each(orderedTypes, (type) => {
-                if (results[type].length) {
-                    this._subviews[type] = new SearchResultsTypeView({
-
-                        parentView: this,
-                        query: this._query,
-                        mode: this._mode,
-                        type: type,
-                        limit: this.pageLimit,
-                        initResults: results[type],
-                        sizeOneElement: this._sizeOneElement
-                    })
-                        .render();
-                    this._subviews[type].$el
-                        .appendTo(this.$('.g-search-results-container'));
+            // for each subview that's not null, render it and append it to the container but make sure they are not duplicated if they already exist
+            _.each(this._subviews, (subview, type) => {
+                if (subview) {
+                    subview.render();
+                    const container = this.$(`.g-search-results-${type}`);
+                    if (container.children().length === 0) {
+                        subview.$el.appendTo(container);
+                    }
                 }
             });
-
             if (_.isEmpty(this._subviews)) {
                 this.$('.g-search-no-results').show();
             }
-        });
+        }
         if (this.model.get("sampleId")) {
             const addEventUrl = `${window.location.origin}/#sample/${this.model.get('sampleId')}/add`;
             QRCode.toCanvas(this.$('#g-qr-code')[0], addEventUrl, QRparams);
