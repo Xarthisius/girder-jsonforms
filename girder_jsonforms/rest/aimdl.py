@@ -246,11 +246,17 @@ class AIMDL(Resource):
             enum=["user", "collection"],
             required=False,
         )
+        .jsonParam(
+            "extraFields",
+            "JSON list of additional fields to include in the response items",
+            requireArray=True,
+            required=False,
+        )
         .pagingParams(defaultSort="lowerName")
         .errorResponse("You are not authorized to access this resource.", 403)
     )
     def get_items_by_datatype(
-        self, dataType, baseParentId, baseParentType, limit, offset, sort
+        self, dataType, baseParentId, baseParentType, extraFields, limit, offset, sort
     ):
         """
         Get a list of items with a specific data type.
@@ -284,6 +290,9 @@ class AIMDL(Resource):
             "baseParentType": 1,
             "copyOfItem": 1,
         }
+        if extraFields:
+            for field in extraFields:
+                fields[field] = 1
 
         return Item().findWithPermissions(
             q,
