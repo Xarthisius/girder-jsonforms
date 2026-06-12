@@ -3,6 +3,7 @@ import json
 import logging
 
 import dateutil.parser
+import pymongo
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, boundHandler, filtermodel
@@ -294,15 +295,18 @@ class AIMDL(Resource):
             for field in extraFields:
                 fields[field] = 1
 
-        return Item().findWithPermissions(
-            q,
-            user=user,
-            level=AccessType.READ,
-            sort=deterministic_sort(sort),
-            limit=limit,
-            offset=offset,
-            fields=fields,
-        )
+        try:
+            return Item().findWithPermissions(
+                q,
+                user=user,
+                level=AccessType.READ,
+                sort=deterministic_sort(sort),
+                limit=limit,
+                offset=offset,
+                fields=fields,
+            )
+        except pymongo.errors.OperationFailure as e:
+            raise RestException("Invalid 'extraFields' parameter: {}".format(e))
 
 
 @access.public(scope=TokenScope.DATA_READ)
