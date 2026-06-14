@@ -253,11 +253,17 @@ class AIMDL(Resource):
             requireArray=True,
             required=False,
         )
+        .jsonParam(
+            "filters",
+            "A JSON object specifying additional filters to apply to the query.",
+            required=False,
+            requireObject=True,
+        )
         .pagingParams(defaultSort="lowerName")
         .errorResponse("You are not authorized to access this resource.", 403)
     )
     def get_items_by_datatype(
-        self, dataType, baseParentId, baseParentType, extraFields, limit, offset, sort
+        self, dataType, baseParentId, baseParentType, extraFields, filters, limit, offset, sort
     ):
         """
         Get a list of items with a specific data type.
@@ -275,6 +281,7 @@ class AIMDL(Resource):
             "meta.igsn": {"$exists": True},
             "meta.data_type": dataType,
         }
+        q.update(filters or {})
         q.update(base_parent)
 
         fields = {
