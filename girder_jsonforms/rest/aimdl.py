@@ -135,7 +135,7 @@ class AIMDL(Resource):
 
         if dataType.startswith("xrd") or dataType.startswith("xrf"):
             return self._igsn_date_map(q, user=user)
-        elif dataType.startswith("pdv"):
+        elif dataType.startswith("pdv") or dataType.startswith("nmd"):
             return self._igsn_date_map(q, user=user, ignore_time=True)
         else:
             raise RestException(
@@ -174,7 +174,7 @@ class AIMDL(Resource):
         q = {"meta.igsn": igsn}
         if dataType.startswith("xrd") or dataType.startswith("xrf"):
             q["meta.experiment_date"] = experiment_date
-        elif dataType.startswith("pdv"):
+        elif dataType.startswith("pdv") or dataType.startswith("nmd"):
             q["meta.experiment_date"] = {"$regex": f"^{experiment_date}"}
         q.update(base_parent)
         if dataType:
