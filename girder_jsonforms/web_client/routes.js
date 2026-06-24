@@ -1,6 +1,5 @@
 import DepositionModel from './models/DepositionModel';
 import DepositionView from './views/DepositionView';
-import DepositionListView from './views/DepositionListView';
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
 import FormView from './views/FormView';
@@ -26,10 +25,6 @@ router.route('depositions', 'igsns', function () {
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
 });
-
-/*router.route('depositions', 'depositions', function () {
-    events.trigger('g:navigateTo', DepositionListView);
-});*/
 
 router.route('newdeposition', 'deposition', function () {
     events.trigger('g:navigateTo', EditDepositionView);
