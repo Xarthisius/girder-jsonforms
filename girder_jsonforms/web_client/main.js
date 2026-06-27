@@ -6,11 +6,13 @@ import './views/HierarchyWidget';
 import './views/ItemListWidget';
 import './views/FolderListWidget';
 import './views/widgets/DepositionListWidget';
+import DataCiteCardView from './views/CollectionLandingPage';
 
 const { wrap } = girder.utilities.PluginUtils;
 const GlobalNavView = girder.views.layout.GlobalNavView;
 const { getCurrentUser } = girder.auth;
 const SearchFieldWidget = girder.views.widgets.SearchFieldWidget;
+const CollectionView = girder.views.body.CollectionView;
 
 
 function createNavItem(navItem) {
@@ -43,6 +45,15 @@ function createNavItem(navItem) {
     return li;
 }
 
+wrap(CollectionView, 'render', function (render) {
+    render.call(this);
+    const meta = this.model.get("meta");
+    if (meta && meta.datacite) {
+        var landingPage = new DataCiteCardView({parentView: this, url: meta.datacite}).render()
+        const collectionHeader = document.querySelector('.g-collection-header');
+        collectionHeader.append(landingPage.el);
+    }
+});
 
 wrap(GlobalNavView, 'render', function (render) {
     render.call(this);
