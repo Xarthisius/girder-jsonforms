@@ -1,9 +1,8 @@
+import '../stylesheets/itemListWidget.styl';
+
 const $ = girder.$;
 const ItemListWidget = girder.views.widgets.ItemListWidget;
 const { wrap } = girder.utilities.PluginUtils;
-const router = girder.router;
-
-import '../stylesheets/itemListWidget.styl';
 
 wrap(ItemListWidget, 'render', function (render) {
     render.call(this);

@@ -1,9 +1,8 @@
+import '../stylesheets/folderListWidget.styl';
+
 const $ = girder.$;
 const FolderListWidget = girder.views.widgets.FolderListWidget;
 const { wrap } = girder.utilities.PluginUtils;
-const router = girder.router;
-
-import '../stylesheets/folderListWidget.styl';
 
 wrap(FolderListWidget, 'render', function (render) {
     render.call(this);

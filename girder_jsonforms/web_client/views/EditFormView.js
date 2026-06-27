@@ -36,18 +36,6 @@ function makeid(length) {
     return result;
 }
 
-// Function to access or create nested objects based on keys
-function accessOrCreate(obj, keys) {
-    let current = obj;
-    for (let i = 0; i < keys.length - 1; i++) {
-        if (!current[keys[i]]) {
-            current[keys[i]] = {};
-        }
-        current = current[keys[i]];
-    }
-    return current;
-}
-
 function setField(jseditor, field, value) {
     const editor = jseditor.jsoneditor.getEditor(field);
     if (!editor) {

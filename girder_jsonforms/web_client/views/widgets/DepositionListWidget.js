@@ -7,9 +7,7 @@ import LinkEntryToDepositionWidget from './LinkEntryToDepositionWidget';
 const PaginateWidget = girder.views.widgets.PaginateWidget;
 const View = girder.views.View;
 const router = girder.router;
-const events = girder.events;
-const { restRequest } = girder.rest;
-const { defineFlags, formatDate, DATE_SECOND, _whenAll } = girder.misc;
+const { defineFlags, formatDate, DATE_SECOND } = girder.misc;
 const eventStream = girder.utilities.eventStream;
 const { getCurrentUser } = girder.auth;
 const { SORT_ASC, SORT_DESC } = girder.constants;
@@ -82,15 +80,6 @@ var DepositionListWidget = View.extend({
         }
     },
 
-    setSortIcons: function() {
-        this.$('a.g-column-sortable i').removeClass("icon-sort-up icon-sort-down").addClass("icon-sort");
-        if (this.collection.sortDir === SORT_DESC) {
-            this.$(`a[data-sort-by="${this.collection.sortField}"]`).find('i').removeClass("icon-sort").addClass("icon-sort-down");
-        } else {
-            this.$(`a[data-sort-by="${this.collection.sortField}"]`).find('i').removeClass("icon-sort").addClass("icon-sort-up");
-        }
-    },
-
     initialize: function (settings) {
         var currentUser = getCurrentUser();
         this.columns = settings.columns || this.columnEnum.COLUMN_ALL;
@@ -105,10 +94,9 @@ var DepositionListWidget = View.extend({
 
         this.collection = new DepositionCollection();
         this.collection.updateFromSession();
-        console.log(this.collection);
-        //this.collection.sortField = settings.sortField || 'created';
-        //this.collection.sortDir = settings.sortDir || SORT_DESC;
-        //this.collection.pageLimit = settings.pageLimit || this.collection.pageLimit;
+        // this.collection.sortField = settings.sortField || 'created';
+        // this.collection.sortDir = settings.sortDir || SORT_DESC;
+        // this.collection.pageLimit = settings.pageLimit || this.collection.pageLimit;
 
         this.listenTo(this.collection, 'update reset', this._onDataChange);
 
@@ -127,8 +115,17 @@ var DepositionListWidget = View.extend({
         });
 
         this.listenTo(eventStream, 'g:eventStream.start', this._fetchWithFilter);
-        const statusTextToStatusCode = {};
         this.render();
+    },
+
+
+    setSortIcons: function() {
+        this.$('a.g-column-sortable i').removeClass("icon-sort-up icon-sort-down").addClass("icon-sort");
+        if (this.collection.sortDir === SORT_DESC) {
+            this.$(`a[data-sort-by="${this.collection.sortField}"]`).find('i').removeClass("icon-sort").addClass("icon-sort-down");
+        } else {
+            this.$(`a[data-sort-by="${this.collection.sortField}"]`).find('i').removeClass("icon-sort").addClass("icon-sort-up");
+        }
     },
 
     columnEnum: defineFlags([

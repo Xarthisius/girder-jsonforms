@@ -42,7 +42,6 @@ var NamedSortCollectionWidget = View.extend({
     },
 
     render: function () {
-        const collection = this.collections[0];
         this.$el.html(SortCollectionWidgetTemplate({
             collection: this.collections[0],
             fields: this.fields
