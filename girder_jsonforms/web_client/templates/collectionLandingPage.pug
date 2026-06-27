@@ -74,7 +74,11 @@ mixin rorIcon()
       .meta-item-embed
         span.meta-label-embed Format
         span.meta-value-embed
-          code= format
+          if format && format.length > 0
+            each fmt in format
+              span.tag-embed= fmt
+          else
+            span.tag-embed(style="background: none; color: var(--text-muted-internal); padding:0;") Unspecified
       .meta-item-embed
         span.meta-label-embed Location
         span.meta-value-embed(title=locationTitle)= locationStr
