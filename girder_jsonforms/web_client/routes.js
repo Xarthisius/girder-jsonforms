@@ -56,6 +56,25 @@ router.route('deposition/:id', 'deposition', function (id) {
     });
 });
 
+router.route('doi/:org/:id', 'doiAccess', function(org, doiId, params) {
+  restRequest({
+    method: 'GET',
+    url: 'collection',
+    data: {
+      name: `${org}/${doiId}`,
+      limit: 1
+    }
+  }).done((resp) => {
+    if (resp.length === 1) {
+      router.navigate(`collection/${resp[0]._id}`, {trigger: true, replace: true});
+    } else {
+      router.navigate('collections', {trigger: true, replace: true});
+    }
+  }).fail(() => {
+    router.navigate('collections', {trigger: true, replace: true});
+  });
+});
+
 router.route('igsn/:igsn', 'igsn', function (igsn) {
   restRequest({
     method: 'GET',
