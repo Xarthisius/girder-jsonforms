@@ -12,6 +12,7 @@ from girder.api import rest as girderRest
 from girder.api.describe import Description, autoDescribeRoute
 from girder.constants import AccessType, TokenScope
 from girder.exceptions import GirderException, ValidationException
+from girder.models.collection import Collection
 from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
@@ -256,6 +257,31 @@ def _delayed_delete_folder(self, event):
     )
 
 
+@access.public(scope=TokenScope.DATA_READ)
+@girderRest.filtermodel(model=Collection)
+@girderRest.boundHandler
+def _search_collection_by_name(self, event):
+    params = event.info["params"]
+    if not params.get("name"):
+        return
+
+    filters = {"name": params["name"]}
+    if text := params.get("text"):
+        filters["$text"] = {"$search": text}
+
+    limit, offset, sort = self.getPagingParameters(params, "name")
+    event.preventDefault().addResponse(
+        Collection().findWithPermissions(
+            filters,
+            sort=sort,
+            user=self.getCurrentUser(),
+            level=AccessType.READ,
+            limit=limit,
+            offset=offset,
+        )
+    )
+
+
 @access.user
 @autoDescribeRoute(
     Description("Search items using mongo query syntax.")
@@ -294,6 +320,7 @@ class JSONFormsPlugin(GirderPlugin):
 
     def load(self, info):
         from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
+        from girder.api.v1.collection import Collection as CollectionResource  # noqa: F401
 
         Item().ensureIndices([("meta.data_type", {"unique": False})])
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
@@ -322,6 +349,9 @@ class JSONFormsPlugin(GirderPlugin):
         events.bind(
             "rest.delete.folder/:id.before", "jsonforms", _delayed_delete_folder
         )
+        events.bind(
+            "rest.get.collection.before", "jsonforms", _search_collection_by_name
+        )
         events.bind("rest.get.item/:id.after", "jsonforms", append_vega)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
@@ -346,6 +376,12 @@ class JSONFormsPlugin(GirderPlugin):
             ),
             required=False,
             dataType="float",
+        )
+        CollectionResource.find.description.param(
+            "name",
+            "Pass to lookup a collection by exact name match.",
+            required=False,
+            dataType="string",
         )
 
         registerPluginStaticContent(
