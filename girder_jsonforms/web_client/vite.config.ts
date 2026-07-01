@@ -3,7 +3,6 @@ import { resolve } from 'path';
 import { defineConfig } from 'vite';
 import istanbul from 'vite-plugin-istanbul';
 import { compileClient } from 'pug';
-import inject from '@rollup/plugin-inject';
 
 function pugPlugin() {
   return {
@@ -29,18 +28,30 @@ export default defineConfig({
       extension: [ '.js', '.ts', '.vue' ],
       // requireEnv: true,
     }),
-    inject({
-      $: 'jquery',
-      jQuery: 'jquery',
-      'window.jQuery': 'jquery'
-    }),
   ],
   build: {
-    sourcemap: true,
+    sourcemap: !process.env.SKIP_SOURCE_MAPS,
     lib: {
       entry: resolve(__dirname, 'main.js'),
       name: 'GirderPluginJSONForms',
       fileName: 'girder-plugin-jsonforms',
+    },
+    rollupOptions: {
+      output: {
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'style.css';
+          }
+          return '[name].[ext]';
+        },
+      },
+      transform: {
+        inject: {
+          $: 'jquery',
+          jQuery: 'jquery',
+          'window.jQuery': 'jquery',
+        },
+      },
     },
   },
 });

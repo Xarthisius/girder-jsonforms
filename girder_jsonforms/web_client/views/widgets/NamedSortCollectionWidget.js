@@ -1,12 +1,9 @@
-import SortCollectionWidgetTemplate from '@girder/core/templates/widgets/sortCollectionWidget.pug';
+import SortCollectionWidgetTemplate from '../../templates/widgets/sortCollectionWidget.pug';
 
 const $ = girder.$;
 const { SORT_ASC, SORT_DESC } = girder.constants;
 const { cancelRestRequests } = girder.rest;
 const View = girder.views.View;
-
-// import 'bootstrap/js/dropdown';
-
 
 var NamedSortCollectionWidget = View.extend({
     events: {

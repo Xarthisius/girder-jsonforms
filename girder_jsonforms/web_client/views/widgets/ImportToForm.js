@@ -1,6 +1,5 @@
 import DepositionModel from '../../models/DepositionModel';
 import ImportToFormDialogTemplate from '../../templates/widgets/importToFormDialog.pug';
-import '@girder/core/utilities/jquery/girderModal';
 
 const FolderModel = girder.models.FolderModel;
 const View = girder.views.View;

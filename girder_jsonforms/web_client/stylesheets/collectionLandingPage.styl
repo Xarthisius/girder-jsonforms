@@ -1,17 +1,16 @@
-.doi-card-embed
-  --bg-main-internal = #f8fafc
-  --card-bg-internal = #ffffff
-  --text-main-internal = #1e293b
-  --text-muted-internal = #64748b
-  --accent-internal = #2563eb
-  --accent-light-internal = #eff6ff
-  --border-internal = #e2e8f0
-  --badge-bg-internal = #f1f5f9
-  --orcid-color-internal = #a9c751
+$bgMainInternal = #f8fafc
+$cardBgInternal = #ffffff
+$textMainInternal = #1e293b
+$textMutedInternal = #64748b
+$accentInternal = #2563eb
+$borderInternal = #e2e8f0
+$badgeBgInternal = #f1f5f9
+$orcidColorInternal = #a9c751
 
+.doi-card-embed
   box-sizing border-box !important
-  background var(--card-bg-internal) !important
-  border 1px solid var(--border-internal) !important
+  background $cardBgInternal !important
+  border 1px solid $borderInternal !important
   border-radius 12px !important
   width 100% !important
   padding 1.5rem !important
@@ -19,21 +18,19 @@
   font-family -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important
   font-size 16px !important // Explicit pixel baseline to override host page root changes
   line-height 1.4 !important
-  color var(--text-main-internal) !important
   text-align left !important
 
   *, *::before, *::after
     box-sizing border-box !important
     font-family -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important
     line-height 1.4 !important
-    color var(--text-main-internal)
 
   .card-header-embed
     display flex !important
     justify-content space-between !important
     align-items flex-start !important
     gap 1rem !important
-    border-bottom 1px solid var(--border-internal) !important
+    border-bottom 1px solid $borderInternal !important
     padding-bottom 1rem !important
     margin-bottom 1.25rem !important
     background transparent !important
@@ -45,17 +42,17 @@
       margin 0 0 0.35rem 0 !important
       letter-spacing -0.025em !important
       line-height 1.25 !important
-      color var(--text-main-internal) !important
+      color $textMainInternal !important
 
   .meta-line-embed
     font-size 0.85em !important
-    color var(--text-muted-internal) !important
+    color $textMutedInternal !important
     *
-      color var(--text-muted-internal) !important
+      color $textMutedInternal !important
 
   .doi-badge-embed
-    background-color var(--accent-light-internal) !important
-    color var(--accent-internal) !important
+    background-color $accentLightInternal !important
+    color $accentInternal !important
     font-family monospace !important
     font-size 0.85em !important
     font-weight 600 !important
@@ -71,7 +68,7 @@
     gap 0.75rem !important
     padding 0.75rem !important
     background #fdfdfd !important
-    border 1px dashed var(--border-internal) !important
+    border 1px dashed $borderInternal !important
     border-radius 8px !important
     margin 0 0 1.5rem 0 !important
 
@@ -83,17 +80,17 @@
 
   .author-name-embed
     font-weight 600 !important
-    color var(--text-main-internal) !important
+    color $textMainInternal !important
     display flex !important
     align-items center !important
     gap 0.25rem !important
 
   .author-affs-embed
     font-size 0.75em !important
-    color var(--text-muted-internal) !important
+    color $textMutedInternal !important
     margin-top 0.1rem !important
     *
-      color var(--text-muted-internal) !important
+      color $textMutedInternal !important
 
   .aff-item-embed
     display inline-flex !important
@@ -110,14 +107,14 @@
     text-decoration none !important
     &:hover 
       .icon-orcid
-        color var(--orcid-color-internal) !important
+        color $orcidColorInternal !important
 
   .ror-link
     color #cbd5e1 !important
     text-decoration none !important
     &:hover 
       .icon-ror
-        color var(--accent-internal) !important
+        color $accentInternal !important
 
   .card-body-embed
     display grid !important
@@ -130,7 +127,7 @@
     font-size 0.75em !important
     text-transform uppercase !important
     letter-spacing 0.05em !important
-    color var(--text-muted-internal) !important
+    color $textMutedInternal !important
     margin 0 0 0.5rem 0 !important
     font-weight 700 !important
     padding 0 !important
@@ -150,7 +147,7 @@
     padding 0 !important
 
   .tag-embed
-    background var(--badge-bg-internal) !important
+    background $badgeBgInternal !important
     font-size 0.75em !important
     padding 0.15rem 0.4rem !important
     border-radius 4px !important
@@ -158,7 +155,7 @@
     display inline-block !important
 
   .meta-sidebar-embed
-    background var(--bg-main-internal) !important
+    background #f8fafc !important
     padding 1rem !important
     border-radius 8px !important
     display flex !important
@@ -177,15 +174,15 @@
     font-size 0.75em !important
     text-transform uppercase !important
     letter-spacing 0.05em !important
-    color var(--text-muted-internal) !important
+    color $textMutedInternal !important
     font-weight 600 !important
 
   .meta-value-embed
     font-size 0.85em !important
     font-weight 500 !important
-    color var(--text-main-internal) !important
+    color $textMainInternal !important
     a
-      color var(--accent-internal) !important
+      color $accentInternal !important
       text-decoration none !important
     code
       font-family monospace !important
@@ -214,7 +211,7 @@
       padding 0 !important
       list-style-type none !important
     a
-      color var(--accent-internal) !important
+      color $accentInternal !important
       text-decoration none !important
 
   // 1. Transition styling for the wrapper shell
@@ -257,7 +254,7 @@
 
   .icon-chevron
     flex-shrink 0
-    color var(--text-muted-internal)
+    color $textMutedInternal
     transition transform 0.2s ease-in-out
     transform rotate(0deg) // Point downward when open
 

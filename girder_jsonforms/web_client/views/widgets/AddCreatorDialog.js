@@ -1,7 +1,6 @@
 import $ from 'jquery';
 import 'bootstrap-autocomplete';
 
-import '@girder/core/utilities/jquery/girderModal';
 import AddCreatorDialogTemplate from '../../templates/widgets/addCreatorDialog.pug';
 
 import '../../stylesheets/addCreatorDialog.styl';

@@ -1,15 +1,11 @@
 import QRCode from 'qrcode';
 
-import SearchResultsTypeTemplate from '@girder/core/templates/body/searchResultsType.pug';
-
 import DepositionModel from '../models/DepositionModel';
 import DepositionTemplate from '../templates/depositionView.pug'; 
 import DepositionSplitDialog from '../templates/depositionSplitDialog.pug';
+import SearchResultsTypeTemplate from '../templates/searchResultsType.pug';
 
 import '../stylesheets/depositionView.styl';
-
-import '@girder/core/utilities/jquery/girderEnable';
-import '@girder/core/utilities/jquery/girderModal';
 
 const _ = girder._;
 const events = girder.events;

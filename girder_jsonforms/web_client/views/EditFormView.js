@@ -2,7 +2,7 @@ import '../stylesheets/editFormView.styl';
 
 import flatpickr from 'flatpickr'; // eslint-disable-line no-unused-vars
 import Handlebars from 'handlebars';
-import '@json-editor/json-editor';
+import { JSONEditor } from '@json-editor/json-editor';
 import Autocomplete from '@trevoreyre/autocomplete-js';
 
 import template from '../templates/editFormView.pug';
