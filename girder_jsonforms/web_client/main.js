@@ -6,14 +6,17 @@ import './views/HierarchyWidget';
 import './views/ItemListWidget';
 import './views/FolderListWidget';
 import './views/widgets/DepositionListWidget';
+import AssignIGSNWidget from './views/widgets/AssignIGSNView';
 import DataCiteCardView from './views/CollectionLandingPage';
+import folderActionsTemplate from './templates/folderActions.pug';
 
-const { wrap } = girder.utilities.PluginUtils;
-const GlobalNavView = girder.views.layout.GlobalNavView;
 const { getCurrentUser } = girder.auth;
+const { AccessType } = girder.constants;
 const SearchFieldWidget = girder.views.widgets.SearchFieldWidget;
 const CollectionView = girder.views.body.CollectionView;
-
+const GlobalNavView = girder.views.layout.GlobalNavView;
+const HierarchyWidget = girder.views.widgets.HierarchyWidget;
+const { wrap } = girder.utilities.PluginUtils;
 
 function createNavItem(navItem) {
     // Create the <li> element
@@ -81,6 +84,28 @@ wrap(GlobalNavView, 'render', function (render) {
         console.warn('No existing .g-global-nav-li elements found.');
     }
 });
+
+// Add an entry to assign IGSN recursively in the hierarchy widget folder menu
+wrap(HierarchyWidget, 'render', function (render) {
+    render.call(this);
+
+    if (this.parentModel.resourceName === 'folder' &&
+            this.parentModel.getAccessLevel() >= AccessType.WRITE) {
+        this.$('.g-folder-actions-menu a.g-edit-folder').parent().after(folderActionsTemplate({
+            folder: this.parentModel
+        }));
+    }
+    return this;
+});
+
+HierarchyWidget.prototype.events['click a.g-assign-igsn-recursively'] = function (event) {
+    event.preventDefault();
+    new AssignIGSNWidget({
+        el: $('#g-dialog-container'),
+        parentView: this,
+        folder: this.parentModel,
+    }).render();
+};
 
 // Add search field to the global nav
 SearchFieldWidget.addMode(
