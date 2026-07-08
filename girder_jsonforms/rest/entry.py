@@ -237,8 +237,9 @@ class FormEntry(Resource):
                 f"data.{form['uniqueField']}": data.get(form["uniqueField"]),
             }
         ):
+            field = form.get("uniqueField")
             raise RestException(
-                f"An entry with sampleId {data.get('sampleId')} already exists in form {form['name']}"
+                f"An entry with '{field}'={data.get(field)} already exists in form {form['name']}"
             )
         entry = FormEntryModel().create_entry(
             form,
