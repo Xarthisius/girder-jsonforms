@@ -3,6 +3,9 @@ from unittest.mock import patch
 
 import pytest
 from girder.constants import AccessType
+from girder.models.collection import Collection
+from girder.models.folder import Folder
+from girder.models.item import Item
 from girder.models.setting import Setting
 from pytest_girder.assertions import assertStatus, assertStatusOk
 
@@ -177,6 +180,43 @@ class TestDepositionResource:
         assert deposition["creatorId"] == str(admin["_id"])
         assert "created" in deposition
         assert "updated" in deposition
+
+    def test_assign_igsn_to_folder(self, server, admin, eagerWorkerTasks):
+        """Test assigning an IGSN recursively through a folder."""
+        collection = Collection().createCollection("IGSN Folder Test", admin)
+        root_folder = Folder().createFolder(
+            collection,
+            "Assign IGSN Root",
+            parentType="collection",
+            creator=admin,
+        )
+        nested_folder = Folder().createFolder(
+            root_folder,
+            "Assign IGSN Nested",
+            creator=admin,
+        )
+
+        root_item = Item().createItem("root_item", admin, root_folder)
+        nested_item1 = Item().createItem("nested_item1", admin, nested_folder)
+        nested_item2 = Item().createItem("nested_item2", admin, nested_folder)
+
+        resp = server.request(
+            path=f"/folder/{root_folder['_id']}/assign_igsn",
+            method="PUT",
+            user=admin,
+            params={"igsn": "test"},
+        )
+        assertStatusOk(resp)
+        assert resp.json["message"] == (
+            f"Assigning IGSN test to all files in folder {root_folder['name']}."
+        )
+
+        for item in (root_item, nested_item1, nested_item2):
+            loaded = Item().load(item["_id"], force=True)
+            assert loaded["meta"]["igsn"] == "test"
+
+        Folder().remove(root_folder)
+        Collection().remove(collection)
 
     def test_create_deposition_with_tracking(
         self, server, admin, sample_metadata, setup_settings, eagerWorkerTasks

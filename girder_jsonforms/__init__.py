@@ -33,7 +33,7 @@ from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
 from .settings import PluginSettings
-from .worker_plugin.delete_folder import run as delete_folder_task
+from .worker_plugin.folder_ops import assign_igsn_task, delete_folder_task
 from .worker_plugin.amdee import register_deposition_with_aimd
 
 
@@ -257,6 +257,44 @@ def _delayed_delete_folder(self, event):
     )
 
 
+@access.user(scope=TokenScope.DATA_WRITE)
+@girderRest.boundHandler
+@autoDescribeRoute(
+    Description("Assign an IGSN to all files withing a folder recursively.")
+    .modelParam(
+        "id", "The ID of the folder to process.", model=Folder, level=AccessType.WRITE
+    )
+    .param(
+        "igsn",
+        "The IGSN to assign to the folder.",
+        paramType="query",
+        required=True,
+        dataType="string",
+    )
+    .param(
+        "progress",
+        "Whether to report progress.",
+        paramType="query",
+        required=False,
+        dataType="boolean",
+        default=False,
+    )
+    .errorResponse("ID was invalid.", 400)
+    .errorResponse("Write access was denied on the folder.", 403)
+)
+def _assign_igsn_to_folder(self, folder, igsn, progress):
+    assign_igsn_task.delay(
+        folderId=str(folder["_id"]),
+        progress=progress,
+        igsn=igsn,
+        userId=str(self.getCurrentUser()["_id"]),
+        itemsOnly=True,
+    )
+    return {
+        "message": f"Assigning IGSN {igsn} to all files in folder {folder['name']}."
+    }
+
+
 @access.public(scope=TokenScope.DATA_READ)
 @girderRest.filtermodel(model=Collection)
 @girderRest.boundHandler
@@ -336,6 +374,7 @@ class JSONFormsPlugin(GirderPlugin):
             except ValueError:
                 logger.exception("Failed to authenticate with Google Drive")
         info["apiRoot"].item.route("GET", ("query",), _item_advanced_search)
+        info["apiRoot"].folder.route("PUT", (":id", "assign_igsn"), _assign_igsn_to_folder)
         info["apiRoot"].aimdl = AIMDL()
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
