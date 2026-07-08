@@ -32,7 +32,7 @@ from .rest.aimdl import AIMDL, append_vega
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
-from .settings import PluginSettings
+from .settings import PluginSettings, IGSN_REGEX
 from .worker_plugin.folder_ops import assign_igsn_task, delete_folder_task
 from .worker_plugin.amdee import register_deposition_with_aimd
 
@@ -280,9 +280,12 @@ def _delayed_delete_folder(self, event):
         default=False,
     )
     .errorResponse("ID was invalid.", 400)
+    .errorResponse("IGSN was invalid.", 400)
     .errorResponse("Write access was denied on the folder.", 403)
 )
 def _assign_igsn_to_folder(self, folder, igsn, progress):
+    if not IGSN_REGEX.match(igsn):
+        raise ValidationException(f"IGSN {igsn} is not valid.", "igsn")
     assign_igsn_task.delay(
         folderId=str(folder["_id"]),
         progress=progress,

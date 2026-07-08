@@ -6,7 +6,7 @@ from girder.utility import setting_utilities
 
 INST_CODE = re.compile(r"^[A-Z]{2}$")
 COLLECTION_NAME = "IGSN Assets"
-
+IGSN_REGEX = re.compile(r"^[A-Z]{6}[0-9]{5}[A-Z0-9\-]*$", re.IGNORECASE)
 
 class PluginSettings:
     IGSN_INSTITUTIONS = "jsonforms.igsn_institutions"
