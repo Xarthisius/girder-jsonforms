@@ -128,6 +128,7 @@ const EditFormView = View.extend({
     initialize: function (settings) {
         window.Handlebars = Handlebars; // Otherwise the helper is not available in the template
         window.Autocomplete = Autocomplete; // Otherwise the helper is not available in the template
+        window.JSONEditor = JSONEditor; // Otherwise the helper is not available in the template
         this.otherEntries = {};
         const view = this;
         Handlebars.registerHelper('entryField', function (entryId, field) {
