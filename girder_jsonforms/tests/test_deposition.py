@@ -200,20 +200,21 @@ class TestDepositionResource:
         nested_item1 = Item().createItem("nested_item1", admin, nested_folder)
         nested_item2 = Item().createItem("nested_item2", admin, nested_folder)
 
+        igsn = "ABCDEF012345"
         resp = server.request(
             path=f"/folder/{root_folder['_id']}/assign_igsn",
             method="PUT",
             user=admin,
-            params={"igsn": "test"},
+            params={"igsn": igsn},
         )
         assertStatusOk(resp)
         assert resp.json["message"] == (
-            f"Assigning IGSN test to all files in folder {root_folder['name']}."
+            f"Assigning IGSN {igsn} to all files in folder {root_folder['name']}."
         )
 
         for item in (root_item, nested_item1, nested_item2):
             loaded = Item().load(item["_id"], force=True)
-            assert loaded["meta"]["igsn"] == "test"
+            assert loaded["meta"]["igsn"] == igsn
 
         Folder().remove(root_folder)
         Collection().remove(collection)
