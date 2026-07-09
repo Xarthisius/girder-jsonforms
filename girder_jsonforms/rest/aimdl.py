@@ -26,6 +26,23 @@ def deterministic_sort(sort):
     return sort
 
 
+def parse_dates(data):
+    if isinstance(data, dict):
+        return {k: parse_dates(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [parse_dates(item) for item in data]
+    elif isinstance(data, str):
+        # Skip purely numeric strings so IDs or counts aren't converted to dates
+        if data.isdigit():
+            return data
+        try:
+            # fuzzy=False ensures it doesn't grab dates out of normal sentences
+            return dateutil.parser.parse(data, fuzzy=False)
+        except (ValueError, TypeError):
+            return data
+    return data
+
+
 class AIMDL(Resource):
     def __init__(self):
         super().__init__()
@@ -263,7 +280,15 @@ class AIMDL(Resource):
         .errorResponse("You are not authorized to access this resource.", 403)
     )
     def get_items_by_datatype(
-        self, dataType, baseParentId, baseParentType, extraFields, filters, limit, offset, sort
+        self,
+        dataType,
+        baseParentId,
+        baseParentType,
+        extraFields,
+        filters,
+        limit,
+        offset,
+        sort,
     ):
         """
         Get a list of items with a specific data type.
@@ -281,7 +306,8 @@ class AIMDL(Resource):
             "meta.igsn": {"$exists": True},
             "meta.data_type": dataType,
         }
-        q.update(filters or {})
+        filters = parse_dates(filters) if filters else {}
+        q.update(filters)
         q.update(base_parent)
 
         fields = {
