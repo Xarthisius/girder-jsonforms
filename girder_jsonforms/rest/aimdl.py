@@ -1,7 +1,9 @@
 import hashlib
 import json
 import logging
+import re
 
+from bson import Regex
 import dateutil.parser
 import pymongo
 from girder.api import access
@@ -14,7 +16,50 @@ from girder.models.item import Item
 from girder.models.user import User
 
 _AIMDL_COLLECTION_ID = "665de536bcc722774ce53754"  # TODO: make this configurable
+ALLOWED_OPERATORS = {"$eq", "$ne", "$gt", "$gte", "$lt", "$lte", "$in", "$nin"}
+ALLOWED_FIELDS = {
+    "created",
+    "creatorId",
+    "description",
+    "folderId",
+    "meta",
+    "meta.data_type",
+    "meta.igsn",
+    "meta.experiment_date",
+    "name",
+    "size",
+    "updated",
+}
+
 logger = logging.getLogger(__name__)
+
+
+def sanitize_query(data):
+    if isinstance(data, (re.Pattern, Regex)):
+        raise ValueError("Regex objects are not allowed")
+
+    if isinstance(data, dict):
+        sanitized = {}
+        for k, v in data.items():
+            # Block keys starting with $ unless they are in the whitelist
+            if k.startswith("$") and k not in ALLOWED_OPERATORS:
+                raise ValueError(f"Unauthorized operator used: {k}")
+            sanitized[k] = sanitize_query(v)
+        return sanitized
+    elif isinstance(data, list):
+        return [sanitize_query(item) for item in data]
+    return data
+
+
+def validate_fields(data):
+    if isinstance(data, dict):
+        for k, v in data.items():
+            if not k.startswith("$") and k not in ALLOWED_FIELDS:
+                raise ValueError(f"Unauthorized query field: {k}")
+            validate_fields(v)
+    elif isinstance(data, list):
+        for item in data:
+            validate_fields(item)
 
 
 def deterministic_sort(sort):
@@ -306,7 +351,14 @@ class AIMDL(Resource):
             "meta.igsn": {"$exists": True},
             "meta.data_type": dataType,
         }
-        filters = parse_dates(filters) if filters else {}
+        filters = filters or {}
+        try:
+            filters = sanitize_query(filters)
+            validate_fields(filters)
+            filters = parse_dates(filters)
+        except Exception as e:
+            raise RestException(f"Invalid 'filters' parameter: {e}")
+
         q.update(filters)
         q.update(base_parent)
 
