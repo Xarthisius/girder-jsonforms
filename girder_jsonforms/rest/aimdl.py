@@ -26,6 +26,7 @@ ALLOWED_FIELDS = {
     "meta.data_type",
     "meta.igsn",
     "meta.experiment_date",
+    "meta.alpss_output_name",
     "name",
     "size",
     "updated",
@@ -130,13 +131,20 @@ class AIMDL(Resource):
             enum=["user", "collection"],
             required=False,
         )
+        .param(
+            "igsn",
+            "The IGSN to filter items by.",
+            required=False,
+        )
     )
-    def count_datafiles(self, baseParentType, baseParentId):
-        base_parent = self._get_base_parent(
+    def count_datafiles(self, baseParentType, baseParentId, igsn):
+        query = self._get_base_parent(
             baseParentType, baseParentId, user=self.getCurrentUser()
         )
+        if igsn:
+            query["meta.igsn"] = igsn
         pipeline = [
-            {"$match": base_parent},
+            {"$match": query},
             {"$group": {"_id": "$meta.data_type", "count": {"$sum": 1}}},
         ]
         results = {}
