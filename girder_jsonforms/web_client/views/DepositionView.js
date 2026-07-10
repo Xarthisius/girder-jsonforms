@@ -1,7 +1,7 @@
 import QRCode from 'qrcode';
 
 import DepositionModel from '../models/DepositionModel';
-import DepositionTemplate from '../templates/depositionView.pug'; 
+import DepositionTemplate from '../templates/depositionView.pug';
 import DepositionSplitDialog from '../templates/depositionSplitDialog.pug';
 import SearchResultsTypeTemplate from '../templates/searchResultsType.pug';
 
@@ -23,95 +23,95 @@ const ItemModel = girder.models.ItemModel;
 const FolderModel = girder.models.FolderModel;
 
 const QRparams = {
-  'errorCorrectionLevel': 'H',
-  'version': 8,
-  'mode': 'alphanumeric'
+    'errorCorrectionLevel': 'H',
+    'version': 8,
+    'mode': 'alphanumeric'
 };
 
 var SplitDialog = View.extend({
-  events: {
-    'submit #g-split-form': function (e) {
-      e.preventDefault();
-      // Disable submission button to prevent multiple clicks
-      this.$('#g-split-btn').girderEnable(false);
-      this.$('.g-validation-failed-message').text('');
+    events: {
+        'submit #g-split-form': function (e) {
+            e.preventDefault();
+            // Disable submission button to prevent multiple clicks
+            this.$('#g-split-btn').girderEnable(false);
+            this.$('.g-validation-failed-message').text('');
 
-      const data = $(e.currentTarget).serializeArray();
-      const params = new Map(data.map((obj) => [obj.name, obj.value]));
-      const suffix = params.get('suffix') || '';
-      const batch = parseInt(params.get('batch'), 10);
+            const data = $(e.currentTarget).serializeArray();
+            const params = new Map(data.map((obj) => [obj.name, obj.value]));
+            const suffix = params.get('suffix') || '';
+            const batch = parseInt(params.get('batch'), 10);
 
-      // validate that batch or suffix is provided, but not both
-      // if batch is provided, validate that it's a positive integer
-      // if both batch and suffix are provided, or neither is provided, show an error message
-      if ((!batch && !suffix) || (batch && suffix)) {
-        this.$('#g-split-btn').girderEnable(true);
-        this.$('.g-validation-failed-message').text('Please provide either a batch size or a suffix, but not both.');
-        return ;
-      }
-      if (batch) {
-        if (isNaN(batch) || batch <= 0) {
-          this.$('#g-split-btn').girderEnable(true);
-          this.$('.g-validation-failed-message').text('Batch size must be a positive integer.');
-          return ;
+            // validate that batch or suffix is provided, but not both
+            // if batch is provided, validate that it's a positive integer
+            // if both batch and suffix are provided, or neither is provided, show an error message
+            if ((!batch && !suffix) || (batch && suffix)) {
+                this.$('#g-split-btn').girderEnable(true);
+                this.$('.g-validation-failed-message').text('Please provide either a batch size or a suffix, but not both.');
+                return;
+            }
+            if (batch) {
+                if (isNaN(batch) || batch <= 0) {
+                    this.$('#g-split-btn').girderEnable(true);
+                    this.$('.g-validation-failed-message').text('Batch size must be a positive integer.');
+                    return;
+                }
+                params.set('batch', batch);
+            }
+            if (suffix) {
+                if (!/^[a-zA-Z0-9]+$/.test(suffix)) {
+                    this.$('#g-split-btn').girderEnable(true);
+                    this.$('.g-validation-failed-message').text('Suffix must be a non-empty alphanumeric string.');
+                    return;
+                }
+            }
+            restRequest({
+                type: 'POST',
+                url: `deposition/${this.model.id}/split`,
+                data: Object.fromEntries(params),
+                error: null
+            }).done((resp) => {
+                this.$el.modal('hide');
+                router.navigate(`deposition/${resp._id}`, { trigger: true });
+            }).fail((resp) => {
+                this.$el.modal('hide');
+                events.trigger('g:alert', {
+                    text: resp.responseJSON.message || 'An error occurred while splitting the deposition.',
+                    type: 'danger'
+                });
+            });
         }
-        params.set('batch', batch);
-      }
-      if (suffix) {
-        if (!/^[a-zA-Z0-9]+$/.test(suffix)) {
-          this.$('#g-split-btn').girderEnable(true);
-          this.$('.g-validation-failed-message').text('Suffix must be a non-empty alphanumeric string.');
-          return ;
-        }
-      }
-      restRequest({
-        type: 'POST',
-        url: `deposition/${this.model.id}/split`,
-        data: Object.fromEntries(params),
-        error: null
-      }).done((resp) => {
-        this.$el.modal('hide');
-        router.navigate(`deposition/${resp._id}`, {trigger: true});
-      }).fail((resp) => {
-        this.$el.modal('hide');
-        events.trigger('g:alert', {
-          text: resp.responseJSON.message || 'An error occurred while splitting the deposition.',
-          type: 'danger'
-        });
-      });
+    },
+
+    initialize: function (settings) {
+        this.model = settings.model || new DepositionModel();
+        this.render();
+    },
+
+    render: function () {
+        this.$el.html(DepositionSplitDialog({
+            igsn: this.model.get('igsn')
+        })).girderModal(this)
+            .on('shown.bs.modal', () => {
+                this.$('#g-split-form').focus();
+            }).on('hidden.bs.modal', () => {
+                handleClose('splitEvent', { replace: true });
+            });
+        handleOpen('splitEvent', { replace: true });
+        this.$('#g-split-form').focus();
+        return this;
     }
-  },
-
-  initialize: function (settings) {
-    this.model = settings.model || new DepositionModel();
-    this.render();
-  },
-
-  render: function () {
-    this.$el.html(DepositionSplitDialog({
-      igsn: this.model.get('igsn')
-    })).girderModal(this)
-        .on('shown.bs.modal', () => {
-          this.$('#g-split-form').focus();
-        }).on('hidden.bs.modal', () => {
-          handleClose('splitEvent', {replace: true});
-        });
-    handleOpen('splitEvent', {replace: true});
-    this.$('#g-split-form').focus();
-    return this;
-  }
 });
 
 var DepositionView = View.extend({
     events: {
         'click .g-edit-access': 'editAccess',
         'click .g-edit-deposition': function () {
-            girder.router.navigate(`deposition/${this.model.get('_id')}/edit`, {trigger: true});
+            girder.router.navigate(`deposition/${this.model.get('_id')}/edit`, { trigger: true });
         },
         'click .g-back': function () {
-            girder.router.navigate('depositions', {trigger: true});
+            girder.router.navigate('depositions', { trigger: true });
         },
-        'click .g-upload-deposition-image': function() {
+        'click .g-upload-deposition-image': function () {
             var container = $('#g-dialog-container');
             restRequest({
                 "type": 'GET',
@@ -128,7 +128,7 @@ var DepositionView = View.extend({
                     title: 'Upload Deposition Image',
                     multiFile: false,
                     onlyFiles: true,
-                    otherParams: {reference: JSON.stringify({igsn: this.model.get('igsn'), type: 'deposition_image'})},
+                    otherParams: { reference: JSON.stringify({ igsn: this.model.get('igsn'), type: 'deposition_image' }) },
                 }).on('g:uploadFinished', (info) => {
                     const fileId = info.files[0].id;
                     $('.g-sample-image').attr('src', `${getApiRoot()}/file/${fileId}/download?contentDisposition=inline`);
@@ -158,7 +158,7 @@ var DepositionView = View.extend({
                     type: 'success',
                     timeout: 4000
                 });
-                router.navigate('depositions', {trigger: true});
+                router.navigate('depositions', { trigger: true });
             }).fail((resp) => {
                 events.trigger('g:alert', {
                     text: resp.responseJSON.message || 'An error occurred while deleting the deposition.',
@@ -170,7 +170,7 @@ var DepositionView = View.extend({
             restRequest({
                 type: 'PUT',
                 url: `deposition/${this.model.id}/task`,
-                data: {action: 'register_aimd'},
+                data: { action: 'register_aimd' },
                 error: null
             }).done((resp) => {
                 events.trigger('g:alert', {
@@ -227,17 +227,33 @@ var DepositionView = View.extend({
         this.image = new ItemModel();
         if (this.model.get('imageId')) {
             this.image.set({
-              _id: this.model.get('imageId')
-            }).on('g:fetched', function() {
-              this.render();
-            }, this).on('g:error', function() {
-              this.item = null;
-              this.render();
+                _id: this.model.get('imageId')
+            }).on('g:fetched', function () {
+                this.render();
+            }, this).on('g:error', function () {
+                this.item = null;
+                this.render();
             }, this).fetch();
         }
         const relatedIdentifiers = this.model.get("metadata").relatedIdentifiers;
         this.reducedIdentifiers = this._processRelatedIdentifiers(relatedIdentifiers, 10);
         this.transformRelatedIdentifiers(this.reducedIdentifiers.reducedIdentifiers);
+        // Fetch datafile counts for this IGSN and stash on the view
+        restRequest({
+            url: 'aimdl/count',
+            method: 'GET',
+            data: { igsn: this.model.get('igsn') },
+            error: null
+        }).done((resp) => {
+            this.datafileCounts = resp;
+            // Re-render to show the datafile counts when available
+            this.render();
+        }).fail((resp) => {
+            events.trigger('g:alert', {
+                text: resp && resp.responseJSON && resp.responseJSON.message ? resp.responseJSON.message : 'Could not fetch datafile counts.',
+                type: 'warning'
+            });
+        });
     },
 
     render: function () {
@@ -250,6 +266,7 @@ var DepositionView = View.extend({
             relIds: this.reducedIdentifiers,
             level: this.model.getAccessLevel(),
             imageUrl: this.model.get('imageId') ? `${getApiRoot()}/item/${this.model.get('imageId')}/download?contentDisposition=inline` : null,
+            datafileCounts: this.datafileCounts || null,
         }));
         // Find all html elements with entryId and formId
         // and set the text to the name of the entry or form
@@ -315,58 +332,58 @@ var DepositionView = View.extend({
      * the reduced array of identifiers, and a map of how many
      * items were removed per type.
      */
-     _processRelatedIdentifiers: function (relatedIdentifiers, maxItemsPerType) {
-      // 1. Get the total number of elements.
-      const originalCount = relatedIdentifiers.length;
+    _processRelatedIdentifiers: function (relatedIdentifiers, maxItemsPerType) {
+        // 1. Get the total number of elements.
+        const originalCount = relatedIdentifiers.length;
 
-      if (!Array.isArray(relatedIdentifiers) || maxItemsPerType < 0) {
-        console.error("Invalid input provided.");
-        return {
-          originalCount: 0,
-          newCount: 0,
-          removedCounts: {},
-          reducedIdentifiers: []
-        };
-      }
-
-      // Group identifiers by their 'relationType'.
-      const groupedByIdentifier = relatedIdentifiers.reduce((acc, item) => {
-        const { relationType } = item;
-        // Initialize the array for this relationType if it doesn't exist.
-        if (!acc[relationType]) {
-          acc[relationType] = [];
+        if (!Array.isArray(relatedIdentifiers) || maxItemsPerType < 0) {
+            console.error("Invalid input provided.");
+            return {
+                originalCount: 0,
+                newCount: 0,
+                removedCounts: {},
+                reducedIdentifiers: []
+            };
         }
-        acc[relationType].push(item);
-        return acc;
-      }, {});
 
-      const reducedIdentifiers = [];
-      const removedCounts = {};
+        // Group identifiers by their 'relationType'.
+        const groupedByIdentifier = relatedIdentifiers.reduce((acc, item) => {
+            const { relationType } = item;
+            // Initialize the array for this relationType if it doesn't exist.
+            if (!acc[relationType]) {
+                acc[relationType] = [];
+            }
+            acc[relationType].push(item);
+            return acc;
+        }, {});
 
-      // 2. Reduce elements and 3. Track removed elements.
-      for (const relationType in groupedByIdentifier) {
-        const items = groupedByIdentifier[relationType];
-        const itemsToRemoveCount = Math.max(0, items.length - maxItemsPerType);
+        const reducedIdentifiers = [];
+        const removedCounts = {};
 
-        removedCounts[relationType] = itemsToRemoveCount;
+        // 2. Reduce elements and 3. Track removed elements.
+        for (const relationType in groupedByIdentifier) {
+            const items = groupedByIdentifier[relationType];
+            const itemsToRemoveCount = Math.max(0, items.length - maxItemsPerType);
 
-        // Add the allowed number of items to the final array.
-        reducedIdentifiers.push(...items.slice(0, maxItemsPerType));
-      }
+            removedCounts[relationType] = itemsToRemoveCount;
 
-      const newCount = reducedIdentifiers.length;
+            // Add the allowed number of items to the final array.
+            reducedIdentifiers.push(...items.slice(0, maxItemsPerType));
+        }
 
-      return {
-        originalCount,
-        newCount,
-        removedCounts,
-        reducedIdentifiers,
-      };
+        const newCount = reducedIdentifiers.length;
+
+        return {
+            originalCount,
+            newCount,
+            removedCounts,
+            reducedIdentifiers,
+        };
     },
 
     transformRelatedIdentifiers: function (relatedIdentifiers) {
         if (!relatedIdentifiers || !Array.isArray(relatedIdentifiers)) {
-           return; // nothing to transform
+            return; // nothing to transform
         }
         const apiRoot = getApiRoot();
         const entryRegex = new RegExp(`${apiRoot}/entry/(\\w+)`);
@@ -400,8 +417,8 @@ var DepositionView = View.extend({
             url: 'resource',
             method: 'GET',
             data: {
-                resources: JSON.stringify({"jsonforms.form": forms, "jsonforms.entry": entries}),
-                filters: JSON.stringify({"jsonforms.form": {"name": 1}, "jsonforms.entry": {"uniqueId": 1}})
+                resources: JSON.stringify({ "jsonforms.form": forms, "jsonforms.entry": entries }),
+                filters: JSON.stringify({ "jsonforms.form": { "name": 1 }, "jsonforms.entry": { "uniqueId": 1 } })
             }
         }).done((response) => {
             // response is a dictionary with keys 'form' and 'entry' poiniting to dictionaries

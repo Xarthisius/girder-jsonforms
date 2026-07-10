@@ -1,9 +1,9 @@
+import assignIGSNTemplate from '../../templates/assignIgsnWidget.pug';
+
 const $ = girder.$;
 const View = girder.views.View;
 const { handleOpen, handleClose } = girder.dialog;
 const { restRequest } = girder.rest;
-
-import assignIGSNTemplate from '../../templates/assignIgsnWidget.pug';
 
 var AssignIGSNWidget = View.extend({
     events: {
