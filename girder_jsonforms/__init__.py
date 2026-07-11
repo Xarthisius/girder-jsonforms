@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 import cherrypy
+import pandas as pd
 from bson import ObjectId
 from girder import events
 from girder.api import access
@@ -22,6 +23,7 @@ from girder.plugin import GirderPlugin, registerPluginStaticContent
 from girder.utility import search
 from girder.utility.model_importer import ModelImporter
 
+from .lib.announcement import Announcement
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.jq import convert_dates
 from .models.deposition import Deposition as DepositionModel
@@ -32,10 +34,9 @@ from .rest.aimdl import AIMDL, append_vega
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
-from .settings import PluginSettings, IGSN_REGEX
-from .worker_plugin.folder_ops import assign_igsn_task, delete_folder_task
+from .settings import IGSN_REGEX, PluginSettings
 from .worker_plugin.amdee import register_deposition_with_aimd
-
+from .worker_plugin.folder_ops import assign_igsn_task, delete_folder_task
 
 GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
@@ -323,6 +324,29 @@ def _search_collection_by_name(self, event):
     )
 
 
+@access.public
+def announce(event):
+    item = event.info
+    metadata = item.get("meta", {})
+    if not metadata:
+        return
+
+    igsn = metadata.get("igsn")
+    data_type = metadata.get("data_type")
+    if not igsn or data_type != "pdv_alpss_result":
+        return
+
+    try:
+        for fobj in Item().childFiles(item, limit=1):
+            with File().open(fobj) as fptr:
+                df = pd.read_csv(fptr)
+            data = json.loads(json.dumps(df.to_dict(orient="records")[0]))
+            data["igsn"] = igsn
+            Announcement("pdv_alpss_result", data).flush()
+    except Exception:
+        logger.exception("Failed to announce item %s", item["_id"])
+
+
 @access.user
 @autoDescribeRoute(
     Description("Search items using mongo query syntax.")
@@ -360,8 +384,10 @@ class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
     def load(self, info):
+        from girder.api.v1.collection import (
+            Collection as CollectionResource,  # noqa: F401
+        )
         from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
-        from girder.api.v1.collection import Collection as CollectionResource  # noqa: F401
 
         Item().ensureIndices([("meta.data_type", {"unique": False})])
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
@@ -377,7 +403,9 @@ class JSONFormsPlugin(GirderPlugin):
             except ValueError:
                 logger.exception("Failed to authenticate with Google Drive")
         info["apiRoot"].item.route("GET", ("query",), _item_advanced_search)
-        info["apiRoot"].folder.route("PUT", (":id", "assign_igsn"), _assign_igsn_to_folder)
+        info["apiRoot"].folder.route(
+            "PUT", (":id", "assign_igsn"), _assign_igsn_to_folder
+        )
         info["apiRoot"].aimdl = AIMDL()
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
@@ -395,6 +423,7 @@ class JSONFormsPlugin(GirderPlugin):
             "rest.get.collection.before", "jsonforms", _search_collection_by_name
         )
         events.bind("rest.get.item/:id.after", "jsonforms", append_vega)
+        events.bind("model.item.save.after", "jsonforms", announce)
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:
