@@ -342,6 +342,8 @@ def announce(event):
                 df = pd.read_csv(fptr)
             data = json.loads(json.dumps(df.to_dict(orient="records")[0]))
             data["igsn"] = igsn
+            data["itemId"] = str(item["_id"])
+            data["experiment_date"] = metadata.get("experiment_date")
             Announcement("pdv_alpss_result", data).flush()
     except Exception:
         logger.exception("Failed to announce item %s", item["_id"])
