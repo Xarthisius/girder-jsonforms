@@ -157,11 +157,17 @@
                           span.text-muted= label + ': '
                           span.g-info-type= ' ' + val
 
+            if trackerUrl !== "#sample/null"
+              .g-mobile-sample-tracker
+                a.g-sample-tracker-link(href=trackerUrl, title="Tracker link")
+                  i.icon-compass
+                  | See Sample Tracker
+
             .g-deposition-content-body-left-item
 
-      .g-middle-column
-        .g-sample-image-container
-          if imageUrl
+      if imageUrl
+        .g-middle-column
+          .g-sample-image-container
             img.g-sample-image(src=imageUrl, alt="Sample Image")
 
     .g-qr-column

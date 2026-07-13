@@ -106,3 +106,50 @@
 
         li
           margin-bottom 6px
+
+.g-mobile-sample-tracker
+  display none
+
+  a.g-sample-tracker-link
+    display inline-flex
+    align-items center
+    gap 6px
+    padding 8px 12px
+    border-radius 4px
+    background #f8f8f8
+    border 1px solid #ddd
+    color inherit
+    text-decoration none
+
+@media (max-width: 768px)
+  .g-three-column-layout
+    flex-direction column
+    gap 12px
+
+  .g-main-content
+    flex-direction column
+    gap 12px
+
+  .g-middle-column
+    order -1
+
+  .g-qr-column
+    flex 1 0 auto
+    max-width 100%
+    min-width 0
+
+  .g-middle-column
+    flex none !important
+    max-width 100%
+    min-width 0
+
+  .g-sample-image-container,
+  .g-sample-code
+    position static
+
+  .g-qr-column
+    display none
+
+  .g-mobile-sample-tracker
+    display block
+    margin-top 18px
