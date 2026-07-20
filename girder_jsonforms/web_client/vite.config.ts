@@ -10,7 +10,7 @@ function pugPlugin() {
     transform(src: string, id: string) {
       if (id.endsWith('.pug')) {
         return {
-          code: `${compileClient(src, {filename: id})}\nexport default template`,
+          code: `${compileClient(src, {filename: id, compileDebug: false})}\nexport default template`,
           map: null,
         };
       }
