@@ -103,6 +103,11 @@ class AIMDL(Resource):
     def _get_base_parent(parentType=None, parentId=None, user=None):
         if not parentType or not parentId:
             aimdl_collection = Collection().load(_AIMDL_COLLECTION_ID, force=True)
+            if not aimdl_collection:
+                raise RestException(
+                    "AIMDL collection not found. Please ensure the collection exists.",
+                    code=404,
+                )
             return {
                 "baseParentId": aimdl_collection["_id"],
                 "baseParentType": "collection",

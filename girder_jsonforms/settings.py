@@ -8,6 +8,7 @@ INST_CODE = re.compile(r"^[A-Z]{2}$")
 COLLECTION_NAME = "IGSN Assets"
 IGSN_REGEX = re.compile(r"^[A-Z]{6}[0-9]{5}[A-Z0-9\-]*$", re.IGNORECASE)
 
+
 class PluginSettings:
     IGSN_INSTITUTIONS = "jsonforms.igsn_institutions"
     IGSN_MATERIALS = "jsonforms.igsn_materials"
@@ -16,6 +17,7 @@ class PluginSettings:
     IGSN_CLIENT_ID = "jsonforms.igsn_client_id"
     IGSN_PROVIDER_ID = "jsonforms.igsn_provider_id"
     IGSN_PREFIX = "jsonforms.igsn_prefix"
+    AIMDL_COUNTS = "jsonforms.aimdl_counts"
 
 
 @setting_utilities.validator(
@@ -265,6 +267,14 @@ def default_google_drive_enabled():
     return False
 
 
+@setting_utilities.default(PluginSettings.AIMDL_COUNTS)
+def default_aimdl_counts():
+    """
+    Default setting for enabling AIMDL counts.
+    """
+    return False
+
+
 @setting_utilities.validator(PluginSettings.GOOGLE_DRIVE_ENABLED)
 def validate_google_drive_enabled(doc):
     """
@@ -273,5 +283,14 @@ def validate_google_drive_enabled(doc):
     if not isinstance(doc["value"], bool):
         raise ValidationException(
             "Google Drive integration must be a boolean.",
+            "value",
+        )
+
+
+@setting_utilities.validator(PluginSettings.AIMDL_COUNTS)
+def validate_aimdl_counts(doc):
+    if not isinstance(doc["value"], bool):
+        raise ValidationException(
+            "AIMDL Counts must be a boolean.",
             "value",
         )

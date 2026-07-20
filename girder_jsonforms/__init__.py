@@ -382,6 +382,15 @@ def handle_deposition_registration(event: events.Event) -> None:
     )
 
 
+@access.public
+@girderRest.boundHandler
+def add_public_settings(self, event):
+    print(event.info)
+    settings = event.info["returnVal"]
+    public_settings = [PluginSettings.AIMDL_COUNTS]
+    settings.update({key: Setting().get(key) for key in public_settings})
+
+
 class JSONFormsPlugin(GirderPlugin):
     DISPLAY_NAME = "JSON Forms"
 
@@ -426,6 +435,9 @@ class JSONFormsPlugin(GirderPlugin):
         )
         events.bind("rest.get.item/:id.after", "jsonforms", append_vega)
         events.bind("model.item.save.after", "jsonforms", announce)
+        events.bind(
+            "rest.get.system/public_settings.after", "jsonforms", add_public_settings
+        )
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:

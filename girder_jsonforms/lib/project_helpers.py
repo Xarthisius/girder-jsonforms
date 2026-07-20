@@ -66,11 +66,7 @@ def batch_indices_imqcam(main_deposition, form_data):
 
     local_indices = []
 
-    prefix = (
-        f"{form_data['userParameters']['runDate'].replace('-', '')}_"
-        f"{form_data['userParameters']['location']}_"
-        f"{form_data['buildPlate']['material']}"
-    )
+    prefix = form_data["printerBuildID"]
     suffix = (
         "_".join(form_data["extraInfo"])
         if "extraInfo" in form_data and form_data["extraInfo"]
@@ -107,12 +103,7 @@ def batch_indices_croom(main_deposition, form_data):
 
     local_indices = []
 
-    prefix = (
-        f"{form_data['userParameters']['runDate'].replace('-', '')}_"
-        f"{form_data['userParameters']['location']}_"
-        f"{form_data['buildPlate']['material']}_"
-        f"QC{form_data['buildNumber']:02d}"
-    )
+    prefix = f"{form_data['printerBuildID']}_QC{form_data['buildNumber']:02d}"
     suffix = (
         "_".join(form_data["extraInfo"])
         if "extraInfo" in form_data and form_data["extraInfo"]
