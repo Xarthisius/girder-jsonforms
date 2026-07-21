@@ -476,6 +476,8 @@ class Deposition(Resource):
     )
     def autocomplete(self, query, limit):
         provider = providers.idMap.get("orcid")
+        if provider is None:
+            raise RestException("ORCID not set up")
 
         path = (
             "expanded-search/?q="
