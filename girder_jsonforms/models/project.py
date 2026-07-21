@@ -1,7 +1,10 @@
-import bson
 import datetime
+import re
+
+import bson
 import jsonschema
 import jsonschema.validators as jsv
+from girder import events
 from girder.constants import AccessType
 from girder.exceptions import ValidationException
 from girder.models.collection import Collection
@@ -69,13 +72,7 @@ project_schema = {
         "samples": {
             "type": "array",
             "items": {
-                "type": "object",
-                "properties": {
-                    "_id": {"type": "objectId"},
-                    "igsn": {"type": "string"},
-                },
-                "additionalProperties": False,
-                "required": ["_id", "igsn"],
+                "type": "string",
             },
             "default": [],
         },
@@ -198,6 +195,7 @@ class Project(AccessControlledModel):
                 "projectType",
                 "public",
                 "publicFlags",
+                "samples",
                 "submissionFolderId",
                 "status",
                 "updated",
@@ -218,6 +216,10 @@ class Project(AccessControlledModel):
         for file in doc["files"]:
             if isinstance(file["fileId"], str):
                 file["fileId"] = bson.ObjectId(file["fileId"])
+
+        if "samples" not in doc:
+            doc["samples"] = []
+
         for member in doc.get("members", []):
             if "userId" in member and isinstance(member["userId"], str):
                 member["userId"] = bson.ObjectId(member["userId"])
@@ -291,8 +293,47 @@ class Project(AccessControlledModel):
             "projectId",
             "submissionFolderId",
         }
+        old_samples = set(project["samples"])
         for key, value in updates.items():
             if key in protected_fields:
                 continue
             project[key] = value
+        new_samples = set(project["samples"])
+        if new_samples - old_samples:
+            events.trigger(
+                "project.samples_added",
+                {
+                    "_id": project["_id"],
+                    "samples": list(new_samples - old_samples),
+                },
+            )
+        if old_samples - new_samples:
+            events.trigger(
+                "project.samples_removed",
+                {
+                    "_id": project["_id"],
+                    "samples": list(old_samples - new_samples),
+                },
+            )
         return self.save(project)
+
+    def use_sample(self, igsn):
+        igsns = []
+        stem = ""
+        for part in igsn.split("-"):
+            stem += part
+            igsns.append(stem)
+            stem += "-"
+        return self.find(
+            query={"samples": {"$in": igsns}}, fields={"_id": 1, "projectId": 1}
+        )
+
+    @staticmethod
+    def igsn_query(igsns):
+        """Build a query matching any of the given IGSNs or their descendants.
+
+        A sample IGSN like "JHABOX00001" covers derived/child IGSNs named
+        with a "-" suffix, e.g. "JHABOX00001-001" and "JHABOX00001-001-001".
+        """
+        alternatives = "|".join(re.escape(igsn) for igsn in igsns)
+        return {"meta.igsn": {"$regex": f"^(?:{alternatives})(?:-.*)?$"}}

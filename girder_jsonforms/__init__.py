@@ -24,13 +24,13 @@ from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.jq import convert_dates
-from .lib.events import ensure_group
+from .lib.events import ensure_group, process_add_samples, process_remove_samples
 from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
 from .models.project import Project as ProjectModel
-from .rest.aimdl import AIMDL, append_vega, item_save
+from .rest.aimdl import AIMDL, append_vega, item_save, propagate_to_projects
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
@@ -48,10 +48,19 @@ def annotate_uploads(event):
     if "itemId" not in file:
         return
 
+    item = Item().load(file["itemId"], force=True)
+    if item.get("meta", {}).get("igsn"):
+        propagate_to_projects(item)
+
+    annotate_upload(event)
+
+
+def annotate_upload(event):
     info = event.info
     if "reference" not in info:
         return
 
+    file = info["file"]
     try:
         reference = json.loads(info["reference"])
     except (ValueError, TypeError):
@@ -377,6 +386,7 @@ class JSONFormsPlugin(GirderPlugin):
         from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
 
         Item().ensureIndices([("meta.data_type", {"unique": False})])
+        Item().exposeFields(level=AccessType.READ, fields={"projectId"})
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
         ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
@@ -417,6 +427,9 @@ class JSONFormsPlugin(GirderPlugin):
             "rest.get.system/public_settings.after", "jsonforms", add_public_settings
         )
         events.bind("model.project.save", "jsonforms", ensure_group)
+        events.bind("project.samples_added", "jsonforms", process_add_samples)
+        events.bind("project.samples_removed", "jsonforms", process_remove_samples)
+
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:

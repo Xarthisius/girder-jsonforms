@@ -3,11 +3,11 @@ from girder.models.collection import Collection
 from girder.models.group import Group
 from girder.models.user import User
 
-from ..models.project import Project
-from ..worker_plugin.orcid import register_project_with_orcid
-
 
 def ensure_group(event):
+    from ..models.project import Project
+    from ..worker_plugin.orcid import register_project_with_orcid
+
     document = event.info
     if "_id" not in document:
         return document
@@ -43,3 +43,15 @@ def ensure_group(event):
         girder_job_title=f"Registering {document['projectId']} with ORCID",
     )
     return document
+
+
+def process_add_samples(event):
+    from ..worker_plugin.projects import add_sample_data
+
+    add_sample_data.delay(str(event.info["_id"]), event.info["samples"])
+
+
+def process_remove_samples(event):
+    from ..worker_plugin.projects import remove_sample_data
+
+    remove_sample_data.delay(str(event.info["_id"]), event.info["samples"])

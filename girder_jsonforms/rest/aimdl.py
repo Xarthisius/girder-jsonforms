@@ -1,6 +1,8 @@
+import copy
 import hashlib
 import json
 import logging
+import os
 import re
 
 import dateutil.parser
@@ -14,12 +16,16 @@ from girder.constants import AccessType, TokenScope
 from girder.exceptions import RestException
 from girder.models.collection import Collection
 from girder.models.file import File
+from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.user import User
 
 from ..lib.announcement import Announcement
+from ..models.project import Project
 
-_AIMDL_COLLECTION_ID = "665de536bcc722774ce53754"  # TODO: make this configurable
+_AIMDL_COLLECTION_ID = os.environ.get(
+    "AIMDL_COLLECTION_ID", "665de536bcc722774ce53754"
+)  # TODO: make this configurable
 ALLOWED_OPERATORS = {"$eq", "$ne", "$gt", "$gte", "$lt", "$lte", "$in", "$nin"}
 ALLOWED_FIELDS = {
     "created",
@@ -460,6 +466,79 @@ def item_save(event):
     data_type = metadata.get("data_type")
     if igsn and data_type == "pdv_alpss_result":
         announce_pdv_alpss_result(item)
+
+    if igsn:
+        propagate_to_projects(item)
+
+
+def propagate_to_projects(item, sync=True):
+    aimdl = AIMDL._get_base_parent()
+    if item["baseParentId"] != aimdl["baseParentId"]:
+        logger.debug("Item not in a blessed AIMDL collection")
+        return
+    # Find all the projects it belongs to
+    for project in Project().use_sample(item["meta"]["igsn"]):
+        if target := Item().findOne(
+            {"copyOfItem": item["_id"], "projectId": project["_id"]}
+        ):
+            if sync:
+                synchronize_item(item, target)
+        else:
+            propagate_item_to_project(item, project)
+
+
+def propagate_item_to_project(item, project, collection=None, creator=None):
+    if collection is None:
+        collection = Collection().findOne({"name": project["projectId"]})
+
+    if not collection:
+        raise ValueError("Project collection not found")
+
+    if creator is None:
+        creator = User().findOne({"admin": True})
+
+    parent = parent_type = None
+    for part in Item().parentsToRoot(item, force=True):
+        part_type = part["type"]
+        if part_type == "collection":
+            parent = collection
+            parent_type = part_type
+            continue
+        obj = part["object"]
+        parent = Folder().createFolder(
+            parent,
+            obj["name"],
+            parentType=parent_type,
+            creator=creator,
+            reuseExisting=True,
+        )
+        parent_type = "folder"
+
+    if Item().findOne(
+        {"name": item["name"], "folderId": parent["_id"], "projectId": project["_id"]}
+    ):
+        logger.warning(f'Item "{item["name"]}" exists in {project["projectId"]}')
+        return
+
+    copied_item = Item().copyItem(item, creator, folder=parent)
+    copied_item["projectId"] = project["_id"]
+    Item().save(copied_item, triggerEvents=False)
+
+
+def synchronize_item(source, target):
+    creator = User().findOne({"admin": True})
+    if "meta" in source:
+        target["meta"] = copy.deepcopy(source["meta"])
+
+    for file in Item().childFiles(target):
+        File().remove(file, updateItemSize=False)
+    for file in Item().childFiles(source):
+        File().copyFile(file, creator=creator, item=target)
+
+    for key in ["size", "updated"]:
+        target[key] = source[key]
+
+    Item().save(target, triggerEvents=False)
 
 
 def announce_pdv_alpss_result(item):

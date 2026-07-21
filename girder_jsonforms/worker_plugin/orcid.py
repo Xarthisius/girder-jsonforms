@@ -1,14 +1,19 @@
 import datetime
-import requests
+import logging
+import os
 import urllib.parse as urlparse
 
-import os
-
+import requests
 from girder.models.user import User
-from girder_worker.app import app
-from girder_oauth import providers
 from girder.utility.model_importer import ModelImporter
+from girder_oauth import providers
+from girder_oauth.providers import addProvider
+from girder_wholetale.lib.orcid import SandboxORCID
+from girder_worker.app import app
 
+logger = logging.getLogger(__name__)
+
+addProvider(SandboxORCID)
 _domain = os.environ.get("DOMAIN", "example.com")
 _hosts = {
     "organization": [
@@ -80,7 +85,8 @@ def register_project_with_orcid(user_id, project_id):
     provider = providers.idMap.get("orcid")
     ProjectModel = ModelImporter.model("project", plugin="jsonforms")
     if provider is None:
-        raise ValueError("Provider 'orcid' not found")
+        logger.exception("Provider 'orcid' not found")
+        return
 
     api_url = provider._API_USER_URL
     resource_server = urlparse.urlparse(provider._AUTH_URL).netloc
@@ -90,7 +96,8 @@ def register_project_with_orcid(user_id, project_id):
         if token["resource_server"] == resource_server:
             break
     else:
-        raise ValueError(f"No token found for resource server '{resource_server}'")
+        logger.exception(f"No token found for resource server '{resource_server}'")
+        return
 
     project = ProjectModel.load(project_id, force=True)
     if project["status"] != "accepted":
@@ -169,7 +176,8 @@ def register_project_with_orcid(user_id, project_id):
 
         location = resp.headers.get("Location")
         if not location:
-            raise ValueError("No Location header in ORCID response")
+            logger.exception("No Location header in ORCID response")
+            return
         print(f"Project registered with ORCID at {location} for ORCID {token['orcid']}")
         ProjectModel.collection.update_one(
             {"_id": project["_id"]},
