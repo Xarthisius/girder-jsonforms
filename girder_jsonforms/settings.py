@@ -2,6 +2,7 @@ import re
 
 import jsonschema
 from girder.exceptions import ValidationException
+from girder.settings import SettingDefault
 from girder.utility import setting_utilities
 
 INST_CODE = re.compile(r"^[A-Z]{2}$")
@@ -18,6 +19,14 @@ class PluginSettings:
     IGSN_PROVIDER_ID = "jsonforms.igsn_provider_id"
     IGSN_PREFIX = "jsonforms.igsn_prefix"
     AIMDL_COUNTS = "jsonforms.aimdl_counts"
+    PROJECTS_COLLECTION_NAME = "jsonforms.projects_collection_name"
+
+
+SettingDefault.defaults.update(
+    {
+        PluginSettings.PROJECTS_COLLECTION_NAME: "Projects",
+    }
+)
 
 
 @setting_utilities.validator(
@@ -25,6 +34,7 @@ class PluginSettings:
         PluginSettings.IGSN_CLIENT_ID,
         PluginSettings.IGSN_PROVIDER_ID,
         PluginSettings.IGSN_PREFIX,
+        PluginSettings.PROJECTS_COLLECTION_NAME,
     }
 )
 def validate_igsn_client(doc):

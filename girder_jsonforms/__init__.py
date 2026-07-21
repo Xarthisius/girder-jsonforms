@@ -5,13 +5,12 @@ import logging
 from pathlib import Path
 
 import cherrypy
-import pandas as pd
 from bson import ObjectId
 from girder import events
 from girder.api import access
 from girder.api import rest as girderRest
 from girder.api.describe import Description, autoDescribeRoute
-from girder.constants import AccessType, TokenScope
+from girder.constants import AccessType, TokenScope, registerAccessFlag
 from girder.exceptions import GirderException, ValidationException
 from girder.models.collection import Collection
 from girder.models.file import File
@@ -23,18 +22,20 @@ from girder.plugin import GirderPlugin, registerPluginStaticContent
 from girder.utility import search
 from girder.utility.model_importer import ModelImporter
 
-from .lib.announcement import Announcement
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.jq import convert_dates
+from .lib.events import ensure_group, process_add_samples, process_remove_samples
 from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
-from .rest.aimdl import AIMDL, append_vega
+from .models.project import Project as ProjectModel
+from .rest.aimdl import AIMDL, append_vega, item_save, propagate_to_projects
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
 from .settings import IGSN_REGEX, PluginSettings
+from .rest.project import Project
 from .worker_plugin.amdee import register_deposition_with_aimd
 from .worker_plugin.folder_ops import assign_igsn_task, delete_folder_task
 
@@ -47,10 +48,19 @@ def annotate_uploads(event):
     if "itemId" not in file:
         return
 
+    item = Item().load(file["itemId"], force=True)
+    if item.get("meta", {}).get("igsn"):
+        propagate_to_projects(item)
+
+    annotate_upload(event)
+
+
+def annotate_upload(event):
     info = event.info
     if "reference" not in info:
         return
 
+    file = info["file"]
     try:
         reference = json.loads(info["reference"])
     except (ValueError, TypeError):
@@ -324,31 +334,6 @@ def _search_collection_by_name(self, event):
     )
 
 
-@access.public
-def announce(event):
-    item = event.info
-    metadata = item.get("meta", {})
-    if not metadata:
-        return
-
-    igsn = metadata.get("igsn")
-    data_type = metadata.get("data_type")
-    if not igsn or data_type != "pdv_alpss_result":
-        return
-
-    try:
-        for fobj in Item().childFiles(item, limit=1):
-            with File().open(fobj) as fptr:
-                df = pd.read_csv(fptr)
-            data = json.loads(json.dumps(df.to_dict(orient="records")[0]))
-            data["igsn"] = igsn
-            data["itemId"] = str(item["_id"])
-            data["experiment_date"] = metadata.get("experiment_date")
-            Announcement("pdv_alpss_result", data).flush()
-    except Exception:
-        logger.exception("Failed to announce item %s", item["_id"])
-
-
 @access.user
 @autoDescribeRoute(
     Description("Search items using mongo query syntax.")
@@ -401,9 +386,11 @@ class JSONFormsPlugin(GirderPlugin):
         from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
 
         Item().ensureIndices([("meta.data_type", {"unique": False})])
+        Item().exposeFields(level=AccessType.READ, fields={"projectId"})
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
         ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
+        ModelImporter.registerModel("project", ProjectModel, plugin="jsonforms")
         ModelImporter.registerModel(
             "prefixcounter", PrefixCounterModel, plugin="jsonforms"
         )
@@ -421,6 +408,7 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
+        info["apiRoot"].project = Project()
         try:
             DepositionModel().validate({})  # To initialize the model and bind events
         except ValidationException:
@@ -434,10 +422,14 @@ class JSONFormsPlugin(GirderPlugin):
             "rest.get.collection.before", "jsonforms", _search_collection_by_name
         )
         events.bind("rest.get.item/:id.after", "jsonforms", append_vega)
-        events.bind("model.item.save.after", "jsonforms", announce)
+        events.bind("model.item.save.after", "jsonforms", item_save)
         events.bind(
             "rest.get.system/public_settings.after", "jsonforms", add_public_settings
         )
+        events.bind("model.project.save", "jsonforms", ensure_group)
+        events.bind("project.samples_added", "jsonforms", process_add_samples)
+        events.bind("project.samples_removed", "jsonforms", process_remove_samples)
+
         if GDRIVE_SERVICE is not None:
             events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:
@@ -469,10 +461,23 @@ class JSONFormsPlugin(GirderPlugin):
             dataType="string",
         )
 
+        Collection().createCollection(
+            Setting().get(PluginSettings.PROJECTS_COLLECTION_NAME),
+            creator=User().findOne({"admin": True}),
+            public=True,
+            reuseExisting=True,
+        )
+
         registerPluginStaticContent(
             plugin="jsonforms",
             css=["/style.css"],
             js=["/girder-plugin-jsonforms.umd.cjs"],
             staticDir=Path(__file__).parent / "web_client" / "dist",
             tree=info["serverRoot"],
+        )
+
+        registerAccessFlag(
+            key="jsonforms.review_projects",
+            name="Review Projects",
+            description="Allow users to review and approve projects.",
         )

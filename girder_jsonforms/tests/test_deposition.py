@@ -153,6 +153,7 @@ def test_sample(server, admin):
 
 
 @pytest.mark.plugin("sample_tracker")
+@pytest.mark.plugin("wholetale")
 @pytest.mark.plugin("jsonforms")
 class TestDepositionResource:
     """Test cases for the Deposition Resource."""
