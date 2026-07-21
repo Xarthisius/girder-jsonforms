@@ -60,21 +60,28 @@ class Project(Resource):
 
     @access.user
     @autoDescribeRoute(
-        Description("Create a new project").jsonParam(
+        Description("Create a new project")
+        .jsonParam(
             "project",
             "The project to create.",
             paramType="body",
             requireObject=True,
         )
+        .param(
+            "prefix",
+            "Project ID prefix",
+            required=False,
+            dataType="string",
+        )
     )
     @filtermodel(model="project", plugin="jsonforms")
-    def create_project(self, project):
+    def create_project(self, project, prefix):
         """
         Create a new project.
         """
         user = self.getCurrentUser()
         project["creatorId"] = user["_id"]
-        return ProjectModel().create_project(project, user)
+        return ProjectModel().create_project(project, user, prefix=prefix)
 
     @access.user
     @autoDescribeRoute(

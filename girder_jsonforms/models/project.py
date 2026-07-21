@@ -254,8 +254,10 @@ class Project(AccessControlledModel):
             )
         return self._project_collection
 
-    def create_project(self, doc, user):
-        project_id = ProjectCounter().get_next(f"JHU{datetime.datetime.now():%y}")
+    def create_project(self, doc, user, prefix=None):
+        if prefix is None:
+            prefix = "JHU"
+        project_id = ProjectCounter().get_next(f"{prefix}{datetime.datetime.now():%y}")
         if not doc.get("projectId"):
             doc["projectId"] = project_id
         doc.pop("submissionFolderId", None)
