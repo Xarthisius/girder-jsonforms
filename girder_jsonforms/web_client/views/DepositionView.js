@@ -13,7 +13,7 @@ const router = girder.router;
 const { AccessType } = girder.constants;
 const { handleClose, handleOpen } = girder.dialog;
 const { renderMarkdown } = girder.misc;
-const { getApiRoot } = girder.rest;
+const { getApiRoot, getPublicSettings } = girder.rest;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const View = girder.views.View;
 const { restRequest } = girder.rest;
@@ -238,22 +238,27 @@ var DepositionView = View.extend({
         const relatedIdentifiers = this.model.get("metadata").relatedIdentifiers;
         this.reducedIdentifiers = this._processRelatedIdentifiers(relatedIdentifiers, 10);
         this.transformRelatedIdentifiers(this.reducedIdentifiers.reducedIdentifiers);
-        // Fetch datafile counts for this IGSN and stash on the view
-        restRequest({
-            url: 'aimdl/count',
-            method: 'GET',
-            data: { igsn: this.model.get('igsn') },
-            error: null
-        }).done((resp) => {
-            this.datafileCounts = resp;
-            // Re-render to show the datafile counts when available
-            this.render();
-        }).fail((resp) => {
-            events.trigger('g:alert', {
-                text: resp && resp.responseJSON && resp.responseJSON.message ? resp.responseJSON.message : 'Could not fetch datafile counts.',
-                type: 'warning'
+        // Fetch datafile counts for this IGSN and stash on the view, but only
+        // if the deployment has enabled it (avoids a request that will just 404/no-op
+        // on deployments without AIMD configured).
+        const publicSettings = getPublicSettings() || {};
+        if (publicSettings['jsonforms.aimdl_counts']) {
+            restRequest({
+                url: 'aimdl/count',
+                method: 'GET',
+                data: { igsn: this.model.get('igsn') },
+                error: null
+            }).done((resp) => {
+                this.datafileCounts = resp;
+                // Re-render to show the datafile counts when available
+                this.render();
+            }).fail((resp) => {
+                events.trigger('g:alert', {
+                    text: resp && resp.responseJSON && resp.responseJSON.message ? resp.responseJSON.message : 'Could not fetch datafile counts.',
+                    type: 'warning'
+                });
             });
-        });
+        }
     },
 
     render: function () {
