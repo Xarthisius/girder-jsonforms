@@ -3,17 +3,21 @@ import json
 import logging
 import re
 
-from bson import Regex
 import dateutil.parser
+import pandas as pd
 import pymongo
+from bson import Regex
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
 from girder.api.rest import Resource, boundHandler, filtermodel
 from girder.constants import AccessType, TokenScope
 from girder.exceptions import RestException
 from girder.models.collection import Collection
+from girder.models.file import File
 from girder.models.item import Item
 from girder.models.user import User
+
+from ..lib.announcement import Announcement
 
 _AIMDL_COLLECTION_ID = "665de536bcc722774ce53754"  # TODO: make this configurable
 ALLOWED_OPERATORS = {"$eq", "$ne", "$gt", "$gte", "$lt", "$lte", "$in", "$nin"}
@@ -443,3 +447,30 @@ def append_vega(self, event):
     vega_meta.update(item_response["meta"])  # preserve existing metadata
     item_response["meta"] = vega_meta
     event.addResponse(item_response)
+
+
+@access.public
+def item_save(event):
+    item = event.info
+    metadata = item.get("meta", {})
+    if not metadata:
+        return
+
+    igsn = metadata.get("igsn")
+    data_type = metadata.get("data_type")
+    if igsn and data_type == "pdv_alpss_result":
+        announce_pdv_alpss_result(item)
+
+
+def announce_pdv_alpss_result(item):
+    try:
+        for fobj in Item().childFiles(item, limit=1):
+            with File().open(fobj) as fptr:
+                df = pd.read_csv(fptr)
+            data = json.loads(json.dumps(df.to_dict(orient="records")[0]))
+            data["igsn"] = item["meta"]["igsn"]
+            data["itemId"] = str(item["_id"])
+            data["experiment_date"] = item["meta"].get("experiment_date")
+            Announcement("pdv_alpss_result", data).flush()
+    except Exception:
+        logger.exception("Failed to announce item %s", item["_id"])

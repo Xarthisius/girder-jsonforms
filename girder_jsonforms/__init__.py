@@ -5,7 +5,6 @@ import logging
 from pathlib import Path
 
 import cherrypy
-import pandas as pd
 from bson import ObjectId
 from girder import events
 from girder.api import access
@@ -23,7 +22,6 @@ from girder.plugin import GirderPlugin, registerPluginStaticContent
 from girder.utility import search
 from girder.utility.model_importer import ModelImporter
 
-from .lib.announcement import Announcement
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.jq import convert_dates
 from .lib.events import ensure_group
@@ -32,7 +30,7 @@ from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
 from .models.project import Project as ProjectModel
-from .rest.aimdl import AIMDL, append_vega
+from .rest.aimdl import AIMDL, append_vega, item_save
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
@@ -327,31 +325,6 @@ def _search_collection_by_name(self, event):
     )
 
 
-@access.public
-def announce(event):
-    item = event.info
-    metadata = item.get("meta", {})
-    if not metadata:
-        return
-
-    igsn = metadata.get("igsn")
-    data_type = metadata.get("data_type")
-    if not igsn or data_type != "pdv_alpss_result":
-        return
-
-    try:
-        for fobj in Item().childFiles(item, limit=1):
-            with File().open(fobj) as fptr:
-                df = pd.read_csv(fptr)
-            data = json.loads(json.dumps(df.to_dict(orient="records")[0]))
-            data["igsn"] = igsn
-            data["itemId"] = str(item["_id"])
-            data["experiment_date"] = metadata.get("experiment_date")
-            Announcement("pdv_alpss_result", data).flush()
-    except Exception:
-        logger.exception("Failed to announce item %s", item["_id"])
-
-
 @access.user
 @autoDescribeRoute(
     Description("Search items using mongo query syntax.")
@@ -439,7 +412,7 @@ class JSONFormsPlugin(GirderPlugin):
             "rest.get.collection.before", "jsonforms", _search_collection_by_name
         )
         events.bind("rest.get.item/:id.after", "jsonforms", append_vega)
-        events.bind("model.item.save.after", "jsonforms", announce)
+        events.bind("model.item.save.after", "jsonforms", item_save)
         events.bind(
             "rest.get.system/public_settings.after", "jsonforms", add_public_settings
         )
