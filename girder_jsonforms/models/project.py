@@ -294,13 +294,24 @@ class Project(AccessControlledModel):
             "orcidResourceUrl",
             "projectId",
             "submissionFolderId",
+            "samples",
         }
-        old_samples = set(project["samples"])
         for key, value in updates.items():
             if key in protected_fields:
                 continue
             project[key] = value
-        new_samples = set(project["samples"])
+        return self.save(project)
+
+    def update_samples(self, project, samples, user):
+        """Replace a project's sample list, gated on the
+        ``jsonforms.manage_samples`` access flag. Unlike ``update_project``,
+        this is allowed regardless of the project's status, since samples
+        are added/removed throughout a project's lifetime."""
+        self.requireAccessFlags(project, user=user, flags="jsonforms.manage_samples")
+        old_samples = set(project["samples"])
+        new_samples = set(samples)
+        project["samples"] = list(new_samples)
+        project = self.save(project)
         if new_samples - old_samples:
             events.trigger(
                 "project.samples_added",
@@ -317,7 +328,7 @@ class Project(AccessControlledModel):
                     "samples": list(old_samples - new_samples),
                 },
             )
-        return self.save(project)
+        return project
 
     def use_sample(self, igsn):
         igsns = []

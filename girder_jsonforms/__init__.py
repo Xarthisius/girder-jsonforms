@@ -481,3 +481,8 @@ class JSONFormsPlugin(GirderPlugin):
             name="Review Projects",
             description="Allow users to review and approve projects.",
         )
+        registerAccessFlag(
+            key="jsonforms.manage_samples",
+            name="Sample Manager",
+            description="Allow users to add and remove samples on a project.",
+        )

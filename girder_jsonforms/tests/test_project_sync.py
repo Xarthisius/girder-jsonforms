@@ -112,8 +112,10 @@ def test_item_outside_blessed_collection_is_not_propagated(
     item = Item().load(item["_id"], force=True)
     Item().setMetadata(item, {"igsn": "JHAMAA00001"})
 
-    ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
 
     assert _copies_for(accepted_project) == []
@@ -133,8 +135,10 @@ def test_adding_sample_propagates_existing_data(
     # Not yet a member of any project, so nothing should be copied yet.
     assert _copies_for(accepted_project) == []
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
 
     copies = _copies_for(accepted_project)
@@ -155,8 +159,10 @@ def test_materialization_flow_propagates_on_igsn_assignment(
 ):
     """Notes 4: create empty item, add a file, then assign the IGSN. This
     should propagate immediately since the sample is already registered."""
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00002"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00002"],
+        admin,
     )
     assert _copies_for(accepted_project) == []
 
@@ -188,13 +194,17 @@ def test_removing_sample_deletes_project_copy_but_not_original(
     item = Item().load(item["_id"], force=True)
     item = Item().setMetadata(item, {"igsn": "JHAMAA00001"})
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
     assert len(_copies_for(accepted_project)) == 1
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": []}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        [],
+        admin,
     )
 
     assert _copies_for(accepted_project) == []
@@ -216,19 +226,19 @@ def test_updating_samples_adds_and_removes_in_one_call(
     item_b = Item().load(item_b["_id"], force=True)
     item_b = Item().setMetadata(item_b, {"igsn": "JHAMAA00002"})
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
-    assert {c["copyOfItem"] for c in _copies_for(accepted_project)} == {
-        item_a["_id"]
-    }
+    assert {c["copyOfItem"] for c in _copies_for(accepted_project)} == {item_a["_id"]}
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00002"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00002"],
+        admin,
     )
-    assert {c["copyOfItem"] for c in _copies_for(accepted_project)} == {
-        item_b["_id"]
-    }
+    assert {c["copyOfItem"] for c in _copies_for(accepted_project)} == {item_b["_id"]}
 
 
 @pytest.mark.plugin("jsonforms")
@@ -241,8 +251,10 @@ def test_metadata_update_syncs_to_project_copies(
     item = Item().load(item["_id"], force=True)
     item = Item().setMetadata(item, {"igsn": "JHAMAA00001", "data_type": "raw"})
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
     target = _copies_for(accepted_project)[0]
     assert "experiment_date" not in target["meta"]
@@ -265,8 +277,10 @@ def test_new_file_added_to_item_syncs_to_project_copies(
     item = Item().load(item["_id"], force=True)
     item = Item().setMetadata(item, {"igsn": "JHAMAA00001"})
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
     target = _copies_for(accepted_project)[0]
     assert len(list(Item().childFiles(target))) == 1
@@ -289,8 +303,10 @@ def test_file_content_updated_in_place_syncs_to_project_copies(
     item = Item().load(item["_id"], force=True)
     item = Item().setMetadata(item, {"igsn": "JHAMAA00001"})
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
     target = _copies_for(accepted_project)[0]
 
@@ -363,11 +379,11 @@ def test_propagate_item_to_project_skips_name_collision(
 def igsn_family(aimdl_folder, admin, fsAssetstore):
     """A small IGSN hierarchy to exercise derived-IGSN propagation:
 
-        JHABOX00001
-        |-- JHABOX00001-001
-        |    `-- JHABOX00001-001-001
-        `-- JHABOX00001-002
-        JHABOX00002 (unrelated top-level IGSN)
+    JHABOX00001
+    |-- JHABOX00001-001
+    |    `-- JHABOX00001-001-001
+    `-- JHABOX00001-002
+    JHABOX00002 (unrelated top-level IGSN)
     """
     items = {}
     for key, igsn in [
@@ -390,8 +406,10 @@ def test_adding_parent_sample_propagates_all_derived_igsns(
 ):
     """Adding a top-level IGSN as a sample must pull in data for every
     derived/child IGSN underneath it (any depth), not just an exact match."""
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHABOX00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHABOX00001"],
+        admin,
     )
 
     copied_ids = {c["copyOfItem"] for c in _copies_for(accepted_project)}
@@ -409,8 +427,10 @@ def test_adding_child_sample_only_covers_its_own_subtree(
 ):
     """Adding a derived IGSN as a sample should cover its own descendants
     only, not its ancestor or sibling branches."""
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHABOX00001-001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHABOX00001-001"],
+        admin,
     )
 
     copied_ids = {c["copyOfItem"] for c in _copies_for(accepted_project)}
@@ -426,13 +446,17 @@ def test_removing_parent_sample_removes_all_derived_copies(
 ):
     """Removing a top-level IGSN must clean up copies of every derived
     IGSN it covered, while leaving the originals in the AIMDL collection."""
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHABOX00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHABOX00001"],
+        admin,
     )
     assert len(_copies_for(accepted_project)) == 4
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": []}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        [],
+        admin,
     )
 
     assert _copies_for(accepted_project) == []
@@ -446,15 +470,17 @@ def test_removing_child_sample_only_removes_its_own_subtree(
 ):
     """Removing a derived IGSN sample must only remove copies within its
     own subtree, leaving copies tracked under a sibling sample intact."""
-    accepted_project = ProjectModel().update_project(
+    accepted_project = ProjectModel().update_samples(
         accepted_project,
-        {"samples": ["JHABOX00001-001", "JHABOX00001-002"]},
+        ["JHABOX00001-001", "JHABOX00001-002"],
         admin,
     )
     assert len(_copies_for(accepted_project)) == 3
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHABOX00001-002"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHABOX00001-002"],
+        admin,
     )
 
     copied_ids = {c["copyOfItem"] for c in _copies_for(accepted_project)}
@@ -472,8 +498,10 @@ def test_propagation_is_idempotent_for_already_copied_item(
     item = Item().load(item["_id"], force=True)
     item = Item().setMetadata(item, {"igsn": "JHAMAA00001"})
 
-    accepted_project = ProjectModel().update_project(
-        accepted_project, {"samples": ["JHAMAA00001"]}, admin
+    accepted_project = ProjectModel().update_samples(
+        accepted_project,
+        ["JHAMAA00001"],
+        admin,
     )
     assert len(_copies_for(accepted_project)) == 1
 

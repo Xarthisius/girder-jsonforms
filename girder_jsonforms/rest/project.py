@@ -19,6 +19,7 @@ class Project(Resource):
         self.route("DELETE", (":id",), self.delete_project)
         self.route("GET", (":id",), self.get_project)
         self.route("PUT", (":id",), self.update_project)
+        self.route("PUT", (":id", "samples"), self.update_project_samples)
 
     @access.public
     @autoDescribeRoute(
@@ -118,6 +119,40 @@ class Project(Resource):
                 )
         updates.pop("_id", None)
         return ProjectModel().update_project(project, updates, user)
+
+    @access.user
+    @autoDescribeRoute(
+        Description("Replace the list of samples on a project")
+        .modelParam(
+            "id",
+            model=ProjectModel,
+            plugin="jsonforms",
+            paramType="path",
+            required=True,
+            level=AccessType.WRITE,
+        )
+        .jsonParam(
+            "samples",
+            "The full list of sample IGSNs the project should have.",
+            paramType="body",
+            requireArray=True,
+        )
+    )
+    @filtermodel(model="project", plugin="jsonforms")
+    def update_project_samples(self, project, samples):
+        """
+        Add/remove samples on a project. Allowed regardless of the
+        project's status, unlike the general project update endpoint.
+        """
+        user = self.getCurrentUser()
+        try:
+            return ProjectModel().update_samples(project, samples, user)
+        except AccessException:
+            raise RestException(
+                "Only users with the Sample Manager access flag can add or "
+                "remove samples on this project.",
+                403,
+            )
 
     @access.user
     @autoDescribeRoute(
