@@ -83,6 +83,18 @@ wrap(GlobalNavView, 'render', function (render) {
     } else {
         console.warn('No existing .g-global-nav-li elements found.');
     }
+    if (getCurrentUser() && getCurrentUser().get('admin')) {
+        const projectsNav = createNavItem({
+            name: 'Projects',
+            icon: 'icon-briefcase',
+            target: 'projects'
+        });
+        if (navList) {
+            navList.parentElement.appendChild(projectsNav);
+        } else {
+            console.warn('No existing .g-global-nav-li elements found.');
+        }
+    }
 });
 
 // Add an entry to assign IGSN recursively in the hierarchy widget folder menu

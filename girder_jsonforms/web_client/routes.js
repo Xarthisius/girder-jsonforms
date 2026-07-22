@@ -7,6 +7,9 @@ import FormListView from './views/FormListView';
 import EditFormView from './views/EditFormView';
 import EditDepositionView from './views/EditDepositionView';
 import DepositionListWidget from './views/widgets/DepositionListWidget';
+import ProjectModel from './models/ProjectModel';
+import ProjectListView from './views/ProjectListView';
+import ProjectView from './views/ProjectView';
 
 const router = girder.router;
 const events = girder.events;
@@ -129,5 +132,22 @@ router.route('form/:id', 'form', function (id) {
         });
     }).fail(() => {
         router.navigate('forms', {trigger: true, replace: true});
+    });
+});
+
+router.route('projects', 'projects', function () {
+    events.trigger('g:navigateTo', ProjectListView);
+});
+
+router.route('project/:id', 'project', function (id) {
+    const project = new ProjectModel({_id: id});
+    project.fetch().done(() => {
+        events.trigger('g:navigateTo', ProjectView, {
+            model: project
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('projects', {trigger: true, replace: true});
     });
 });
