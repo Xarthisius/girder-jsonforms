@@ -24,6 +24,7 @@ from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.jq import convert_dates
+from .lib.locks import distributed_lock
 from .lib.events import ensure_group, process_add_samples, process_remove_samples
 from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
@@ -461,12 +462,18 @@ class JSONFormsPlugin(GirderPlugin):
             dataType="string",
         )
 
-        Collection().createCollection(
-            Setting().get(PluginSettings.PROJECTS_COLLECTION_NAME),
-            creator=User().findOne({"admin": True}),
-            public=True,
-            reuseExisting=True,
-        )
+        # createCollection(reuseExisting=True) is a check-then-act (findOne then
+        # save) with no DB-level uniqueness, so concurrent workers running load()
+        # at boot each see no existing collection and all create their own. Wrap
+        # it in a distributed lock so exactly one worker wins the create and the
+        # rest observe it via reuseExisting.
+        with distributed_lock("jsonforms:ensure-projects-collection"):
+            Collection().createCollection(
+                Setting().get(PluginSettings.PROJECTS_COLLECTION_NAME),
+                creator=User().findOne({"admin": True}),
+                public=True,
+                reuseExisting=True,
+            )
 
         registerPluginStaticContent(
             plugin="jsonforms",
