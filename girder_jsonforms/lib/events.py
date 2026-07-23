@@ -30,9 +30,10 @@ def ensure_group(event):
             document["projectId"],
             admin,
             description="Collection for project {}".format(document["projectId"]),
+            public=False,
         )
         project_collection = Collection().setGroupAccess(
-            project_collection, project_group, AccessType.READ
+            project_collection, project_group, AccessType.READ, save=True
         )
         document = Project().setGroupAccess(
             document, project_group, AccessType.READ, save=False
