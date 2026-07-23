@@ -4,6 +4,17 @@ from girder.models.group import Group
 from girder.models.user import User
 
 
+def _role_to_access_level(member):
+    role = member.get("role", "user")
+    if role.lower() == "pi":
+        level = AccessType.ADMIN
+    elif role.lower() == "manager":
+        level = AccessType.WRITE
+    else:
+        level = AccessType.READ
+    return level
+
+
 def ensure_group(event):
     from ..models.project import Project
     from ..worker_plugin.orcid import register_project_with_orcid
@@ -23,9 +34,10 @@ def ensure_group(event):
         )
         for member in document.get("members", []):
             if "userId" in member and member["userId"] is not None:
-                user = User().load(member["userId"], force=True)
-                if user:
-                    Group().addUser(project_group, user, level=AccessType.READ)
+                if user := User().load(member["userId"], force=True):
+                    Group().addUser(
+                        project_group, user, level=_role_to_access_level(member)
+                    )
         project_collection = Collection().createCollection(
             document["projectId"],
             admin,
