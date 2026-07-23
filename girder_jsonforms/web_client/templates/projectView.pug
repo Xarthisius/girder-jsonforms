@@ -3,6 +3,13 @@
     button.g-back-to-projects.btn.btn-sm.btn-primary(title="Back to projects")
       i.icon-left
       | Back
+    if isAdmin && project.get('status') === 'under review'
+      button.g-approve-project.btn.btn-sm.btn-success(title="Approve project")
+        i.icon-ok
+        | Approve
+      button.g-reject-project.btn.btn-sm.btn-danger(title="Reject project")
+        i.icon-cancel
+        | Reject
 
   h1.g-project-title= project.get('name')
 

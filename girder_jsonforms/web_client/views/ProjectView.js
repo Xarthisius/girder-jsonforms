@@ -6,6 +6,7 @@ import template from '../templates/projectView.pug';
 const events = girder.events;
 const router = girder.router;
 const { restRequest } = girder.rest;
+const { getCurrentUser } = girder.auth;
 const View = girder.views.View;
 
 var ProjectView = View.extend({
@@ -29,12 +30,31 @@ var ProjectView = View.extend({
             const igsn = this.$(event.currentTarget).data('igsn');
             const samples = (this.model.get('samples') || []).filter((s) => s !== igsn);
             this._updateSamples(samples);
+        },
+        'click .g-approve-project': function (event) {
+            this._updateStatus('accepted');
+        },
+        'click .g-reject-project': function (event) {
+            this._updateStatus('rejected');
         }
     },
 
     initialize: function (settings) {
         this.model = settings.model;
+        const user = getCurrentUser();
+        this.isAdmin = !!(user && user.get('admin'));
         this.render();
+    },
+
+    _updateStatus: function (status) {
+        this.model.updateStatus(status).done(() => {
+            this.render();
+        }).fail((resp) => {
+            events.trigger('g:alert', {
+                text: (resp.responseJSON && resp.responseJSON.message) || 'Failed to update project status.',
+                type: 'danger'
+            });
+        });
     },
 
     _updateSamples: function (samples) {
@@ -50,7 +70,8 @@ var ProjectView = View.extend({
 
     render: function () {
         this.$el.html(template({
-            project: this.model
+            project: this.model,
+            isAdmin: this.isAdmin
         }));
 
         $('.g-add-sample-field', this.el).autoComplete({
