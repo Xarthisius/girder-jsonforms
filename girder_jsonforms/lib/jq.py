@@ -1,41 +1,11 @@
 from typing import Any
-from dateutil import parser
-from dateutil.parser import ParserError
 
 
-def convert_dates(data):
-    """
-    Recursively identifies string values that can be parsed as dates
-    and converts them to datetime objects.
-
-    Args:
-        data: The dictionary, list, or value to process.
-
-    Returns:
-        The processed dictionary, list, or value with date strings
-        converted to datetime objects.
-    """
-    if isinstance(data, dict):
-        # Process dictionary items recursively
-        return {k: convert_dates(v) for k, v in data.items()}
-
-    elif isinstance(data, list):
-        # Process list items recursively
-        return [convert_dates(item) for item in data]
-
-    elif isinstance(data, str):
-        # Attempt to parse the string as a date
-        try:
-            # Use 'parser.parse' with 'fuzzy=False' for stricter parsing
-            # You can set 'ignoretz=True' if you want to drop timezone info
-            return parser.parse(data)
-        except (ParserError, TypeError, ValueError):
-            # If parsing fails, return the original string
-            return data
-
-    else:
-        # Return all other types (int, float, bool, etc.) as is
-        return data
+# NOTE: date coercion for queries/metadata lives in
+# ``girder_jsonforms.lib.metadata_dates.coerce_dates`` (strict ISO-8601). The
+# old liberal ``convert_dates`` (dateutil-based) was removed because it could
+# misclassify non-date strings, which is unsafe now that matching coercion runs
+# on the write path.
 
 
 # find all occurences of a key in a nested json

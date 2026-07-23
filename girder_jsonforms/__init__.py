@@ -23,9 +23,9 @@ from girder.utility import search
 from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
-from .lib.jq import convert_dates
 from .lib.locks import distributed_lock
 from .lib.events import ensure_group, process_add_samples, process_remove_samples
+from .lib.metadata_dates import coerce_dates, coerce_metadata_dates
 from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
@@ -346,7 +346,9 @@ def _search_collection_by_name(self, event):
 @girderRest.boundHandler
 def _item_advanced_search(self, query, limit, offset, sort):
     user = self.getCurrentUser()
-    query = convert_dates(query)
+    # Coerce ISO date strings in the query using the same strict rules applied
+    # when the metadata was stored, so date/range queries match BSON dates.
+    query = coerce_dates(query)
     cursor = Item().findWithPermissions(
         query, sort=sort, user=user, level=AccessType.READ, limit=limit, offset=offset
     )
@@ -424,6 +426,10 @@ class JSONFormsPlugin(GirderPlugin):
         )
         events.bind("rest.get.item/:id.after", "jsonforms", append_vega)
         events.bind("model.item.save.after", "jsonforms", item_save)
+        # Coerce ISO-8601 date strings in Item/Folder metadata into BSON dates
+        # before persisting, so they are queryable as real datetimes.
+        events.bind("model.item.save", "jsonforms", coerce_metadata_dates)
+        events.bind("model.folder.save", "jsonforms", coerce_metadata_dates)
         events.bind(
             "rest.get.system/public_settings.after", "jsonforms", add_public_settings
         )

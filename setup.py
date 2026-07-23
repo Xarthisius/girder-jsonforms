@@ -43,6 +43,10 @@ setup(
         "openpyxl",
     ],
     entry_points={
+        "console_scripts": [
+            "girder-jsonforms-migrate-metadata-dates = "
+            "girder_jsonforms.scripts.migrate_metadata_dates:main",
+        ],
         "girder.plugin": ["jsonforms = girder_jsonforms:JSONFormsPlugin"],
         "girder_worker_plugins": [
             "jsonforms = girder_jsonforms.worker_plugin:JSONFormsWorkerPlugin"

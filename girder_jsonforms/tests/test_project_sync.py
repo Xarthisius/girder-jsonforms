@@ -1,3 +1,4 @@
+import datetime
 import io
 
 import pytest
@@ -263,7 +264,11 @@ def test_metadata_update_syncs_to_project_copies(
 
     target = Item().load(target["_id"], force=True)
     assert target["meta"] == item["meta"]
-    assert target["meta"]["experiment_date"] == "2026-01-01"
+    # ISO date strings in metadata are coerced to BSON datetimes on save
+    # (see girder_jsonforms.lib.metadata_dates), so the copy holds a datetime.
+    assert target["meta"]["experiment_date"] == datetime.datetime(
+        2026, 1, 1, tzinfo=datetime.timezone.utc
+    )
 
 
 @pytest.mark.plugin("jsonforms")

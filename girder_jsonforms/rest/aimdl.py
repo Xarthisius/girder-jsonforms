@@ -1,4 +1,5 @@
 import copy
+import datetime
 import hashlib
 import json
 import logging
@@ -21,6 +22,7 @@ from girder.models.item import Item
 from girder.models.user import User
 
 from ..lib.announcement import Announcement
+from ..lib.metadata_dates import _parse_iso, coerce_dates
 from ..models.project import Project
 
 _AIMDL_COLLECTION_ID = os.environ.get(
@@ -82,21 +84,44 @@ def deterministic_sort(sort):
     return sort
 
 
-def parse_dates(data):
-    if isinstance(data, dict):
-        return {k: parse_dates(v) for k, v in data.items()}
-    elif isinstance(data, list):
-        return [parse_dates(item) for item in data]
-    elif isinstance(data, str):
-        # Skip purely numeric strings so IDs or counts aren't converted to dates
-        if data.isdigit():
-            return data
+def _format_experiment_date(value, ignore_time=False):
+    """Render a stored ``meta.experiment_date`` as the string used in a
+    partition key.
+
+    ``experiment_date`` is normally a BSON ``datetime`` (coerced on save by
+    :mod:`girder_jsonforms.lib.metadata_dates`). Legacy, un-migrated documents
+    may still hold a string, which is handled best-effort.
+    """
+    if isinstance(value, datetime.datetime):
+        return value.date().isoformat() if ignore_time else value.isoformat()
+    # Legacy string value (pre-migration).
+    if ignore_time:
         try:
-            # fuzzy=False ensures it doesn't grab dates out of normal sentences
-            return dateutil.parser.parse(data, fuzzy=False)
+            return dateutil.parser.parse(value).date().isoformat()
         except (ValueError, TypeError):
-            return data
-    return data
+            return str(value)
+    return str(value)
+
+
+def _experiment_date_query(date_str, ignore_time=False):
+    """Build a Mongo query for ``meta.experiment_date`` from the date component
+    of a partition key so it matches stored BSON datetimes.
+
+    ``ignore_time`` matches the whole calendar day (a half-open range) rather
+    than an exact instant. If the key component is not ISO-8601 (legacy string
+    storage) we fall back to string/regex matching so un-migrated data still
+    resolves.
+    """
+    parsed = _parse_iso(date_str)
+    if parsed is None:
+        # Not ISO -> assume the value was stored as a plain string.
+        return {"$regex": f"^{re.escape(date_str)}"} if ignore_time else date_str
+    if ignore_time:
+        start = datetime.datetime(
+            parsed.year, parsed.month, parsed.day, tzinfo=datetime.timezone.utc
+        )
+        return {"$gte": start, "$lt": start + datetime.timedelta(days=1)}
+    return parsed
 
 
 class AIMDL(Resource):
@@ -258,9 +283,13 @@ class AIMDL(Resource):
         base_parent = self._get_base_parent(baseParentType, baseParentId, user)
         q = {"meta.igsn": igsn}
         if dataType.startswith("xrd") or dataType.startswith("xrf"):
-            q["meta.experiment_date"] = experiment_date
+            q["meta.experiment_date"] = _experiment_date_query(
+                experiment_date, ignore_time=False
+            )
         elif dataType.startswith("pdv") or dataType.startswith("nmd"):
-            q["meta.experiment_date"] = {"$regex": f"^{experiment_date}"}
+            q["meta.experiment_date"] = _experiment_date_query(
+                experiment_date, ignore_time=True
+            )
         q.update(base_parent)
         if dataType:
             q["meta.data_type"] = dataType
@@ -284,15 +313,8 @@ class AIMDL(Resource):
         ):
             # group by 'igsn//experiment_date'
             try:
-                if ignore_time:
-                    experiment_date = (
-                        dateutil.parser.parse(item["meta"]["experiment_date"])
-                        .date()
-                        .isoformat()
-                    )
-                else:
-                    experiment_date = item["meta"]["experiment_date"]
-                key = item["meta"]["igsn"] + "//" + experiment_date
+                igsn = item["meta"]["igsn"]
+                raw_date = item["meta"]["experiment_date"]
             except KeyError:
                 logger.warning(
                     "Item {} is missing either an IGSN or an experiment date.".format(
@@ -300,6 +322,8 @@ class AIMDL(Resource):
                     )
                 )
                 continue
+            experiment_date = _format_experiment_date(raw_date, ignore_time=ignore_time)
+            key = igsn + "//" + experiment_date
             if key not in igsn_map:
                 igsn_map[key] = []
 
@@ -378,7 +402,9 @@ class AIMDL(Resource):
         try:
             filters = sanitize_query(filters)
             validate_fields(filters)
-            filters = parse_dates(filters)
+            # Coerce date strings with the same strict rules used when the
+            # metadata was stored, so filters match the BSON datetimes.
+            filters = coerce_dates(filters)
         except Exception as e:
             raise RestException(f"Invalid 'filters' parameter: {e}")
 
@@ -549,7 +575,12 @@ def announce_pdv_alpss_result(item):
             data = json.loads(json.dumps(df.to_dict(orient="records")[0]))
             data["igsn"] = item["meta"]["igsn"]
             data["itemId"] = str(item["_id"])
-            data["experiment_date"] = item["meta"].get("experiment_date")
+            experiment_date = item["meta"].get("experiment_date")
+            if isinstance(experiment_date, datetime.datetime):
+                # experiment_date is stored as a BSON datetime; emit ISO-8601
+                # rather than json's default str() so consumers get a clean date.
+                experiment_date = experiment_date.isoformat()
+            data["experiment_date"] = experiment_date
             Announcement("pdv_alpss_result", data).flush()
     except Exception:
         logger.exception("Failed to announce item %s", item["_id"])
