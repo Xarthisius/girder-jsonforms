@@ -10,6 +10,19 @@ top for IGSN (sample identifier) minting/registration via DataCite, "Projects" (
 records with members, samples, instruments), and AIMD (materials data) integration. It ships both a Python
 server plugin and a Girder web_client (Backbone + some Vue) frontend bundled with Vite.
 
+## Girder core architecture (upstream)
+
+This is a **Girder 5** plugin. For how Girder core works — the models layer
+(`Model`/`AccessControlledModel`, `exposeFields`, metadata), the REST layer
+(`Resource`, `autoDescribeRoute`, `@access.*`, `boundHandler`), the plugin/events/settings
+systems, and file:line anchors into the upstream source — see the core architecture map in
+the sibling `girder` checkout, imported here:
+
+@../girder/CLAUDE.md
+
+Everything below this section is specific to the `girder_jsonforms` plugin; use the imported
+map above whenever a question is about core Girder mechanics rather than this plugin.
+
 ## Commands
 
 Server-side (Python), via `tox`:
