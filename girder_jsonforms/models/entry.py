@@ -22,11 +22,78 @@ from girder.utility.model_importer import ModelImporter
 logger = logging.getLogger(__name__)
 
 
-def _get_meta(entry, child_meta):
+_UNSET = object()
+
+
+def _collect_target_paths(data):
+    """Map every uploaded file id to the targetPath of its enclosing files
+    sub-object, walking the whole submitted form tree.
+
+    The ``file`` field of a files sub-object holds a comma-separated list of the
+    Girder file ids uploaded for it, and ``targetPath`` is that group's
+    destination as evaluated from the *current* submitted value. Using this at
+    submission time lets a file land in the folder implied by the final form
+    state (e.g. the latest ``heat_treatment_id``) rather than whatever value was
+    frozen into the item's metadata when the file was first uploaded.
+    """
+    mapping = {}
+
+    def walk(node):
+        if isinstance(node, dict):
+            files = node.get("file")
+            if isinstance(files, str) and files:
+                path = node.get("targetPath")
+                for file_id in files.split(","):
+                    file_id = file_id.strip()
+                    if file_id:
+                        mapping[file_id] = path
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    walk(data)
+    return mapping
+
+
+def _item_target_path(item, target_paths):
+    """Resolve an uploaded item's targetPath from the submitted form data,
+    matching by the ids of the files it contains. Returns ``_UNSET`` when the
+    item can't be matched, so callers fall back to baked metadata."""
+    for file in Item().childFiles(item):
+        file_id = str(file["_id"])
+        if file_id in target_paths:
+            return target_paths[file_id]
+    return _UNSET
+
+
+def _folder_target_path(folder, creator, target_paths):
+    """Resolve an uploaded directory's targetPath from the submitted form data,
+    matching by any file it contains (searched recursively). Returns ``_UNSET``
+    when nothing matches."""
+    stack = [folder]
+    while stack:
+        current = stack.pop()
+        for item in Folder().childItems(current):
+            path = _item_target_path(item, target_paths)
+            if path is not _UNSET:
+                return path
+        stack.extend(Folder().childFolders(current, "folder", user=creator))
+    return _UNSET
+
+
+def _get_meta(entry, child_meta, override_path=_UNSET):
     meta = {
         "entryId": entry["_id"],
     }
-    path = child_meta.get("targetPath")
+    if override_path is _UNSET:
+        path = child_meta.get("targetPath")
+    else:
+        # Evaluated from the current form state at submission time; keep the
+        # item's stored metadata in sync with where we actually move it.
+        path = override_path
+        meta["targetPath"] = path
     if batch_action := entry["data"].get("igsn", {}).get("batch", {}):
         logger.info(f"Batch action: {batch_action}")
         if batch_action.get("method") == "from_array" and child_meta.get("formField"):
@@ -228,9 +295,11 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
             )
         }
         dirty = False
+        target_paths = _collect_target_paths(entry["data"])
         for child in Folder().childFolders(source, "folder", user=creator):
             child_meta = child.get("meta", {})
-            path, meta = _get_meta(entry, child_meta)
+            override = _folder_target_path(child, creator, target_paths)
+            path, meta = _get_meta(entry, child_meta, override_path=override)
             logger.info(f"Moving {child['_id']} to {path}")
             child = Folder().setMetadata(child, meta)
             try:
@@ -249,7 +318,8 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
 
         for child in Folder().childItems(source):
             child_meta = child.get("meta", {})
-            path, meta = _get_meta(entry, child_meta)
+            override = _item_target_path(child, target_paths)
+            path, meta = _get_meta(entry, child_meta, override_path=override)
             child = Item().setMetadata(child, meta)
             try:
                 target, _ = known_targets[path]

@@ -193,6 +193,56 @@ class TestFormEntryResource:
         entry = resp.json
         assert entry["_id"] is not None
 
+    def test_handle_source_uses_submitted_target_path(
+        self, server, admin, test_form, sample_entry_data, test_folder
+    ):
+        """Files move to the folder implied by the *submitted* targetPath, not
+        the value frozen into item metadata when the file was uploaded."""
+        from girder.models.file import File
+        from girder.models.item import Item
+
+        # A source (temp) folder holding an already-uploaded file whose metadata
+        # still carries a now-stale targetPath (the value that was current when
+        # the file was uploaded).
+        source = Folder().createFolder(
+            test_folder, "_temp_src", parentType="folder", creator=admin
+        )
+        link = File().createLinkFile(
+            name="attachment.txt",
+            parent=source,
+            parentType="folder",
+            url="https://example.com/a.txt",
+            creator=admin,
+        )
+        item = Item().load(link["itemId"], force=True)
+        Item().setMetadata(item, {"targetPath": "stale/path"})
+
+        # The submitted form data carries the current targetPath for that file.
+        data = dict(sample_entry_data)
+        data["files"] = {"file": str(link["_id"]), "targetPath": "current/path"}
+
+        resp = server.request(
+            path="/entry",
+            method="POST",
+            user=admin,
+            params={
+                "formId": test_form["_id"],
+                "sourceId": str(source["_id"]),
+                "destinationId": str(test_folder["_id"]),
+                "data": json.dumps(data),
+            },
+        )
+        assertStatusOk(resp)
+
+        moved = Item().load(item["_id"], force=True)
+        dest = Folder().load(moved["folderId"], force=True)
+        parent = Folder().load(dest["parentId"], force=True)
+        # Landed under the current path, its stored targetPath was corrected,
+        # and the stale-path folder was never created.
+        assert (parent["name"], dest["name"]) == ("current", "path")
+        assert moved["meta"]["targetPath"] == "current/path"
+        assert Folder().findOne({"name": "stale"}) is None
+
     def test_get_entry_success(self, server, admin, test_form, sample_entry_data):
         """Test successful retrieval of an entry."""
         # Create entry first
