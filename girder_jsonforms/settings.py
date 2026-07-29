@@ -20,13 +20,28 @@ class PluginSettings:
     IGSN_PREFIX = "jsonforms.igsn_prefix"
     AIMDL_COUNTS = "jsonforms.aimdl_counts"
     PROJECTS_COLLECTION_NAME = "jsonforms.projects_collection_name"
+    MAIN_PROJECT = "jsonforms.main_project"
 
 
 SettingDefault.defaults.update(
     {
         PluginSettings.PROJECTS_COLLECTION_NAME: "Projects",
+        PluginSettings.MAIN_PROJECT: "aimdl",
     }
 )
+
+
+@setting_utilities.validator({PluginSettings.MAIN_PROJECT})
+def validate_main_project(doc):
+    if not isinstance(doc["value"], str):
+        raise ValidationException(
+            "Setting must be a string.",
+            "value",
+        )
+    if doc["value"].lower() not in ["aimdl", "imqcam"]:
+        raise ValidationException(
+            "Project must be one of 'aimdl', or 'imqcam'", "value"
+        )
 
 
 @setting_utilities.validator(

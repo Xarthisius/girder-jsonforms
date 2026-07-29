@@ -31,7 +31,7 @@ from .models.deposition import PrefixCounter as PrefixCounterModel
 from .models.entry import FormEntry as FormEntryModel
 from .models.form import Form as FormModel
 from .models.project import Project as ProjectModel
-from .rest.aimdl import AIMDL, append_vega, item_save, propagate_to_projects
+from .rest.aimdl import AIMDL, IMQCAM, append_vega, item_save, propagate_to_projects
 from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
@@ -407,7 +407,12 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].folder.route(
             "PUT", (":id", "assign_igsn"), _assign_igsn_to_folder
         )
-        info["apiRoot"].aimdl = AIMDL()
+        main_project = Setting().get(PluginSettings.MAIN_PROJECT)
+        logger.info(f"Picking up {main_project} flavored endpoint")
+        if main_project.lower() == "aimdl":
+            info["apiRoot"].aimdl = AIMDL()
+        elif main_project.lower() == "imqcam":
+            info["apiRoot"].imqcam = IMQCAM()
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()

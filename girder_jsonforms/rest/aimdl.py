@@ -124,10 +124,9 @@ def _experiment_date_query(date_str, ignore_time=False):
     return parsed
 
 
-class AIMDL(Resource):
+class BaseLabResource(Resource):
     def __init__(self):
         super().__init__()
-        self.resourceName = "aimdl"
         self.route("GET", ("count",), self.count_datafiles)
         self.route("GET", ("datatype",), self.get_datatypes)
         self.route("GET", ("datafiles",), self.get_items_by_datatype)
@@ -441,6 +440,32 @@ class AIMDL(Resource):
             )
         except pymongo.errors.OperationFailure as e:
             raise RestException("Invalid 'extraFields' parameter: {}".format(e))
+
+
+class AIMDL(BaseLabResource):
+    def __init__(self):
+        self.resourceName = "aimdl"
+        super().__init__()
+
+
+class IMQCAM(BaseLabResource):
+    def __init__(self):
+        self.resourceName = "imqcam"
+        super().__init__()
+
+    @staticmethod
+    def _get_base_parent(parentType=None, parentId=None, user=None):
+        if not parentType or not parentId:
+            return {}
+        if parentType == "collection":
+            parent = Collection().load(
+                parentId, user=user, level=AccessType.READ, exc=True
+            )
+        elif parentType == "user":
+            parent = User().load(parentId, user=user, level=AccessType.READ, exc=True)
+        else:
+            raise RestException("Invalid parent type: {}".format(parentType), code=400)
+        return {"baseParentId": parent["_id"], "baseParentType": parentType}
 
 
 @access.public(scope=TokenScope.DATA_READ)
