@@ -375,7 +375,7 @@ def handle_deposition_registration(event: events.Event) -> None:
 def add_public_settings(self, event):
     print(event.info)
     settings = event.info["returnVal"]
-    public_settings = [PluginSettings.AIMDL_COUNTS]
+    public_settings = [PluginSettings.AIMDL_COUNTS, PluginSettings.PROJECTS_ENABLED]
     settings.update({key: Setting().get(key) for key in public_settings})
 
 
@@ -393,7 +393,8 @@ class JSONFormsPlugin(GirderPlugin):
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
         ModelImporter.registerModel("form", FormModel, plugin="jsonforms")
-        ModelImporter.registerModel("project", ProjectModel, plugin="jsonforms")
+        if Setting().get(PluginSettings.PROJECTS_ENABLED):
+            ModelImporter.registerModel("project", ProjectModel, plugin="jsonforms")
         ModelImporter.registerModel(
             "prefixcounter", PrefixCounterModel, plugin="jsonforms"
         )
@@ -416,7 +417,8 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].form = Form()
         info["apiRoot"].entry = FormEntry()
         info["apiRoot"].deposition = Deposition()
-        info["apiRoot"].project = Project()
+        if Setting().get(PluginSettings.PROJECTS_ENABLED):
+            info["apiRoot"].project = Project()
         try:
             DepositionModel().validate({})  # To initialize the model and bind events
         except ValidationException:

@@ -23,6 +23,15 @@ the sibling `girder` checkout, imported here:
 Everything below this section is specific to the `girder_jsonforms` plugin; use the imported
 map above whenever a question is about core Girder mechanics rather than this plugin.
 
+## How this runs in the stack
+
+This plugin is deployed as `/girder-plugins/05-girder-jsonforms` in the Whole Tale dev stack,
+live-mounted into the `girder` service. For the full stack architecture (services, networks,
+Traefik routing, sibling-repo plugin composition, gwvolman/instance lifecycle), see the
+deployment orchestrator:
+
+@../deploy-dev/CLAUDE.md
+
 ## Commands
 
 Server-side (Python), via `tox`:

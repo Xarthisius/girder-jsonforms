@@ -20,10 +20,12 @@ from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.user import User
+from girder.models.setting import Setting
 
 from ..lib.announcement import Announcement
 from ..lib.metadata_dates import _parse_iso, coerce_dates
 from ..models.project import Project
+from ..settings import PluginSettings
 
 _AIMDL_COLLECTION_ID = os.environ.get(
     "AIMDL_COLLECTION_ID", "665de536bcc722774ce53754"
@@ -523,6 +525,9 @@ def item_save(event):
 
 
 def propagate_to_projects(item, sync=True):
+    if not Setting().get(PluginSettings.PROJECTS_ENABLED):
+        logger.debug("Projects are not enabled, skipping propagation")
+        return
     aimdl = AIMDL._get_base_parent()
     if item["baseParentId"] != aimdl["baseParentId"]:
         logger.debug("Item not in a blessed AIMDL collection")

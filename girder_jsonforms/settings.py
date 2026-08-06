@@ -19,6 +19,7 @@ class PluginSettings:
     IGSN_PROVIDER_ID = "jsonforms.igsn_provider_id"
     IGSN_PREFIX = "jsonforms.igsn_prefix"
     AIMDL_COUNTS = "jsonforms.aimdl_counts"
+    PROJECTS_ENABLED = "jsonforms.projects_enabled"
     PROJECTS_COLLECTION_NAME = "jsonforms.projects_collection_name"
     MAIN_PROJECT = "jsonforms.main_project"
 
@@ -27,8 +28,18 @@ SettingDefault.defaults.update(
     {
         PluginSettings.PROJECTS_COLLECTION_NAME: "Projects",
         PluginSettings.MAIN_PROJECT: "aimdl",
+        PluginSettings.PROJECTS_ENABLED: True,
     }
 )
+
+
+@setting_utilities.validator({PluginSettings.PROJECTS_ENABLED})
+def validate_projects_enabled(doc):
+    if not isinstance(doc["value"], bool):
+        raise ValidationException(
+            "Setting must be a boolean.",
+            "value",
+        )
 
 
 @setting_utilities.validator({PluginSettings.MAIN_PROJECT})

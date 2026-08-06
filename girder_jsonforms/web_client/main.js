@@ -12,6 +12,7 @@ import folderActionsTemplate from './templates/folderActions.pug';
 
 const { getCurrentUser } = girder.auth;
 const { AccessType } = girder.constants;
+const { getPublicSettings } = girder.rest;
 const SearchFieldWidget = girder.views.widgets.SearchFieldWidget;
 const CollectionView = girder.views.body.CollectionView;
 const GlobalNavView = girder.views.layout.GlobalNavView;
@@ -83,7 +84,8 @@ wrap(GlobalNavView, 'render', function (render) {
     } else {
         console.warn('No existing .g-global-nav-li elements found.');
     }
-    if (getCurrentUser() && getCurrentUser().get('admin')) {
+    const publicSettings = getPublicSettings() || {};
+    if (getCurrentUser() && getCurrentUser().get('admin') && publicSettings['jsonforms.projects_enabled']) {
         const projectsNav = createNavItem({
             name: 'Projects',
             icon: 'icon-briefcase',
