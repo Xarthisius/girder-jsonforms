@@ -49,9 +49,20 @@ pytest girder_jsonforms/tests/test_entry.py -k test_name       # single test
 ```
 
 Tests use `pytest-girder`, which requires a running MongoDB (the CI uses `mongo:4.2`) and Redis
-(`redis:7`) instance, and provides fixtures such as `server`, `admin`, `user`, `db` — there is no local
-`conftest.py`, so girder-specific fixtures come entirely from the `pytest-girder` plugin. Set
-`GIRDER_MAX_CURSOR_TIMEOUT_MS` if cursors time out during tests (CI sets this to `60000`).
+(`redis:7`) instance, and provides fixtures such as `server`, `admin`, `user`, `db` — all
+girder-specific fixtures come from the `pytest-girder` plugin. `girder_jsonforms/tests/conftest.py`
+adds only IGSN-registry fixtures (`local_mode`, `remote_mode`, `igsn_service`, `igsn_metadata`,
+`igsn_settings`), all prefixed or named to avoid shadowing the per-module fixtures older test files
+define. Set `GIRDER_MAX_CURSOR_TIMEOUT_MS` if cursors time out during tests (CI sets this to `60000`).
+
+Two testing gotchas, both learned the hard way:
+
+- Any test that creates a deposition needs the `eagerWorkerTasks` fixture *if the plugin is loaded
+  anywhere in the run*, because `deposition.created` dispatches a girder-worker task and there is no
+  broker under test. A module can pass alone and fail in a full run without it.
+- Don't mix `server`-backed tests and plain model-level tests in one module; pytest-girder's plugin
+  loading is process-global and the plain tests trip over the state it leaves behind. See
+  `test_igsn_service.py` (model level) vs `test_igsn_service_rest.py` (server level).
 
 Web client (Backbone/Vue, built with Vite), from `girder_jsonforms/web_client/`:
 

@@ -1,4 +1,5 @@
 import datetime
+import logging
 import re
 import urllib.parse
 
@@ -19,12 +20,42 @@ from girder.utility.progress import noProgress
 from girder_oauth import providers
 from girder_sample_tracker.models.sample import Sample
 
+from ..lib.igsn_client import IGSNServiceError, get_client
+from ..lib.igsn_vocab import get_vocabularies
 from ..models.deposition import Deposition as DepositionModel
 from ..models.entry import FormEntry as EntryModel
 from ..settings import PluginSettings
 from ..worker_plugin.amdee import register_deposition_with_aimd
+from ..worker_plugin.igsn_registry import publish_deposition
+
+logger = logging.getLogger(__name__)
 
 orcid_headers = None
+
+
+def next_batch_indices(deposition, count):
+    """Pick ``count`` free numeric child indices for ``deposition``.
+
+    In remote mode the registry owns the namespace under a parent and picks
+    them, which is the only correct answer once a parent minted on one instance
+    can take children on another.
+
+    In local mode this falls back to scanning this instance's own depositions --
+    the original behavior, and safe only while a single instance owns the
+    parent.
+    """
+    client = get_client()
+    if client is not None:
+        records = client.allocate_children(deposition["igsn"], count=count)
+        return [record["igsn"][len(deposition["igsn"]) + 1 :] for record in records]
+
+    existing = DepositionModel().find(
+        {"igsn": {"$regex": f"^{deposition['igsn']}-(\\d+)$"}}
+    )
+    max_batch = 0
+    for batch_deposition in existing:
+        max_batch = max(max_batch, int(batch_deposition["igsn"].split("-")[-1]))
+    return [f"{max_batch + 1 + i:03d}" for i in range(count)]
 
 
 def get_orcid_headers():
@@ -161,9 +192,13 @@ class Deposition(Resource):
     @access.public
     @autoDescribeRoute(Description("Get the settings for the depositions"))
     def get_settings(self):
+        # Sourced from the central registry in remote mode so the form dropdowns
+        # offer exactly the prefixes the registry will accept; falls back to the
+        # local settings otherwise.
+        vocabularies = get_vocabularies()
         return {
-            "igsn_institutions": Setting().get(PluginSettings.IGSN_INSTITUTIONS),
-            "igsn_materials": Setting().get(PluginSettings.IGSN_MATERIALS),
+            "igsn_institutions": vocabularies["institutions"],
+            "igsn_materials": vocabularies["materials"],
         }
 
     @access.public
@@ -282,20 +317,13 @@ class Deposition(Resource):
                 raise RestException(f"Deposition with IGSN {new_igsn} already exists.")
 
         local_identifier = DepositionModel().local_identifier(deposition["metadata"])
+        # next_batch_indices registers the indices with the registry when this
+        # instance is in remote mode, so create_batch must not register them
+        # again.
+        registered = False
         if batch > 0:
-            # find the highest existing batch number for this deposition
-            existing_batches = DepositionModel().find(
-                {"igsn": {"$regex": f"^{deposition['igsn']}-(\\d+)$"}}
-            )
-            max_batch = 0
-            for batch_deposition in existing_batches:
-                batch_num = int(batch_deposition["igsn"].split("-")[-1])
-                max_batch = max(max_batch, batch_num)
-
-            suffix = f"batch{max_batch + 1}"
             indices = []
-            for i in range(batch):
-                batch_suffix = f"{max_batch + 1 + i:03d}"
+            for batch_suffix in next_batch_indices(deposition, batch):
                 indices.append(
                     (
                         batch_suffix,
@@ -304,6 +332,7 @@ class Deposition(Resource):
                         else None,
                     )
                 )
+            registered = get_client() is not None
         else:
             indices = [
                 (suffix, f"{local_identifier}-{suffix}" if local_identifier else None)
@@ -318,9 +347,13 @@ class Deposition(Resource):
             }
         )
         try:
-            result = DepositionModel().create_batch(deposition, indices)
+            result = DepositionModel().create_batch(
+                deposition, indices, already_registered=registered
+            )
         except pymongo.errors.BulkWriteError as e:
             raise RestException(f"Error creating child depositions: {e.details}")
+        except IGSNServiceError as e:
+            raise RestException(f"IGSN registry rejected the batch: {e}")
         return DepositionModel().load(
             result.inserted_ids[0], user=self.getCurrentUser()
         )
@@ -460,6 +493,10 @@ class Deposition(Resource):
             {op: {"metadata.relatedIdentifiers": relatedIdentifier}},
         )
 
+        # Raw collection write, so save() never ran and the registry has no idea
+        # the metadata changed.
+        DepositionModel().queue_registry_sync(ids)
+
         return True
 
     @access.public
@@ -527,18 +564,61 @@ class Deposition(Resource):
         )
         .param(
             "action",
-            "The action to perform: register_aimd or tba.",
+            "The action to perform: register_aimd, publish, or sync.",
             required=True,
-            enum=["register_aimd"],
+            enum=["register_aimd", "publish", "sync"],
             dataType="string",
+        )
+        .param(
+            "target",
+            "For 'publish': the DataCite state to reach.",
+            required=False,
+            enum=["registered", "findable"],
+            default="findable",
+            dataType="string",
+        )
+        .param(
+            "recurse",
+            "For 'publish': also publish this deposition's batch children.",
+            required=False,
+            dataType="boolean",
+            default=False,
         )
     )
     @filtermodel(model="job", plugin="jobs")
-    def submit_deposition_task(self, deposition, action):
+    def submit_deposition_task(self, deposition, action, target, recurse):
         if action == "register_aimd":
             task = register_deposition_with_aimd.delay(
                 [{"_id": str(deposition["_id"]), "igsn": deposition["igsn"]}],
                 girder_job_title=f"Registering {deposition['igsn']} with AIMD portal",
+            )
+        elif action in ("publish", "sync"):
+            if get_client() is None:
+                raise RestException(
+                    "Publication is handled by the central IGSN registry, which "
+                    "is not configured on this instance "
+                    f"({PluginSettings.IGSN_SERVICE_URL} is unset)."
+                )
+            # Publishing a DOI is not reversible, so require an explicit grant
+            # rather than plain write access on the deposition.
+            if action == "publish":
+                DepositionModel().requireAccessFlags(
+                    deposition,
+                    user=self.getCurrentUser(),
+                    flags="jsonforms.publish_igsn",
+                )
+                # And the record has to be public already. Syncing metadata is
+                # exempt: it is reversible and sends only the public projection.
+                DepositionModel().require_publishable(deposition, recurse=recurse)
+            task = publish_deposition.delay(
+                str(deposition["_id"]),
+                target=target,
+                recurse=recurse,
+                metadata_only=action == "sync",
+                girder_job_title=(
+                    f"{'Syncing' if action == 'sync' else 'Publishing'} "
+                    f"{deposition['igsn']}"
+                ),
             )
         else:
             raise RestException(f"Unknown action: {action}")
@@ -559,6 +639,24 @@ class Deposition(Resource):
         # Logic to delete a deposition
         if deposition["state"] != "draft":
             raise RestException("Only draft depositions can be deleted.")
+
+        # Tell the registry the identifier is withdrawn. This tombstones it --
+        # it never frees the sequence number, because an IGSN, like a DOI, must
+        # not be reused: something may already reference it.
+        client = get_client()
+        if client is not None:
+            try:
+                client.revoke(deposition["igsn"])
+            except IGSNServiceError as exc:
+                if exc.status_code == 409:
+                    raise RestException(
+                        f"{deposition['igsn']} is published in the IGSN registry "
+                        "and cannot be deleted."
+                    )
+                # A registry that can't be reached must not block the local
+                # delete; reconcile will notice the orphan.
+                logger.warning("Could not revoke %s: %s", deposition["igsn"], exc)
+
         DepositionModel().remove(deposition)
 
     @access.public

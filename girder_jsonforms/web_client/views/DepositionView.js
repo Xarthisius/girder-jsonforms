@@ -11,7 +11,7 @@ const _ = girder._;
 const events = girder.events;
 const router = girder.router;
 const { AccessType } = girder.constants;
-const { handleClose, handleOpen } = girder.dialog;
+const { confirm, handleClose, handleOpen } = girder.dialog;
 const { renderMarkdown } = girder.misc;
 const { getApiRoot, getPublicSettings } = girder.rest;
 const AccessWidget = girder.views.widgets.AccessWidget;
@@ -187,7 +187,70 @@ var DepositionView = View.extend({
                     type: 'danger'
                 });
             });
+        },
+        'click .g-publish-deposition': function () {
+            const igsn = this.model.get('igsn');
+            // A DOI is world readable, so the record has to be public already.
+            // Making it public is a separate, deliberate act -- publishing will
+            // not do it for you, and neither will this button.
+            if (!this.model.get('public')) {
+                events.trigger('g:alert', {
+                    text: `${igsn} is not public. Publishing mints a permanent public ` +
+                        'DOI, so make it public under Access control first.',
+                    type: 'warning',
+                    timeout: 6000
+                });
+                return;
+            }
+            const question = `Publish ${igsn} to DataCite? This mints a permanent, public DOI ` +
+                'for this sample and every sample in its batch, and cannot be undone.';
+            confirm({
+                text: question,
+                yesText: 'Publish',
+                confirmCallback: () => {
+                    this._depositionTask('publish', {
+                        target: 'findable',
+                        recurse: true
+                    }, `${igsn} has been queued for publication to DataCite.`);
+                }
+            });
+        },
+        'click .g-sync-deposition': function () {
+            this._depositionTask(
+                'sync', {},
+                'The metadata has been queued for sync with the IGSN registry.'
+            );
         }
+    },
+
+    /**
+     * Kick off a deposition task and report the outcome.
+     *
+     * Publication is asynchronous on the registry side too, so a success here
+     * means "queued", not "published" -- the status badge updates once the
+     * registry has actually pushed the record.
+     */
+    _depositionTask: function (action, params, successText) {
+        restRequest({
+            type: 'PUT',
+            url: `deposition/${this.model.id}/task`,
+            data: _.extend({ action: action }, params),
+            error: null
+        }).done(() => {
+            events.trigger('g:alert', {
+                icon: 'ok',
+                text: successText,
+                type: 'success',
+                timeout: 4000
+            });
+            this.model.fetch().done(() => this.render());
+        }).fail((resp) => {
+            events.trigger('g:alert', {
+                text: (resp.responseJSON && resp.responseJSON.message) ||
+                    `An error occurred while running the ${action} task.`,
+                type: 'danger'
+            });
+        });
     },
 
     initialize: function (settings) {
@@ -272,6 +335,14 @@ var DepositionView = View.extend({
             level: this.model.getAccessLevel(),
             imageUrl: this.model.get('imageId') ? `${getApiRoot()}/item/${this.model.get('imageId')}/download?contentDisposition=inline` : null,
             datafileCounts: this.datafileCounts || null,
+            // Present only when this Girder is backed by the central IGSN
+            // registry; absent in local mode, which hides the publish UI.
+            // Whether publishing is offered at all depends on the deployment,
+            // not on whether this particular record has synced yet.
+            registryEnabled: !!(getPublicSettings() || {})['jsonforms.igsn_registry_enabled'],
+            serviceStatus: this.model.get('serviceStatus') || null,
+            serviceError: this.model.get('serviceError') || null,
+            publishedAt: this.model.get('publishedAt') || null,
         }));
         // Find all html elements with entryId and formId
         // and set the text to the name of the entry or form

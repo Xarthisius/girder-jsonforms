@@ -22,4 +22,5 @@ class JSONFormsWorkerPlugin(GirderWorkerPluginABC):
             "girder_jsonforms.worker_plugin.amdee",
             "girder_jsonforms.worker_plugin.projects",
             "girder_jsonforms.worker_plugin.orcid",
+            "girder_jsonforms.worker_plugin.igsn_registry",
         ]

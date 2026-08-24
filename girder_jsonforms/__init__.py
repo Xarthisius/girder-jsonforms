@@ -373,10 +373,16 @@ def handle_deposition_registration(event: events.Event) -> None:
 @access.public
 @girderRest.boundHandler
 def add_public_settings(self, event):
-    print(event.info)
     settings = event.info["returnVal"]
     public_settings = [PluginSettings.AIMDL_COUNTS, PluginSettings.PROJECTS_ENABLED]
     settings.update({key: Setting().get(key) for key in public_settings})
+    # A derived boolean, not the URL and emphatically not the token: the web
+    # client only needs to know whether publishing is possible at all. Gating
+    # the UI on a per-record field instead meant a record that had not synced
+    # yet looked unpublishable.
+    settings["jsonforms.igsn_registry_enabled"] = bool(
+        (Setting().get(PluginSettings.IGSN_SERVICE_URL) or "").strip()
+    )
 
 
 class JSONFormsPlugin(GirderPlugin):
@@ -505,4 +511,14 @@ class JSONFormsPlugin(GirderPlugin):
             key="jsonforms.manage_samples",
             name="Sample Manager",
             description="Allow users to add and remove samples on a project.",
+        )
+        # Publishing mints a public DOI at DataCite and cannot be undone, so it
+        # needs an explicit grant rather than plain write access on a deposition.
+        registerAccessFlag(
+            key="jsonforms.publish_igsn",
+            name="Publish IGSNs",
+            description=(
+                "Allow users to publish IGSNs to DataCite via the central "
+                "registry. This is irreversible."
+            ),
         )

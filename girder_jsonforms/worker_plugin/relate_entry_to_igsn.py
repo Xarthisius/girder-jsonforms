@@ -12,6 +12,11 @@ def run(entry, igsn_field="assignedIGSN"):
     # Remove relatedIdentifier from previous depositions if any
     regex = re.compile(f"/entry/{entry['_id']}$")
     query = {"metadata.relatedIdentifiers.relatedIdentifier": regex}
+    # Note which depositions are about to change while the query still matches
+    # them; afterwards there is no way to tell.
+    touched = {
+        doc["_id"] for doc in Deposition().collection.find(query, {"_id": 1})
+    }
     update = {"$pull": {"metadata.relatedIdentifiers": {"relatedIdentifier": regex}}}
     Deposition().collection.update_many(query, update)
 
@@ -34,5 +39,10 @@ def run(entry, igsn_field="assignedIGSN"):
     if not isinstance(igsn, list):
         igsn = [igsn]
     query = {"igsn": {"$in": igsn}}
+    touched |= {doc["_id"] for doc in Deposition().collection.find(query, {"_id": 1})}
     update = {"$addToSet": {"metadata.relatedIdentifiers": related_identifier}}
     Deposition().collection.update_many(query, update)
+
+    # Both updates bypass save(), so push the new metadata to the central
+    # registry explicitly.
+    Deposition().queue_registry_sync(touched)

@@ -22,6 +22,13 @@ class PluginSettings:
     PROJECTS_ENABLED = "jsonforms.projects_enabled"
     PROJECTS_COLLECTION_NAME = "jsonforms.projects_collection_name"
     MAIN_PROJECT = "jsonforms.main_project"
+    # Centralized IGSN registry. When IGSN_SERVICE_URL is empty this instance
+    # allocates identifiers from its own PrefixCounter, exactly as it always
+    # has; setting it switches allocation and DataCite publication to the
+    # shared service. Never add either of these to the public settings list in
+    # __init__.py:add_public_settings -- the token must not reach the browser.
+    IGSN_SERVICE_URL = "jsonforms.igsn_service_url"
+    IGSN_SERVICE_TOKEN = "jsonforms.igsn_service_token"
 
 
 SettingDefault.defaults.update(
@@ -29,6 +36,9 @@ SettingDefault.defaults.update(
         PluginSettings.PROJECTS_COLLECTION_NAME: "Projects",
         PluginSettings.MAIN_PROJECT: "aimdl",
         PluginSettings.PROJECTS_ENABLED: True,
+        # Empty means "allocate locally", preserving existing behavior.
+        PluginSettings.IGSN_SERVICE_URL: "",
+        PluginSettings.IGSN_SERVICE_TOKEN: "",
     }
 )
 
@@ -61,6 +71,7 @@ def validate_main_project(doc):
         PluginSettings.IGSN_PROVIDER_ID,
         PluginSettings.IGSN_PREFIX,
         PluginSettings.PROJECTS_COLLECTION_NAME,
+        PluginSettings.IGSN_SERVICE_TOKEN,
     }
 )
 def validate_igsn_client(doc):
@@ -69,6 +80,20 @@ def validate_igsn_client(doc):
             "Setting must be a string.",
             "value",
         )
+
+
+@setting_utilities.validator(PluginSettings.IGSN_SERVICE_URL)
+def validate_igsn_service_url(doc):
+    value = doc["value"]
+    if not isinstance(value, str):
+        raise ValidationException("Setting must be a string.", "value")
+    value = value.strip()
+    if value and not value.startswith(("http://", "https://")):
+        raise ValidationException(
+            "IGSN service URL must start with http:// or https://", "value"
+        )
+    # Normalize so callers can concatenate paths without worrying about it.
+    doc["value"] = value.rstrip("/")
 
 
 @setting_utilities.validator(PluginSettings.IGSN_PUBLISHER)

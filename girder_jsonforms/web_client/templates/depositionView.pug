@@ -22,6 +22,20 @@
           a.g-register-aimd-deposition(role="menuitem")
             i.icon-barcode
             | Register with AIMD-L
+        //- Shown whenever this instance is backed by the central IGSN registry.
+        //- Gating on serviceStatus instead hid these actions for every batch
+        //- child, since children carried no mirrored status.
+        if registryEnabled && level >= AccessType.WRITE
+          li.divider(role="presentation")
+          li(role="presentation")
+            a.g-sync-deposition(role="menuitem")
+              i.icon-cloud
+              | Sync metadata to registry
+          if serviceStatus !== 'findable'
+            li(role="presentation")
+              a.g-publish-deposition(role="menuitem")
+                i.icon-globe
+                | Publish to DataCite
         if (level >= AccessType.WRITE)
           li.divider(role="presentation")
           li(role="presentation")
@@ -58,6 +72,14 @@
                 i.icon-doc
                 span.text-muted= 'IGSN: '
                 span.g-info-type= deposition.get("igsn")
+                if serviceStatus
+                  span.g-igsn-status(class='g-igsn-status-' + serviceStatus,
+                      title='Status in the central IGSN registry')= serviceStatus
+              if serviceError
+                .g-deposition-info-line.g-igsn-service-error
+                  i.icon-attention
+                  span.text-muted= 'Registry: '
+                  span.g-info-type= serviceError
               if deposition.get('state') && deposition.get('state') !== 'draft'
                 .g-deposition-info-line
                   i.icon-doc

@@ -153,3 +153,33 @@
   .g-mobile-sample-tracker
     display block
     margin-top 18px
+// Status of this IGSN in the central registry. Shown next to the identifier so
+// "is this actually published?" is answerable at a glance -- it used to require
+// checking DataCite by hand.
+.g-igsn-status
+  display inline-block
+  margin-left 8px
+  padding 1px 8px
+  border-radius 10px
+  border 1px solid #ccc
+  color #666
+  font-size 11px
+  text-transform uppercase
+  letter-spacing .04em
+  vertical-align middle
+
+.g-igsn-status-findable
+  border-color #2f7d4f
+  color #2f7d4f
+
+.g-igsn-status-registered
+  border-color #2a6496
+  color #2a6496
+
+.g-igsn-status-failed,
+.g-igsn-status-revoked
+  border-color #a94442
+  color #a94442
+
+.g-igsn-service-error
+  color #a94442
