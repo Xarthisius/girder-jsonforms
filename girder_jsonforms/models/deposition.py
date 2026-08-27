@@ -794,9 +794,10 @@ class Deposition(AccessControlledModel):
             # rather than storing a bare "#igsn/..." fragment. See landing_page().
             if child_landing_page := self.landing_page(child_igsn):
                 child_metadata["url"] = child_landing_page
+            now = datetime.datetime.now(datetime.UTC)
             deposition = {
                 "access": main_deposition["access"],
-                "created": main_deposition["created"],
+                "created": now,
                 "creatorId": main_deposition["creatorId"],
                 "igsn": child_igsn,
                 "metadata": child_metadata,
@@ -806,7 +807,7 @@ class Deposition(AccessControlledModel):
                 "sampleId": None,
                 "state": "draft",
                 "submitted": False,
-                "updated": main_deposition["updated"],
+                "updated": now,
                 "track": main_deposition["track"],
             }
             # Mirror the registry's view, exactly as create_deposition does for a
@@ -828,16 +829,17 @@ class Deposition(AccessControlledModel):
 
         if main_deposition["track"] and main_deposition["sampleId"]:
             main_sample = Sample().load(main_deposition["sampleId"], force=True)
+            now = datetime.datetime.now(datetime.UTC)
             samples = [
                 {
                     "access": main_sample["access"],
-                    "created": main_sample["created"],
+                    "created": now,
                     "creator": main_sample["creator"],
                     "description": main_sample["description"],
                     "eventTypes": main_sample["eventTypes"],
                     "events": [],
                     "name": f"{main_deposition['igsn']}-{igsn_index}",
-                    "updated": main_sample["updated"],
+                    "updated": now,
                 }
                 for igsn_index, _ in indices
             ]
