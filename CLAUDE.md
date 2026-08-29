@@ -129,6 +129,27 @@ created for it and the project is registered with ORCID asynchronously
 (`PREFIX-001`, `PREFIX-001-001`, ...) — used whenever "does this sample belong to this project" needs
 answering.
 
+### ORCID (`lib/orcid.py`)
+
+`girder-wholetale` registers production ORCID and the ORCID sandbox as two separate OAuth providers
+(`orcid` and `orcid_sandbox`) with separate credentials and callback URLs, and both can be enabled
+for login at once. So `providers.idMap["orcid"]` is no longer "the" ORCID — this plugin names the one
+it wants via the `jsonforms.orcid_provider` setting, resolved through `lib/orcid.py:get_orcid_provider`.
+Both the creator autocomplete (`rest/deposition.py`) and the project research-resource registration
+(`worker_plugin/orcid.py`) go through it, and `get_orcid_headers` mints client-credentials tokens from
+that provider's own client id/secret. **The default is `orcid`** (production); sandbox instances set it
+to `orcid_sandbox`.
+
+The two halves do not move together. Reads work against production as-is, but writing a research
+resource needs the `/activities/update` scope, which only `SandboxORCID` requests, so that half is
+gated by `jsonforms.orcid_research_resources`, **off by default**.
+`worker_plugin/orcid.py:research_resources_enabled` refuses when the setting is off **or** when the
+resolved provider does not request the write scope, so accepting a project skips the registration
+cleanly rather than 403-ing per project. Turning it on is therefore only meaningful on an instance
+pointed at `orcid_sandbox` — with the production default the scope check refuses anyway. That second
+check lifts by itself once `/activities/update` is added to `ORCID._AUTH_SCOPES` in girder-wholetale,
+at which point the setting alone governs.
+
 ### AIMD integration (`rest/aimdl.py`, `worker_plugin/amdee.py`)
 
 `AIMDL` is a REST resource for querying/annotating items as materials-data records for the AIMD platform

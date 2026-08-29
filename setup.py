@@ -32,7 +32,7 @@ setup(
     install_requires=[
         f"girder>={girder_version}",
         f"girder-worker>={girder_version}",
-        "girder-wholetale>=2.0.11",
+        "girder-wholetale>=2.0.13",
         f"girder-jobs>={girder_version}",
         "girder-sample-tracker>=2.0.0",  # Required for the sample tracker to test JSONForms
         f"girder-oauth>={girder_version}",

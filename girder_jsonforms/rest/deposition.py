@@ -15,13 +15,12 @@ from girder.api.rest import (
 from girder.constants import AccessType, SortDir, TokenScope
 from girder.exceptions import GirderException, RestException
 from girder.models.item import Item
-from girder.models.setting import Setting
 from girder.utility.progress import noProgress
-from girder_oauth import providers
 from girder_sample_tracker.models.sample import Sample
 
 from ..lib.igsn_client import IGSNServiceError, get_client
 from ..lib.igsn_vocab import get_vocabularies
+from ..lib.orcid import get_orcid_headers, get_orcid_provider
 from ..models.deposition import Deposition as DepositionModel
 from ..models.entry import FormEntry as EntryModel
 from ..settings import PluginSettings
@@ -29,8 +28,6 @@ from ..worker_plugin.amdee import register_deposition_with_aimd
 from ..worker_plugin.igsn_registry import publish_deposition
 
 logger = logging.getLogger(__name__)
-
-orcid_headers = None
 
 
 def next_batch_indices(deposition, count):
@@ -56,35 +53,6 @@ def next_batch_indices(deposition, count):
     for batch_deposition in existing:
         max_batch = max(max_batch, int(batch_deposition["igsn"].split("-")[-1]))
     return [f"{max_batch + 1 + i:03d}" for i in range(count)]
-
-
-def get_orcid_headers():
-    global orcid_headers
-    if orcid_headers is None:
-        provider = providers.idMap.get("orcid")
-        # ORCID API endpoint
-        url = provider._TOKEN_URL
-
-        # Headers and payload
-        data = {
-            "client_id": Setting().get("oauth.orcid_client_id"),
-            "client_secret": Setting().get("oauth.orcid_client_secret"),
-            "grant_type": "client_credentials",
-            "scope": "/read-public",
-        }
-        headers = {"Accept": "application/json"}
-
-        # Make the POST request
-        token_response = requests.post(url, headers=headers, data=data)
-        token_response.raise_for_status()
-
-        orcid_headers = {
-            "Accept": "application/vnd.orcid+json",
-            "Authorization": "Bearer " + token_response.json()["access_token"],
-        }
-
-    print("Using ORCID headers:", orcid_headers)
-    return orcid_headers
 
 
 class Deposition(Resource):
@@ -512,7 +480,7 @@ class Deposition(Resource):
         )
     )
     def autocomplete(self, query, limit):
-        provider = providers.idMap.get("orcid")
+        provider = get_orcid_provider()
         if provider is None:
             raise RestException("ORCID not set up")
 
@@ -522,10 +490,9 @@ class Deposition(Resource):
             + f"&start=0&rows={limit}"
         )
         url = provider._API_USER_URL.format(orcid="", path=path)
-        print(f"Making ORCID API request to {url} with headers {get_orcid_headers()}")
         response = requests.get(
             url,
-            headers=get_orcid_headers(),
+            headers=get_orcid_headers(provider),
         )
         if (
             response.status_code != 200

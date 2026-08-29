@@ -29,6 +29,17 @@ class PluginSettings:
     # __init__.py:add_public_settings -- the token must not reach the browser.
     IGSN_SERVICE_URL = "jsonforms.igsn_service_url"
     IGSN_SERVICE_TOKEN = "jsonforms.igsn_service_token"
+    # Which of girder-wholetale's two ORCID providers ("orcid" or
+    # "orcid_sandbox") this plugin reads from and writes research resources to.
+    # Both can be enabled for login at the same time, so the one this plugin
+    # uses has to be named explicitly.
+    ORCID_PROVIDER = "jsonforms.orcid_provider"
+    # Whether accepting a project registers it as an ORCID research resource.
+    # Off by default: the write needs the "/activities/update" scope, which
+    # only SandboxORCID requests, so this is opt-in on instances configured
+    # against the sandbox. Separate from ORCID_PROVIDER because the two do not
+    # move together -- reads work against production, writes do not.
+    ORCID_RESEARCH_RESOURCES = "jsonforms.orcid_research_resources"
 
 
 SettingDefault.defaults.update(
@@ -39,6 +50,12 @@ SettingDefault.defaults.update(
         # Empty means "allocate locally", preserving existing behavior.
         PluginSettings.IGSN_SERVICE_URL: "",
         PluginSettings.IGSN_SERVICE_TOKEN: "",
+        # Production ORCID. Reads (creator autocomplete) work against it as
+        # they are; research-resource writes do not, and the scope gate keeps
+        # them off until "/activities/update" is added to ORCID._AUTH_SCOPES.
+        # Sandbox instances set this to "orcid_sandbox".
+        PluginSettings.ORCID_PROVIDER: "orcid",
+        PluginSettings.ORCID_RESEARCH_RESOURCES: False,
     }
 )
 
@@ -48,6 +65,28 @@ def validate_projects_enabled(doc):
     if not isinstance(doc["value"], bool):
         raise ValidationException(
             "Setting must be a boolean.",
+            "value",
+        )
+
+
+@setting_utilities.validator(PluginSettings.ORCID_RESEARCH_RESOURCES)
+def validate_orcid_research_resources(doc):
+    if not isinstance(doc["value"], bool):
+        raise ValidationException(
+            "Setting must be a boolean.",
+            "value",
+        )
+
+
+@setting_utilities.validator(PluginSettings.ORCID_PROVIDER)
+def validate_orcid_provider(doc):
+    # Imported here: girder_jsonforms.lib.orcid imports this module.
+    from .lib.orcid import orcid_provider_names
+
+    names = orcid_provider_names()
+    if doc["value"] not in names:
+        raise ValidationException(
+            "ORCID provider must be one of {}.".format(", ".join(names)),
             "value",
         )
 

@@ -700,6 +700,66 @@ class TestDepositionResource:
 
         assert results == []
 
+    @pytest.mark.parametrize(
+        "provider_name,api_host,client_id_setting",
+        [
+            ("orcid", "pub.orcid.org", "oauth.orcid_client_id"),
+            (
+                "orcid_sandbox",
+                "api.sandbox.orcid.org",
+                "oauth.orcid_sandbox_client_id",
+            ),
+        ],
+    )
+    @patch("requests.post")
+    @patch("requests.get")
+    def test_autocomplete_uses_configured_orcid_provider(
+        self,
+        mock_get,
+        mock_post,
+        server,
+        admin,
+        mock_orcid_response,
+        setup_settings,
+        provider_name,
+        api_host,
+        client_id_setting,
+    ):
+        """The autocomplete endpoint talks to whichever ORCID is configured.
+
+        Production and sandbox have distinct API hosts *and* distinct client
+        credentials, so picking one but authenticating as the other is a silent
+        failure mode worth pinning down.
+        """
+        from ..lib import orcid as orcid_lib
+
+        orcid_lib._orcid_headers.clear()
+        Setting().set(PluginSettings.ORCID_PROVIDER, provider_name)
+        Setting().set(client_id_setting, f"{provider_name}-client-id")
+        try:
+            mock_post.return_value.status_code = 200
+            mock_post.return_value.json.return_value = {"access_token": "test_token"}
+            mock_get.return_value.status_code = 200
+            mock_get.return_value.json.return_value = mock_orcid_response
+
+            resp = server.request(
+                path="/deposition/autocomplete",
+                method="GET",
+                user=admin,
+                params={"query": "John Doe"},
+            )
+            assertStatusOk(resp)
+        finally:
+            Setting().unset(PluginSettings.ORCID_PROVIDER)
+            Setting().unset(client_id_setting)
+            orcid_lib._orcid_headers.clear()
+
+        assert api_host in mock_get.call_args.args[0]
+        assert (
+            mock_post.call_args.kwargs["data"]["client_id"]
+            == f"{provider_name}-client-id"
+        )
+
 
 @pytest.mark.plugin("jsonforms")
 class TestPrefixCounter:

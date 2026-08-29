@@ -4,16 +4,21 @@ import os
 import urllib.parse as urlparse
 
 import requests
+from girder.models.setting import Setting
 from girder.models.user import User
 from girder.utility.model_importer import ModelImporter
-from girder_oauth import providers
-from girder_oauth.providers import addProvider
-from girder_wholetale.lib.orcid import SandboxORCID
 from girder_worker.app import app
+
+from ..lib.orcid import get_orcid_provider, register_orcid_providers
+from ..settings import PluginSettings
 
 logger = logging.getLogger(__name__)
 
-addProvider(SandboxORCID)
+# This module is imported by the worker, which never loads Girder plugins and
+# so never runs WholeTalePlugin.load(). Register both flavors here so
+# get_orcid_provider() can resolve whichever one is configured.
+register_orcid_providers()
+
 _domain = os.environ.get("DOMAIN", "example.com")
 _hosts = {
     "organization": [
@@ -80,12 +85,40 @@ _resource_items = [
 ]
 
 
+# Writing a research resource is a member-API call gated on this scope. A
+# provider that never asked for it at authorization time cannot have a token
+# that carries it, so the POST would 403 -- which is why this feature only
+# works against the sandbox today.
+WRITE_SCOPE = "/activities/update"
+
+
+def research_resources_enabled(provider):
+    """Whether project acceptance may write a research resource to ``provider``."""
+    if not Setting().get(PluginSettings.ORCID_RESEARCH_RESOURCES):
+        logger.info(
+            "Research resource registration is disabled (%s is off)",
+            PluginSettings.ORCID_RESEARCH_RESOURCES,
+        )
+        return False
+    if WRITE_SCOPE not in provider._AUTH_SCOPES:
+        logger.warning(
+            "Provider %r does not request the %s scope, so it cannot write "
+            "research resources; skipping registration",
+            provider.getProviderName(),
+            WRITE_SCOPE,
+        )
+        return False
+    return True
+
+
 @app.task(queue="local")
 def register_project_with_orcid(user_id, project_id):
-    provider = providers.idMap.get("orcid")
+    provider = get_orcid_provider()
     ProjectModel = ModelImporter.model("project", plugin="jsonforms")
     if provider is None:
-        logger.exception("Provider 'orcid' not found")
+        return
+
+    if not research_resources_enabled(provider):
         return
 
     api_url = provider._API_USER_URL
