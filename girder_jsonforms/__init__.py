@@ -370,9 +370,7 @@ def handle_deposition_registration(event: events.Event) -> None:
     )
 
 
-@access.public
-@girderRest.boundHandler
-def add_public_settings(self, event):
+def add_public_settings(event):
     settings = event.info["returnVal"]
     public_settings = [PluginSettings.AIMDL_COUNTS, PluginSettings.PROJECTS_ENABLED]
     settings.update({key: Setting().get(key) for key in public_settings})
