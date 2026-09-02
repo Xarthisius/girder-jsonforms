@@ -83,7 +83,9 @@ router.route('igsn/:igsn', 'igsn', function (igsn) {
     method: 'GET',
     url: 'deposition',
     data: {
-      igsnPrefix: igsn,
+      // Exact: a prefix match also returns this IGSN's batch children, and
+      // with limit 1 the one that sorted first won.
+      igsn: igsn,
       limit: 1
     }
   }).done((resp) => {

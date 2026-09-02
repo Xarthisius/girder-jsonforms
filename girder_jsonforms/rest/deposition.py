@@ -76,6 +76,20 @@ class Deposition(Resource):
     @access.public
     @autoDescribeRoute(
         Description("List all depositions.")
+        .notes(
+            "igsn and igsnPrefix answer different questions -- one record, or "
+            "a record and every batch child under it -- so passing both is "
+            "rejected rather than resolved in favour of one."
+        )
+        .param(
+            "igsn",
+            "Pass to look up the one deposition with exactly this IGSN, "
+            "case-insensitively. Unlike igsnPrefix this does not match the "
+            "IGSN's batch children.",
+            required=False,
+            dataType="string",
+            strip=True,
+        )
         .param(
             "igsnPrefix",
             "Pass to lookup a form by exact IGSN prefix match.",
@@ -105,8 +119,15 @@ class Deposition(Resource):
         .pagingParams(defaultSort="igsn", defaultSortDir=SortDir.ASCENDING)
     )
     @filtermodel(model="deposition", plugin="jsonforms")
-    def list_deposition(self, igsnPrefix, sampleId, q, level, limit, offset, sort):
+    def list_deposition(
+        self, igsn, igsnPrefix, sampleId, q, level, limit, offset, sort
+    ):
         user = self.getCurrentUser()
+        if igsn is not None and igsnPrefix is not None:
+            raise RestException(
+                "Pass igsn for one exact record or igsnPrefix for a prefix "
+                "match, not both."
+            )
         if sampleId is not None:
             try:
                 sample = Sample().load(
@@ -130,7 +151,11 @@ class Deposition(Resource):
             )
 
         query = {}
-        if igsnPrefix is not None:
+        if igsn is not None:
+            # IGSNs are stored upper-case, and a scanner reads whatever is
+            # printed on the label, so match on the normalized form.
+            query["igsn"] = igsn.upper()
+        elif igsnPrefix is not None:
             query["igsn"] = re.compile(f"^{igsnPrefix}.*$")
         elif q is not None:
             query["$or"] = [
@@ -150,10 +175,14 @@ class Deposition(Resource):
             limit=limit,
             sort=sort,
             user=self.getCurrentUser(),
+            # sampleId is not excluded here: Deposition.filter() already nulls
+            # it for a reader who cannot read the sample, and stripping it
+            # only forced a second request out of every caller that needs the
+            # sample behind an IGSN. relatedIdentifiers stays excluded --
+            # visible_metadata guards a different thing.
             fields={
                 "metadata.relatedIdentifiers": 0,
-                "sampleId": 0,
-            },  # Exclude ACLed fields
+            },
             level=level,
         )
 
