@@ -14,6 +14,7 @@ from girder.utility import RequestBodyStream
 from girder.utility.progress import noProgress
 
 from ..models.form import Form as FormModel
+from ..models.deposition import Deposition
 
 
 class Form(Resource):
@@ -22,13 +23,15 @@ class Form(Resource):
         self.resourceName = "form"
         self.route("GET", (), self.listForm)
         self.route("GET", (":id",), self.getForm)
+        self.route("GET", (":id", "schema"), self.getFormSchema)
         self.route("POST", (), self.createForm)
         self.route("PUT", (":id",), self.updateForm)
         self.route("DELETE", (":id",), self.deleteForm)
-        self.route("GET", (":id", "access"), self.getFromAccess)
-        self.route("PUT", (":id", "access"), self.updateFromAccess)
+        self.route("GET", (":id", "access"), self.getFormAccess)
+        self.route("PUT", (":id", "access"), self.updateFormAccess)
         self.route("GET", (":id", "export"), self.exportForm)
         self.route("POST", (":id", "import"), self.importForm)
+        self.route("POST", (":id", "ingest"), self.ingestDataForForm)
 
     @access.public
     @autoDescribeRoute(
@@ -47,18 +50,30 @@ class Form(Resource):
             default=AccessType.READ,
             enum=[AccessType.NONE, AccessType.READ, AccessType.WRITE, AccessType.ADMIN],
         )
+        .param(
+            "expanded",
+            "Whether to return the full form object or just the metadata",
+            required=False,
+            dataType="boolean",
+            default=False,
+        )
         .pagingParams(defaultSort="name", defaultSortDir=SortDir.ASCENDING)
     )
     @filtermodel(model="form", plugin="jsonforms")
-    def listForm(self, entryFileName, level, limit, offset, sort):
+    def listForm(self, entryFileName, level, expanded, limit, offset, sort):
         query = {}
         if entryFileName is not None:
             query["entryFileName"] = entryFileName
+
+        fields = None
+        if not expanded:
+            fields = {"jsHelpers": 0, "schema": 0}
 
         return FormModel().findWithPermissions(
             query=query,
             offset=offset,
             limit=limit,
+            fields=fields,
             sort=sort,
             user=self.getCurrentUser(),
             level=level,
@@ -94,12 +109,14 @@ class Form(Resource):
             raise RestException("File is empty")
         file_obj = RequestBodyStream(cherrypy.request.body)
         file_type = "csv" if content_type == "application/csv" else "xlsx"
-        return FormModel().import_entries(form, file_obj, file_type, dry_run=dryRun)
+        return FormModel().import_entries(
+            form, file_obj, file_type, self.getCurrentUser(), dry_run=dryRun
+        )
 
     @access.public(scope=TokenScope.DATA_READ, cookie=True)
     @autoDescribeRoute(
         Description("Export form entries as a table")
-        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.READ)
+        .modelParam("id", model=FormModel, level=AccessType.READ)
         .param(
             "exportFormat",
             "The format to export the entries as",
@@ -134,6 +151,16 @@ class Form(Resource):
     def getForm(self, form):
         return FormModel().materialize(form, self.getCurrentUser())
 
+    @access.public
+    @autoDescribeRoute(
+        Description("Get JSON schema from form").modelParam(
+            "id", "The ID of the form", model=FormModel, level=AccessType.READ
+        ).produces("application/json")
+    )
+    def getFormSchema(self, form):
+        form = FormModel().materialize(form, self.getCurrentUser())
+        return form["schema"]
+
     @access.user
     @autoDescribeRoute(
         Description("Create a new form")
@@ -144,7 +171,13 @@ class Form(Resource):
             required=True,
             dataType="string",
         )
-        .param("schema", "The schema of the form", required=True, dataType="string")
+        .param(
+            "schema",
+            "The schema of the form",
+            required=True,
+            dataType="string",
+            paramType="body",
+        )
         .modelParam(
             "folderId",
             "The folder ID to save the form",
@@ -185,6 +218,18 @@ class Form(Resource):
             dataType="string",
             default="sampleId",
         )
+        .param(
+            "postEntryTask",
+            "The task to run after an entry is created",
+            required=False,
+            dataType="string",
+        )
+        .param(
+            "jsHelpers",
+            "The JavaScript helpers to use in the form (either string or url)",
+            required=False,
+            dataType="string",
+        )
     )
     @filtermodel(model="form", plugin="jsonforms")
     def createForm(
@@ -198,7 +243,13 @@ class Form(Resource):
         gdriveFolderId,
         serialize,
         uniqueField,
+        postEntryTask,
+        jsHelpers,
     ):
+        try:
+            schema = schema.read().decode("utf-8")
+        except AttributeError:
+            pass
         return FormModel().create_form(
             name,
             description,
@@ -210,6 +261,8 @@ class Form(Resource):
             gdriveFolderId=gdriveFolderId or None,
             serialize=serialize,
             uniqueField=uniqueField,
+            jsHelpers=jsHelpers,
+            postEntryTask=postEntryTask,
         )
 
     @access.user(scope=TokenScope.DATA_WRITE)
@@ -263,6 +316,18 @@ class Form(Resource):
             required=False,
             dataType="string",
         )
+        .param(
+            "postEntryTask",
+            "The task to run after an entry is created",
+            required=False,
+            dataType="string",
+        )
+        .param(
+            "jsHelpers",
+            "The JavaScript helpers to use in the form (either string or url)",
+            required=False,
+            dataType="string",
+        )
         .responseClass("Form")
         .errorResponse("ID was invalid.")
         .errorResponse("Write access was denied on the form.", 403)
@@ -279,6 +344,8 @@ class Form(Resource):
         gdriveFolderId,
         serialize,
         uniqueField,
+        postEntryTask,
+        jsHelpers,
     ):
         if name is not None:
             form["name"] = name
@@ -301,6 +368,10 @@ class Form(Resource):
             form["serialize"] = serialize
         if uniqueField is not None:
             form["uniqueField"] = uniqueField
+        if postEntryTask is not None:
+            form["postEntryTask"] = postEntryTask
+        if jsHelpers is not None:
+            form["jsHelpers"] = jsHelpers
         return FormModel().save(form)
 
     @access.user
@@ -319,7 +390,7 @@ class Form(Resource):
             "id", "The ID of the form", model=FormModel, level=AccessType.ADMIN
         )
     )
-    def getFromAccess(self, form):
+    def getFormAccess(self, form):
         return FormModel().getFullAccessList(form)
 
     @access.user(scope=TokenScope.DATA_OWN)
@@ -344,7 +415,7 @@ class Form(Resource):
         .errorResponse("ID was invalid.")
         .errorResponse("Admin access was denied for the form.", 403)
     )
-    def updateFromAccess(self, form, access, publicFlags, public):
+    def updateFormAccess(self, form, access, publicFlags, public):
         user = self.getCurrentUser()
         if form["folderId"]:
             folder = Folder().load(form["folderId"], force=True)
@@ -360,3 +431,43 @@ class Form(Resource):
             )
 
         return FormModel().setAccessList(form, access, save=True, user=user)
+
+    @access.user(scope=TokenScope.DATA_WRITE)
+    @autoDescribeRoute(
+        Description("Ingest data for a form")
+        .modelParam("id", "The ID of the form", model=FormModel, level=AccessType.WRITE)
+        .modelParam(
+            "depositionId",
+            "The ID of the deposition",
+            model=Deposition,
+            required=True,
+            paramType="query",
+            level=AccessType.READ,
+        )
+        .modelParam(
+            "folderId",
+            "The folder ID with uploaded data",
+            model=Folder,
+            required=True,
+            paramType="query",
+            level=AccessType.READ,
+        )
+        .param(
+            "progress",
+            "Whether to record progress for the ingest task",
+            dataType="boolean",
+            required=False,
+            default=False,
+        )
+    )
+    def ingestDataForForm(self, form, deposition, folder, progress):
+        from ..worker_plugin.amdee import run as run_ingest
+
+        run_ingest.delay(
+            self.getCurrentUser(),
+            form,
+            deposition,
+            folder,
+            progress=progress,
+            girder_job_disable=True,
+        )

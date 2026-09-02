@@ -1,0 +1,262 @@
+$bgMainInternal = #f8fafc
+$cardBgInternal = #ffffff
+$textMainInternal = #1e293b
+$textMutedInternal = #64748b
+$accentInternal = #2563eb
+$borderInternal = #e2e8f0
+$badgeBgInternal = #f1f5f9
+$orcidColorInternal = #a9c751
+
+.doi-card-embed
+  box-sizing border-box !important
+  background $cardBgInternal !important
+  border 1px solid $borderInternal !important
+  border-radius 12px !important
+  width 100% !important
+  padding 1.5rem !important
+  box-shadow 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03) !important
+  font-family -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important
+  font-size 16px !important // Explicit pixel baseline to override host page root changes
+  line-height 1.4 !important
+  text-align left !important
+
+  *, *::before, *::after
+    box-sizing border-box !important
+    font-family -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif !important
+    line-height 1.4 !important
+
+  .card-header-embed
+    display flex !important
+    justify-content space-between !important
+    align-items flex-start !important
+    gap 1rem !important
+    border-bottom 1px solid $borderInternal !important
+    padding-bottom 1rem !important
+    margin-bottom 1.25rem !important
+    background transparent !important
+
+  .title-area-embed 
+    h1
+      font-size 1.35em !important // Controlled via root base 16px font-size
+      font-weight 700 !important
+      margin 0 0 0.35rem 0 !important
+      letter-spacing -0.025em !important
+      line-height 1.25 !important
+      color $textMainInternal !important
+
+  .meta-line-embed
+    font-size 0.85em !important
+    color $textMutedInternal !important
+    *
+      color $textMutedInternal !important
+
+  .doi-badge-embed
+    background-color $accentLightInternal !important
+    color $accentInternal !important
+    font-family monospace !important
+    font-size 0.85em !important
+    font-weight 600 !important
+    padding 0.25rem 0.5rem !important
+    border-radius 6px !important
+    text-decoration none !important
+    white-space nowrap !important
+    display inline-block !important
+
+  .authors-container-embed
+    display grid !important
+    grid-template-columns repeat(auto-fill, minmax(240px, 1fr)) !important
+    gap 0.75rem !important
+    padding 0.75rem !important
+    background #fdfdfd !important
+    border 1px dashed $borderInternal !important
+    border-radius 8px !important
+    margin 0 0 1.5rem 0 !important
+
+  .author-node-embed
+    font-size 0.85em !important
+    line-height 1.3 !important
+    margin 0 !important
+    padding 0 !important
+
+  .author-name-embed
+    font-weight 600 !important
+    color $textMainInternal !important
+    display flex !important
+    align-items center !important
+    gap 0.25rem !important
+
+  .author-affs-embed
+    font-size 0.75em !important
+    color $textMutedInternal !important
+    margin-top 0.1rem !important
+    *
+      color $textMutedInternal !important
+
+  .aff-item-embed
+    display inline-flex !important
+    align-items center !important
+    gap 0.2rem !important
+
+  .inline-icon
+    display inline-block !important
+    vertical-align middle !important
+    transition color 0.15s ease !important
+
+  .orcid-link
+    color #cbd5e1 !important
+    text-decoration none !important
+    &:hover 
+      .icon-orcid
+        color $orcidColorInternal !important
+
+  .ror-link
+    color #cbd5e1 !important
+    text-decoration none !important
+    &:hover 
+      .icon-ror
+        color $accentInternal !important
+
+  .card-body-embed
+    display grid !important
+    grid-template-columns 2fr 1fr !important
+    gap 1.5rem !important
+    @media (max-width: 680px)
+      grid-template-columns 1fr !important
+
+  .section-title-embed
+    font-size 0.75em !important
+    text-transform uppercase !important
+    letter-spacing 0.05em !important
+    color $textMutedInternal !important
+    margin 0 0 0.5rem 0 !important
+    font-weight 700 !important
+    padding 0 !important
+    border none !important
+
+  .abstract-embed
+    font-size 0.9em !important
+    color #334155 !important
+    margin-bottom 1.25rem !important
+    text-align justify !important
+
+  .tag-container-embed
+    display flex !important
+    flex-wrap wrap !important
+    gap 0.35rem !important
+    margin-bottom 1.25rem !important
+    padding 0 !important
+
+  .tag-embed
+    background $badgeBgInternal !important
+    font-size 0.75em !important
+    padding 0.15rem 0.4rem !important
+    border-radius 4px !important
+    color #475569 !important
+    display inline-block !important
+
+  .meta-sidebar-embed
+    background #f8fafc !important
+    padding 1rem !important
+    border-radius 8px !important
+    display flex !important
+    flex-direction column !important
+    gap 0.85rem !important
+    height fit-content !important
+    margin 0 !important
+
+  .meta-item-embed
+    display flex !important
+    flex-direction column !important
+    margin 0 !important
+    padding 0 !important
+
+  .meta-label-embed
+    font-size 0.75em !important
+    text-transform uppercase !important
+    letter-spacing 0.05em !important
+    color $textMutedInternal !important
+    font-weight 600 !important
+
+  .meta-value-embed
+    font-size 0.85em !important
+    font-weight 500 !important
+    color $textMainInternal !important
+    a
+      color $accentInternal !important
+      text-decoration none !important
+    code
+      font-family monospace !important
+      background #e2e8f0 !important
+      padding 0.1rem 0.25rem !important
+      border-radius 3px !important
+      font-size 0.8em !important
+
+  .funding-entry-embed
+    margin-bottom 0.25rem !important
+    font-size 0.85em !important
+    font-weight 500 !important
+    &:last-child
+      margin-bottom 0 !important
+
+  .link-list-embed
+    list-style none !important
+    padding 0 !important
+    margin 0 !important
+    font-size 0.8em !important
+    li
+      margin-bottom 0.35rem !important
+      text-overflow ellipsis !important
+      overflow hidden !important
+      white-space nowrap !important
+      padding 0 !important
+      list-style-type none !important
+    a
+      color $accentInternal !important
+      text-decoration none !important
+
+  // 1. Transition styling for the wrapper shell
+  transition padding 0.25s ease-out, box-shadow 0.25s ease-out
+
+  &.is-collapsed
+    padding-bottom 1rem !important
+    box-shadow 0 2px 4px rgba(0, 0, 0, 0.02) !important
+    
+    .card-header-embed
+      border-bottom 1px solid transparent !important
+      padding-bottom 0 !important
+      margin-bottom 0 !important
+      
+    .collapsible-content
+      display none !important // Cleanly unmounts content when closed
+      
+    .icon-chevron
+      transform rotate(-90deg) // Point arrow leftward when collapsed
+
+  // 2. Styling for interactive header click area
+  .toggle-collapse-btn
+    background none !important
+    border none !important
+    padding 0 !important
+    margin 0 !important
+    font-size inherit !important
+    font-weight inherit !important
+    color inherit !important
+    text-align left !important
+    cursor pointer !important
+    display inline-flex !important
+    align-items center !important
+    gap 0.5rem !important
+    width 100% !important
+    outline none !important
+    
+    &:focus-visible
+      text-decoration underline !important
+
+  .icon-chevron
+    flex-shrink 0
+    color $textMutedInternal
+    transition transform 0.2s ease-in-out
+    transform rotate(0deg) // Point downward when open
+
+  .collapsible-content
+    display block

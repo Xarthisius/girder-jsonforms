@@ -1,11 +1,11 @@
-import $ from 'jquery';
-
 import EntriesWidget from './widgets/EntriesWidget';
+import ImportToFormDialog from './widgets/ImportToForm';
 import FormModel from '../models/FormModel';
 import FormTemplate from '../templates/formTemplate.pug';
 
 import '../stylesheets/formView.styl';
 
+const $ = girder.$;
 const View = girder.views.View;
 const AccessWidget = girder.views.widgets.AccessWidget;
 const router = girder.router;
@@ -15,12 +15,12 @@ const { renderMarkdown } = girder.misc;
 var FormView = View.extend({
     events: {
         'click .g-new-entry': function (event) {
-            console.log('new entry');
             router.navigate('form/' + this.model.get('_id') + '/entry', {
                 trigger: true
             });
         },
-        'click .g-edit-access': 'editAccess'
+        'click .g-edit-access': 'editAccess',
+        'click .g-import-form': 'importForm'
     },
     initialize: function (settings) {
         cancelRestRequests('fetch');
@@ -66,7 +66,16 @@ var FormView = View.extend({
             console.log(params);
             console.log('Should change access to folderId');
         }, this).render();
-    }
+    },
+
+    importForm: function () {
+        new ImportToFormDialog({
+            el: $('#g-dialog-container'),
+            model: this.model,
+            modelType: 'form',
+            parentView: this
+        });
+    },
 });
 
 export default FormView;

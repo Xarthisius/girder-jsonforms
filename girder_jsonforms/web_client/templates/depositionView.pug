@@ -1,0 +1,217 @@
+.g-deposition-container
+  .g-deposition-actions
+    button.g-back.btn.btn-sm.btn-primary(title="Back to depositions")
+      i.icon-left
+      | Back
+    if (level >= AccessType.WRITE)
+      button.g-edit-deposition.btn.btn-sm.btn-warning(title="Edit")
+        i.icon-pencil
+        | Edit
+    if (level >= AccessType.ADMIN)
+      button.g-access-deposition.g-edit-access.btn.btn-sm.btn-warning(title="Access control")
+        i.icon-lock
+        | Access control
+    .btn-group
+      button.g-extra-deposition-actions-button.btn.btn-default.dropdown-toggle(
+          data-toggle="dropdown", title="IGSN actions")
+        i.icon-barcode
+        |  Actions
+        i.icon-down-dir
+      ul.g-depositions-actions-menu.dropdown-menu.pull-right(role="menu")
+        li(role="presentation")
+          a.g-register-aimd-deposition(role="menuitem")
+            i.icon-barcode
+            | Register with AIMD-L
+        //- Shown whenever this instance is backed by the central IGSN registry.
+        //- Gating on serviceStatus instead hid these actions for every batch
+        //- child, since children carried no mirrored status.
+        if registryEnabled && level >= AccessType.WRITE
+          li.divider(role="presentation")
+          li(role="presentation")
+            a.g-sync-deposition(role="menuitem")
+              i.icon-cloud
+              | Sync metadata to registry
+          if serviceStatus !== 'findable'
+            li(role="presentation")
+              a.g-publish-deposition(role="menuitem")
+                i.icon-globe
+                | Publish to DataCite
+        if (level >= AccessType.WRITE)
+          li.divider(role="presentation")
+          li(role="presentation")
+            a.g-upload-deposition-image(role="menuitem")
+              i.icon-upload
+              | Upload Image
+          li(role="presentation")
+            a.g-split-deposition(role="menuitem")
+              i.icon-unlink
+              | Split
+        if (level >= AccessType.ADMIN)
+          li.divider(role="presentation")
+          li(role="presentation")
+            a.g-delete-deposition(role="menuitem")
+              i.icon-trash
+              | Delete
+
+  h1.g-deposition-title
+    | IGSN
+
+  .g-three-column-layout
+    .g-main-content
+      .g-left-column
+        .g-deposition-content
+        .g-deposition-content-header
+          .g-deposition-content-header-left
+            h2.g-deposition-content-header-title
+              = metadata.titles[0]["title"]
+
+        .g-deposition-content-body
+          .g-deposition-content-body-left
+            .g-deposition-content-body-left-item
+              .g-deposition-info-line
+                i.icon-doc
+                span.text-muted= 'IGSN: '
+                span.g-info-type= deposition.get("igsn")
+                if serviceStatus
+                  span.g-igsn-status(class='g-igsn-status-' + serviceStatus,
+                      title='Status in the central IGSN registry')= serviceStatus
+              if serviceError
+                .g-deposition-info-line.g-igsn-service-error
+                  i.icon-attention
+                  span.text-muted= 'Registry: '
+                  span.g-info-type= serviceError
+              if deposition.get('state') && deposition.get('state') !== 'draft'
+                .g-deposition-info-line
+                  i.icon-doc
+                  span.text-muted= 'DOI: '
+                  a(href='https://doi.org/' + metadata.doi, target='_blank')
+                    span.g-info-type= 'https://doi.org/' + metadata.doi
+              for d in metadata.descriptions
+                .g-deposition-info-line
+                  i.icon-doc
+                  span.text-muted= 'Description (' + d.descriptionType + '): '
+                  span.g-info-type= d.description
+
+            //- Two-column section: left = creators + related identifiers, right = datafiles count
+            .g-two-column-section
+              .g-two-left
+                if metadata.creators && metadata.creators.length > 0
+                  .g-deposition-info-line
+                    h3
+                      | Creators:
+                  for creator in metadata.creators
+                    .g-deposition-info-line
+                      if creator.nameType && creator.nameType === 'Organizational'
+                        i.icon-building
+                        span.g-info-type= creator.name
+                        if creator.nameIdentifiers && creator.nameIdentifiers.length > 0
+                          - var ror = creator.nameIdentifiers[0]['nameIdentifier'].match(/ror.org\/(\w+)/);
+                          if ror && ror.length > 1
+                            a(href='https://ror.org/' + ror[1], target='_blank')
+                              span.g-info-type= ' (ROR:' + ror[1] + ')'
+                      else
+                        i.icon-user
+                        if creator.nameIdentifiers && creator.nameIdentifiers.length > 0
+                          - var orcid = creator.nameIdentifiers[0]['nameIdentifier'].match(/orcid.org\/(\d{4}-\d{4}-\d{4}-\d{3}[0-9X])/);
+                          if orcid && orcid.length > 1
+                            a(href='https://orcid.org/' + orcid[1], target='_blank')
+                              span.g-info-type= creator.givenName + ' ' + creator.familyName + ' (orcid:' + orcid[1] + ')'
+                          else
+                            span.g-info-type= creator.givenName + ' ' + creator.familyName
+                        else
+                          span.g-info-type= creator.givenName + ' ' + creator.familyName
+
+                if metadata.alternateIdentifiers && metadata.alternateIdentifiers.length > 0
+                  .g-deposition-info-line
+                    h3
+                      | Alternate Identifiers:
+                  for identifier in metadata.alternateIdentifiers
+                    .g-deposition-info-line
+                      i.icon-doc
+                      span.text-muted= identifier.alternateIdentifierType + ': '
+                      span.g-info-type= identifier.alternateIdentifier
+
+                if relIds.reducedIdentifiers && relIds.reducedIdentifiers.length > 0
+                  .g-deposition-info-line
+                    h3
+                      | Related Identifiers:
+                  for identifier in relIds.reducedIdentifiers
+                    .g-deposition-info-line(entryId=identifier.entryId)
+                      i.icon-doc
+                      span.text-muted= identifier.relationType + ': '
+                      a(href=identifier.relatedIdentifier)
+                        if identifier.relatedIdentifierTitle
+                          span.g-info-type= identifier.relatedIdentifierTitle
+                        else
+                          span.g-info-type= identifier.relatedIdentifier
+                    if identifier.relatedMetadataScheme
+                      .g-deposition-info-line(formId=identifier.formId)
+                        i.icon-doc-text
+                        span.text-muted
+                          | Schema:
+                        a(href=identifier.relatedMetadataScheme)
+                          if identifier.relatedMetadataSchemeTitle
+                            span.g-info-type= identifier.relatedMetadataSchemeTitle
+                          else
+                            span.g-info-type= identifier.relatedMetadataScheme
+                  for val, key in relIds.removedCounts
+                    if val > 0
+                      .g-deposition-info-line
+                        span.text-muted= 'Hidden "' + key + '" related identifiers (' + val + ')'
+
+              .g-two-right
+                if typeof datafileCounts !== 'undefined' && datafileCounts
+                  - var totalFiles = 0
+                  each val, key in datafileCounts
+                    - totalFiles += val
+                  .g-datafiles-box
+                    .g-deposition-info-line
+                      h3
+                        | Datafiles Count
+                    .g-deposition-info-line
+                      strong Total:
+                      span.g-info-type= ' ' + totalFiles
+                    ul.g-datafiles-list
+                      each val, key in datafileCounts
+                        - var label = key.replace(/_/g, ' ')
+                        - label = label.charAt(0).toUpperCase() + label.slice(1)
+                        li
+                          span.text-muted= label + ': '
+                          span.g-info-type= ' ' + val
+
+            if trackerUrl !== "#sample/null"
+              .g-mobile-sample-tracker
+                a.g-sample-tracker-link(href=trackerUrl, title="Tracker link")
+                  i.icon-compass
+                  | See Sample Tracker
+
+            .g-deposition-content-body-left-item
+
+      if imageUrl
+        .g-middle-column
+          .g-sample-image-container
+            img.g-sample-image(src=imageUrl, alt="Sample Image")
+
+    .g-qr-column
+      .g-sample-code
+        canvas#g-qr-code
+        if trackerUrl !== "#sample/null"
+          p.center-text
+            i.icon-compass
+            a.g-sample-tracker-link(href=trackerUrl, title="Tracker link")
+              | See Sample Tracker
+
+.g-search-container
+  h3
+    | Related Data
+
+  .g-search-results-container
+    .g-search-results-folder
+    .g-search-results-item
+
+  .g-search-pending
+    i.icon-spin4.animate-spin
+
+  .g-search-no-results(style='display: none;')
+    i.icon-block
+    | No related data found

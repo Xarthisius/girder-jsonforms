@@ -1,0 +1,367 @@
+import $ from 'jquery';
+import 'bootstrap-autocomplete';
+
+import AddCreatorDialog from './widgets/AddCreatorDialog';
+import CreatorsWidget from './widgets/CreatorsWidget';
+import IdentifiersWidget from './widgets/IdentifiersWidget';
+import DescriptionsWidget from './widgets/DescriptionsWidget';
+import RelatedIdentifiersWidget from './widgets/RelatedIdentifiersWidget';
+import '../stylesheets/editDepositionView.styl';
+import template from '../templates/editDepositionView.pug';
+
+const { getCurrentUser } = girder.auth;
+const { restRequest } = girder.rest;
+const View = girder.views.View;
+
+function isDefined(value) {
+  return value !== null && value !== undefined && value !== '';
+}
+
+function toCamelCase(str) {
+  // Find a hyphen followed by any word character (-w)
+  // The 'g' flag ensures it replaces all occurrences
+  // The replacer function takes the matched char and uppercases it
+  return str.replace(/-(\w)/g, (match, char) => char.toUpperCase());
+}
+
+
+const EditDepositionView = View.extend({
+  events: {
+    'dragstart .g-creators-list li': 'addDragging',
+    'dragend .g-creators-list li': 'removeDragging',
+    'dragover .g-creators-list': 'dragOver',
+    'drop .g-creators-list': function (event) {
+        this.drop(event, '.g-creators-list');
+        this._updateCreators();
+    },
+    'click #g-deposition-cancel': function () {
+      if (this.model) {
+        girder.router.navigate(`deposition/${this.model.id}`, { trigger: true });
+        return;
+      }
+      girder.router.navigate(`depositions`, { trigger: true });
+    },
+    'submit #g-deposition-form': function (event) {
+      event.preventDefault();
+      const formData = $(event.currentTarget).serializeArray();
+      const metadata = {};
+      formData.forEach((item) => {
+        metadata[item.name] = item.value;
+      });
+      metadata.materialSubtype = isDefined(metadata.materialSubtype) ? metadata.materialSubtype : 'X';
+      metadata.governorLab = isDefined(metadata.governorLab) ? metadata.governorLab : 'X';
+      this.identifiersWidget._updateIdentifiers();  // Saves state
+      this.relatedIdentifiersWidget._updateIdentifiers();  // Saves state
+      this.descriptionsWidget._updateDescriptions();  // Saves state
+      const alternateIdentifiers = this.identifiersWidget.identifiers.map((item) => {
+        return { alternateIdentifier: item.value, alternateIdentifierType: item.type };
+      });
+      const checkbox = document.querySelector('.g-enable-tracking');
+      const batch = document.querySelector('#g-deposition-batch') ? document.querySelector('#g-deposition-batch').value : 0;
+      const data = {
+        metadata: JSON.stringify({
+          creators: this._creatorsDatacite(),
+          titles: [{title: metadata.title}],
+          descriptions: this.descriptionsWidget.descriptions,
+          relatedIdentifiers: this.relatedIdentifiersWidget.identifiers,
+          alternateIdentifiers: alternateIdentifiers,
+        }),
+        track: checkbox ? checkbox.checked : false,
+        sampleId: metadata.sampleId,
+        batch: batch,
+      };
+      if (this.model) {
+        this.updateDeposition(data);
+      } else {
+        data.prefix = `${metadata.governor}${metadata.governorLab}${metadata.material}${metadata.materialSubtype}`;
+        restRequest({
+          method: 'POST',
+          url: 'deposition',
+          data: data,
+        }).done((resp) => {
+          this.trigger('g:alert', {
+            text: 'Deposition updated successfully',
+            type: 'success',
+          });
+          girder.router.navigate('depositions', { trigger: true });
+        }).fail((resp) => {
+          this.trigger('g:alert', {
+            text: resp.responseJSON.message,
+            type: 'danger',
+          });
+        });
+      }
+    },
+    'click #g-deposition-addCreator': function () {
+      new AddCreatorDialog({
+        el: $('#g-dialog-container'),
+        parentView: this,
+        creators: this.creators,
+      }).on('g:creatorAdded', function (params) {
+        // this.creatorsWidget.creators.push(params.creator);
+        this.creatorsWidget.render();
+      }, this).render();
+    },
+    'change #g-deposition-governor': function (event) {
+      const selectedInstitution = event.target.value;
+      this.$('#g-deposition-governorLab').empty();
+      this.$('#g-deposition-governorLab').append($('<option>', {
+        value: 'X',
+        text: 'Select a lab (or leave blank)',
+      }));
+      Object.entries(this.igsnInstitutions[selectedInstitution].labs).forEach(([labCode, labName]) => {
+        this.$('#g-deposition-governorLab').append($('<option>', {
+          value: labCode,
+          text: labName,
+        }));
+      });
+    },
+    'change #g-deposition-material': function (event) {
+      const selectedMaterial = $(event.currentTarget).val();
+      this.$('#g-deposition-materialType').empty();
+      const subcategories = this.igsnMaterials[selectedMaterial].subcategories || {};
+      const subcategoriesExists = !$.isEmptyObject(subcategories);
+      if (subcategoriesExists) {
+        this.$('#g-deposition-materialType').append($('<option>', {
+          value: 'X',
+          text: 'Select a subcategory (or leave blank)',
+        }));
+        Object.entries(subcategories).forEach(([materialCode, materialType]) => {
+          this.$('#g-deposition-materialType').append($('<option>', {
+            value: materialCode,
+            text: materialType,
+          }));
+        });
+      } else {
+        this.$('#g-deposition-materialType').append($('<option>', {
+          value: 'X',
+          text: 'No subcategories',
+        }));
+      }
+      this.$('#g-deposition-materialType').girderEnable(subcategoriesExists);
+    },
+  },
+  initialize: function (settings) {
+    this.draggedItem = null;
+    this.form = null;
+    this.model = settings && settings.model ? settings.model : null;
+    this.creators = settings && settings.model ? settings.model.getFormCreators() : [];
+    this.identifiers = settings && settings.model ? settings.model.getFormIdentifiers() : [];
+    this.relatedIdentifiers = settings && settings.model ? settings.model.getFormRelatedIdentifiers() : [];
+    var descriptions = settings && settings.model ? settings.model.get('metadata').descriptions : [];
+    this.descriptionsWidget = new DescriptionsWidget({parentView: this, descriptions: descriptions});
+    this.creatorsWidget = new CreatorsWidget({creators: this.creators, parentView: this})
+    this.identifiersWidget = new IdentifiersWidget({parentView: this, identifiers: this.identifiers});
+    this.relatedIdentifiersWidget = new RelatedIdentifiersWidget({parentView: this, identifiers: this.relatedIdentifiers});
+    var samplePromise = null;
+    if (this.model && this.model.get('sampleId')) {
+      samplePromise = restRequest({
+        method: 'GET',
+        url: `sample/${this.model.get('sampleId')}`,
+      }).done((resp) => {
+        this.sample = resp;
+      }).fail((resp) => {
+        this.sample = null;
+        this.trigger('g:alert', {
+          text: resp.responseJSON.message,
+          type: 'danger',
+        });
+      });
+    }
+    var settingsPromise = restRequest({
+      method: 'GET',
+      url: 'deposition/settings'
+    }).done((resp) => {
+      this.igsnInstitutions = resp.igsn_institutions;
+      this.igsnMaterials = resp.igsn_materials;
+    });
+    $.when(
+      settingsPromise,
+      samplePromise
+    ).done(() => {
+      this.render();
+      const sampleField = document.querySelector('input[id="g-sample-id"]');
+      if (sampleField) {
+        sampleField.value = this.sample ? this.sample.name : '';
+      }
+      // document.querySelector('input[id="g-sample-id"]').value = this.sample ? this.sample['name'] : '';
+    }).fail((resp) => {
+      this.trigger('g:alert', {
+        text: resp.responseJSON.message,
+        type: 'danger',
+      });
+    });
+
+  },
+  render: function () {
+    if (!getCurrentUser()) {
+      this.$el.text("Must be logged in to edit or submit a deposition.");
+      return this;
+    }
+    if (this.model) {
+      this.form = this.$el.html(template({
+        igsn: this.model.get('igsn'),
+        sampleId: this.model.get('sampleId'),
+        institutions: [],
+        materials: [],
+      }));
+      this.$('#g-deposition-title').val(this.model.get('metadata').titles[0].title);
+      this.$('#g-deposition-description').val(this._getAbstract(this.model.get('metadata')));
+    } else {
+      this.form = this.$el.html(template({
+        igsn: null,
+        sampleId: null,
+        institutions: this.igsnInstitutions,
+        materials: Object.entries(this.igsnMaterials),
+      }));
+    }
+    this.creatorsWidget.setElement(this.$('.g-creators-container')).render();
+    this.identifiersWidget.setElement(this.$('.g-identifiers-container')).render();
+    this.relatedIdentifiersWidget.setElement(this.$('.g-related-identifiers-container')).render();
+    this.descriptionsWidget.setElement(this.$('.g-descriptions-container')).render();
+    $('.sampleSelect').autoComplete(
+      {
+        bootstrapVersion: "3" ,
+        minChars: 2,
+        resolver: 'custom',
+        events: {
+          search: function (query, callback, origJQElement) {
+            restRequest({
+              method: 'GET',
+              url: 'sample',
+              data: { query: query, limit: 10}
+            }).done(function (resp) {
+              callback(resp);
+            });
+          },
+          searchPost: function (resultsFromServer, origJQElement) {
+            $('ul.bootstrap-autocomplete').css("display", "block");
+            return resultsFromServer;
+          }
+        },
+        formatResult: function (item) {
+          return {
+            value: item._id,
+            text: item.name,
+            html: `${item.name} (${item._id})`,
+          };
+        }
+      }
+    );
+    $('.sampleSelect').on('autocomplete.select', function (event, item) {
+        $('ul.bootstrap-autocomplete').css("display", "none");
+        if (!item) {
+            return;
+        }
+        document.querySelector('input[name="sampleId"]').value = item._id;
+    });
+    if (this.model && this.model.get('sampleId')) {
+        document.querySelector('input[name="sampleId"]').value = this.model.get('sampleId');
+    }
+    return this;
+  },
+  updateDeposition: function(data) {
+      this.model.set({ sampleId: data.sampleId, metadata: data.metadata }).save().done(() => {
+          this.trigger('g:alert', {
+              text: 'Deposition updated successfully',
+              type: 'success',
+          });
+          girder.router.navigate(`deposition/${this.model.id}`, { trigger: true });
+      }).fail((resp) => {
+          this.trigger('g:alert', {
+              text: resp.responseJSON.message,
+              type: 'danger',
+          });
+      });
+  },
+  _getAbstract: function (metadata) {
+      if (!metadata || !metadata.descriptions) {
+          return '';
+      }
+      const desc = metadata.descriptions.find((desc) => desc.descriptionType === 'Abstract');
+      return desc ? desc.description : '';
+  },
+  _updateCreators: function () {
+      const items = this.$('.g-creators-list li').toArray();
+      this.creators = items.map((item) => {
+          const creator = {};
+          for (let i = 0; i < item.attributes.length; i++) {
+              const attribute = item.attributes[i];
+              if (attribute.name.startsWith('data-creator')) {
+                  const key = toCamelCase(attribute.name.replace('data-creator-', ''));
+                  creator[key] = attribute.value;
+              }
+          }
+          return creator;
+      });
+  },
+  _creatorsDatacite: function () {
+      return this.creators.map((creator) => {
+          if (creator.nameType !== 'Personal') {
+              return null;
+          }
+
+          var affiliation = [];
+          if (creator.affiliations.split(' - ').length > 1) {
+              const [name, affId] = creator.affiliations.split(' - ');
+              affiliation = [
+                {
+                  name: name,
+                  schemeUri: 'https://ror.org',
+                  affiliationIdentifier: affId,
+                  affiliationIdentifierScheme: 'ROR'
+                }
+              ];
+          }
+
+          var nameIdentifiers = [];
+          if (creator.identifiers && creator.identifiers.includes('orcid:') && creator.identifiers.split('orcid:')[1]) {
+              nameIdentifiers.push({
+                schemeUri: "https://orcid.org",
+                nameIdentifier: `https://orcid.org/${creator.identifiers.split('orcid:')[1]}`,
+                nameIdentifierScheme: "ORCID"
+              });
+          }
+
+          return {
+              name: `${creator.familyName}, ${creator.givenName}`,
+              nameType: creator.nameType,
+              givenName: creator.givenName,
+              familyName: creator.familyName,
+              nameIdentifiers: nameIdentifiers,
+              affiliation: affiliation,
+          };
+      }).filter((creator) => creator !== null);
+  },
+  addDragging: function (event) {
+    this.draggedItem = event.currentTarget;
+    $(event.currentTarget).addClass('dragging');
+    event.originalEvent.dataTransfer.effectAllowed = 'move';
+  },
+  removeDragging: function (event) {
+    $(event.currentTarget).removeClass('dragging');
+  },
+  dragOver: function (event) {
+    event.preventDefault();
+  },
+  drop: function (event, target) {
+    event.preventDefault();
+    if (this.draggedItem) {
+        const target = event.target.closest('li');
+        if (target && target !== this.draggedItem) {
+            const list = $(target);
+            const items = list.children("li").toArray();
+            const draggedIndex = items.indexOf(this.draggedItem);
+            const targetIndex = items.indexOf(target);
+
+            if (draggedIndex < targetIndex) {
+                $(target).after(this.draggedItem);
+            } else {
+                $(target).before(this.draggedItem);
+            }
+        }
+    }
+  },
+});
+
+export default EditDepositionView;

@@ -1,15 +1,100 @@
-import $ from 'jquery';
+import DepositionModel from './models/DepositionModel';
+import DepositionView from './views/DepositionView';
 import FormModel from './models/FormModel';
 import FormEntryModel from './models/FormEntryModel';
 import FormView from './views/FormView';
 import FormListView from './views/FormListView';
 import EditFormView from './views/EditFormView';
+import EditDepositionView from './views/EditDepositionView';
+import DepositionListWidget from './views/widgets/DepositionListWidget';
+import ProjectModel from './models/ProjectModel';
+import ProjectListView from './views/ProjectListView';
+import ProjectView from './views/ProjectView';
 
 const router = girder.router;
 const events = girder.events;
+const { restRequest } = girder.rest;
+const $ = girder.$;
+
+router.route('depositions', 'igsns', function () {
+    events.trigger('g:navigateTo', DepositionListWidget, {
+        allDepositionsMode: true,
+        view: 'list',
+        showFilters: true,
+        showPageSizeSelector: true,
+    });
+});
 
 router.route('forms', 'forms', function () {
     events.trigger('g:navigateTo', FormListView);
+});
+
+router.route('newdeposition', 'deposition', function () {
+    events.trigger('g:navigateTo', EditDepositionView);
+});
+
+router.route('deposition/:id/edit', 'editDeposition', function (id) {
+    const deposition = new DepositionModel({_id: id});
+    deposition.fetch().done(() => {
+        events.trigger('g:navigateTo', EditDepositionView, {
+            model: deposition,
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('depositions', {trigger: true, replace: true});
+    });
+});
+
+router.route('deposition/:id', 'deposition', function (id) {
+    const deposition = new DepositionModel({_id: id});
+    deposition.fetch().done(() => {
+      events.trigger('g:navigateTo', DepositionView, {
+            model: deposition
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('depositions', {trigger: true, replace: true});
+    });
+});
+
+router.route('doi/:org/:id', 'doiAccess', function(org, doiId, params) {
+  restRequest({
+    method: 'GET',
+    url: 'collection',
+    data: {
+      name: `${org}/${doiId}`,
+      limit: 1
+    }
+  }).done((resp) => {
+    if (resp.length === 1) {
+      router.navigate(`collection/${resp[0]._id}`, {trigger: true, replace: true});
+    } else {
+      router.navigate('collections', {trigger: true, replace: true});
+    }
+  }).fail(() => {
+    router.navigate('collections', {trigger: true, replace: true});
+  });
+});
+
+router.route('igsn/:igsn', 'igsn', function (igsn) {
+  restRequest({
+    method: 'GET',
+    url: 'deposition',
+    data: {
+      igsnPrefix: igsn,
+      limit: 1
+    }
+  }).done((resp) => {
+    if (resp.length > 0) {
+      router.navigate('deposition/' + resp[0]._id, {trigger: true, replace: true});
+    } else {
+      router.navigate('depositions', {trigger: true, replace: true});
+    }
+  }).fail(() => {
+    router.navigate('depositions', {trigger: true, replace: true});
+  });
 });
 
 router.route('form/:id/entry', 'form', function (id, params) {
@@ -47,5 +132,22 @@ router.route('form/:id', 'form', function (id) {
         });
     }).fail(() => {
         router.navigate('forms', {trigger: true, replace: true});
+    });
+});
+
+router.route('projects', 'projects', function () {
+    events.trigger('g:navigateTo', ProjectListView);
+});
+
+router.route('project/:id', 'project', function (id) {
+    const project = new ProjectModel({_id: id});
+    project.fetch().done(() => {
+        events.trigger('g:navigateTo', ProjectView, {
+            model: project
+        }, {
+            renderNow: true
+        });
+    }).fail(() => {
+        router.navigate('projects', {trigger: true, replace: true});
     });
 });

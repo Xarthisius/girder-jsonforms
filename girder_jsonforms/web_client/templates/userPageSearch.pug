@@ -1,0 +1,16 @@
+
+.g-search-container
+  h4
+    if owner
+      | Data Uploaded by You
+    else
+      | Data Uploaded by User
+
+  .g-search-results-container
+
+  .g-search-pending
+    i.icon-spin4.animate-spin
+
+  .g-search-no-results(style='display: none;')
+    i.icon-block
+    | No related data found

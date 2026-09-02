@@ -10,7 +10,7 @@ function pugPlugin() {
     transform(src: string, id: string) {
       if (id.endsWith('.pug')) {
         return {
-          code: `${compileClient(src, {filename: id})}\nexport default template`,
+          code: `${compileClient(src, {filename: id, compileDebug: false})}\nexport default template`,
           map: null,
         };
       }
@@ -30,11 +30,28 @@ export default defineConfig({
     }),
   ],
   build: {
-    sourcemap: true,
+    sourcemap: !process.env.SKIP_SOURCE_MAPS,
     lib: {
       entry: resolve(__dirname, 'main.js'),
       name: 'GirderPluginJSONForms',
       fileName: 'girder-plugin-jsonforms',
+    },
+    rollupOptions: {
+      output: {
+        assetFileNames: (assetInfo) => {
+          if (assetInfo.name && assetInfo.name.endsWith('.css')) {
+            return 'style.css';
+          }
+          return '[name].[ext]';
+        },
+      },
+      transform: {
+        inject: {
+          $: 'jquery',
+          jQuery: 'jquery',
+          'window.jQuery': 'jquery',
+        },
+      },
     },
   },
 });
