@@ -9,7 +9,9 @@ exclude girder_jsonformst/tests
 global-prune *.yaml
 global-exclude *.yaml
 prune scripts
+include docs/*.md
 exclude scripts
-exclude codecov.yml MANIFEST.in requirements-dev.txt tox.ini .coveragerc
+exclude codecov.yml MANIFEST.in requirements-dev.txt tox.ini .coveragerc ruff.toml
 prune codecov.yml MANIFEST.in requirements-dev.txt tox.ini .coveragerc
 include README.md
+exclude CLAUDE.md
