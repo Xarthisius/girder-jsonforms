@@ -7,7 +7,6 @@ import pytest
 from girder.exceptions import ValidationException
 from girder.models.setting import Setting
 from girder.models.user import User
-from girder.utility import mail_utils
 
 from ..lib import mail
 from ..models.project import Project as ProjectModel
@@ -36,23 +35,6 @@ def logo_file(tmp_path):
     path = tmp_path / "shield.png"
     path.write_bytes(_png_bytes())
     return path
-
-
-@pytest.fixture
-def sent_mail(monkeypatch):
-    """Capture what would have been handed to SMTP.
-
-    ``sendMail`` triggers the ``_sendmail`` event, whose core handler calls
-    ``mail_utils._submitEmail``; patching that module attribute intercepts
-    delivery while leaving the rest of the path intact.
-    """
-    messages = []
-
-    def _capture(msg, recipients):
-        messages.append((msg, recipients))
-
-    monkeypatch.setattr(mail_utils, "_submitEmail", _capture)
-    return messages
 
 
 @pytest.fixture

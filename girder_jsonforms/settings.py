@@ -47,6 +47,11 @@ class PluginSettings:
     # mail client must not have to fetch anything from us to render the
     # message. Raster only -- see the validator.
     MAIL_LOGO = "jsonforms.mail_logo"
+    # Name of the standing group whose members review proposals. The group is
+    # created on demand and granted the jsonforms.review_projects flag on
+    # every proposal as it is submitted, so reviewers do not have to be
+    # enrolled per proposal.
+    REVIEWERS_GROUP_NAME = "jsonforms.reviewers_group_name"
 
 
 SettingDefault.defaults.update(
@@ -64,6 +69,7 @@ SettingDefault.defaults.update(
         PluginSettings.ORCID_PROVIDER: "orcid",
         PluginSettings.ORCID_RESEARCH_RESOURCES: False,
         PluginSettings.MAIL_LOGO: "",
+        PluginSettings.REVIEWERS_GROUP_NAME: "AIMDL Proposal Reviewers",
     }
 )
 
@@ -456,3 +462,13 @@ def validate_mail_logo(doc):
                 "value",
             )
     doc["value"] = value
+
+
+@setting_utilities.validator(PluginSettings.REVIEWERS_GROUP_NAME)
+def validate_reviewers_group_name(doc):
+    value = doc["value"]
+    if not isinstance(value, str):
+        raise ValidationException("Setting must be a string.", "value")
+    # Empty is meaningful: no standing reviewer group, so proposals are only
+    # visible to site admins and whoever is granted the flag by hand.
+    doc["value"] = value.strip()

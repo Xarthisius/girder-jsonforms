@@ -24,7 +24,13 @@ from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.locks import distributed_lock
-from .lib.events import ensure_group, process_add_samples, process_remove_samples
+from .lib.events import (
+    ensure_group,
+    grant_reviewers_access,
+    process_add_samples,
+    process_remove_samples,
+    reviewers_group,
+)
 from .lib.mail import notify_project_status
 from .lib.metadata_dates import coerce_dates, coerce_metadata_dates
 from .models.deposition import Deposition as DepositionModel
@@ -446,8 +452,14 @@ class JSONFormsPlugin(GirderPlugin):
             "rest.get.system/public_settings.after", "jsonforms", add_public_settings
         )
         events.bind("model.project.save", "jsonforms", ensure_group)
-        # Distinct handler name: bindings are keyed by (event, handlerName),
-        # so reusing "jsonforms" here would replace ensure_group.
+        # Distinct handler names: bindings are keyed by (event, handlerName),
+        # so reusing "jsonforms" here would replace ensure_group. Order
+        # matters -- handlers run in bind order, and the reviewers grant has
+        # to land in the ACL before the mail handler reads it back to work out
+        # who to notify.
+        events.bind(
+            "model.project.save", "jsonforms.reviewers", grant_reviewers_access
+        )
         events.bind(
             "model.project.save", "jsonforms.mail", notify_project_status
         )
@@ -497,6 +509,13 @@ class JSONFormsPlugin(GirderPlugin):
                 public=True,
                 reuseExisting=True,
             )
+
+        # Seed the standing reviewers group so admins can populate it before
+        # the first proposal arrives. It is also created on demand at
+        # submission time, which is what covers a fresh instance whose admin
+        # user does not exist yet at load.
+        if Setting().get(PluginSettings.PROJECTS_ENABLED):
+            reviewers_group()
 
         # Proposal workflow email templates. Appended, not prepended: the
         # lookup is global, so a prepended directory would shadow core

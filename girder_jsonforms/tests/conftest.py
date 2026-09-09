@@ -145,3 +145,22 @@ def igsn_service():
     )
     with _patch_all(targets, client):
         yield client
+
+
+@pytest.fixture
+def sent_mail(monkeypatch):
+    """Capture what would have been handed to SMTP, as (message, recipients).
+
+    ``lib/mail.py`` triggers the ``_sendmail`` event, whose core handler calls
+    ``mail_utils._submitEmail``; patching that module attribute intercepts
+    delivery while leaving the rest of the path intact.
+    """
+    from girder.utility import mail_utils
+
+    messages = []
+
+    def _capture(msg, recipients):
+        messages.append((msg, recipients))
+
+    monkeypatch.setattr(mail_utils, "_submitEmail", _capture)
+    return messages

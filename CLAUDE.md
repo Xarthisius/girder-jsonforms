@@ -129,6 +129,38 @@ created for it and the project is registered with ORCID asynchronously
 (`PREFIX-001`, `PREFIX-001-001`, ...) — used whenever "does this sample belong to this project" needs
 answering.
 
+### Proposal reviewers group (`lib/events.py`)
+
+Girder access flags are **per-document** (`AccessControlledModel.hasAccessFlags`), so there is no
+way to hold `jsonforms.review_projects` globally — every proposal has to be granted individually.
+The standing group named by `jsonforms.reviewers_group_name` (default **`AIMDL Proposal
+Reviewers`**; set it per flavor, the default is the AIMD-L name) is how that is kept manageable:
+`lib/events.py:grant_reviewers_access`, bound to `model.project.save` as `jsonforms.reviewers`,
+grants the *group* `WRITE` plus the flag on each proposal as it transitions into `under review`.
+Membership is then the only thing an admin manages, and because the ACL entry names the group,
+adding someone to it immediately gives them every proposal granted so far.
+
+`lib/events.py:reviewers_group` finds-or-creates the group under a `distributed_lock`, called both
+at plugin load (so admins can populate it before the first submission) and lazily at grant time
+(which covers a fresh instance that has no admin user yet at load, and an admin who deletes the
+group later). An empty setting means no standing group — proposals stay visible to site admins and
+whoever is granted the flag by hand.
+
+Three details that are load-bearing:
+
+- **Bind order.** `grant_reviewers_access` is bound *before* `jsonforms.mail`, because
+  `lib/mail.py:reviewer_emails` reads the group out of the in-flight document's ACL to decide who
+  to notify. Reverse them and submissions stop emailing the group.
+- **`save=False`, `force=True`.** The handler runs inside the pending save, and
+  `setGroupAccess(save=True)` would re-trigger `model.project.save` from `_saveAcl`. `force=True`
+  because a model event has no acting user and this is a system grant.
+- **Only the transition grants.** Later saves of an already-submitted proposal do not re-apply it,
+  so an admin who deliberately revokes the group on one proposal is not overruled.
+
+`WRITE` is what `rest/project.py:update_project` demands (write access *plus* the flag once a
+proposal has left draft), so a group member can edit a submitted proposal's other fields too, not
+only its status — the endpoint draws no finer line than that.
+
 ### Proposal workflow email (`lib/mail.py`, `mail_templates/`)
 
 Status transitions on a `Project` send Mako-rendered mail through core's
@@ -189,8 +221,8 @@ triggers the same `_sendmail` event core does. The setting's validator rejects S
 client renders it by any transport, so it has to be rasterized first.
 
 "Reviewers" resolves to site admins plus whoever holds the `jsonforms.review_projects` access flag
-**on that project** — Girder access flags are per-document, so a fresh proposal usually means the
-admins alone. Links point at the proposals UI (`https://projects.$DOMAIN/proposal/<_id>`), derived
+**on that project**, whether directly or through a group — in practice the members of the standing
+reviewers group above, which is granted the flag as each proposal is submitted. Links point at the proposals UI (`https://projects.$DOMAIN/proposal/<_id>`), derived
 from the same `DOMAIN` env var `worker_plugin/orcid.py` uses so an emailed link and an ORCID record
 agree; `lib/mail.py:projects_url` is the single place to change if that ever becomes a setting.
 
