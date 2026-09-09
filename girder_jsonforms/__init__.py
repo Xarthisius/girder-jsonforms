@@ -19,12 +19,13 @@ from girder.models.item import Item
 from girder.models.setting import Setting
 from girder.models.user import User
 from girder.plugin import GirderPlugin, registerPluginStaticContent
-from girder.utility import search
+from girder.utility import mail_utils, search
 from girder.utility.model_importer import ModelImporter
 
 from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.locks import distributed_lock
 from .lib.events import ensure_group, process_add_samples, process_remove_samples
+from .lib.mail import notify_project_status
 from .lib.metadata_dates import coerce_dates, coerce_metadata_dates
 from .models.deposition import Deposition as DepositionModel
 from .models.deposition import PrefixCounter as PrefixCounterModel
@@ -445,6 +446,11 @@ class JSONFormsPlugin(GirderPlugin):
             "rest.get.system/public_settings.after", "jsonforms", add_public_settings
         )
         events.bind("model.project.save", "jsonforms", ensure_group)
+        # Distinct handler name: bindings are keyed by (event, handlerName),
+        # so reusing "jsonforms" here would replace ensure_group.
+        events.bind(
+            "model.project.save", "jsonforms.mail", notify_project_status
+        )
         events.bind("project.samples_added", "jsonforms", process_add_samples)
         events.bind("project.samples_removed", "jsonforms", process_remove_samples)
 
@@ -491,6 +497,13 @@ class JSONFormsPlugin(GirderPlugin):
                 public=True,
                 reuseExisting=True,
             )
+
+        # Proposal workflow email templates. Appended, not prepended: the
+        # lookup is global, so a prepended directory would shadow core
+        # templates of the same name for every Girder email.
+        mail_utils.addTemplateDirectory(
+            str(Path(__file__).parent / "mail_templates")
+        )
 
         registerPluginStaticContent(
             plugin="jsonforms",

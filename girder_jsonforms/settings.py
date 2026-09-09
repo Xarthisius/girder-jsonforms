@@ -1,3 +1,4 @@
+import pathlib
 import re
 
 import jsonschema
@@ -40,6 +41,12 @@ class PluginSettings:
     # against the sandbox. Separate from ORCID_PROVIDER because the two do not
     # move together -- reads work against production, writes do not.
     ORCID_RESEARCH_RESOURCES = "jsonforms.orcid_research_resources"
+    # Path to an image file embedded in proposal workflow email as a CID
+    # attachment (the branded header logo). Empty means a text-only header.
+    # An attachment rather than an <img src="https://..."> on purpose: the
+    # mail client must not have to fetch anything from us to render the
+    # message. Raster only -- see the validator.
+    MAIL_LOGO = "jsonforms.mail_logo"
 
 
 SettingDefault.defaults.update(
@@ -56,8 +63,26 @@ SettingDefault.defaults.update(
         # Sandbox instances set this to "orcid_sandbox".
         PluginSettings.ORCID_PROVIDER: "orcid",
         PluginSettings.ORCID_RESEARCH_RESOURCES: False,
+        PluginSettings.MAIL_LOGO: "",
     }
 )
+
+
+#: Logos shipped inside the package. MAIL_LOGO may name one of these directly
+#: (a bare filename, no directory separator) instead of a filesystem path, so
+#: a deployment can use one without mounting an image into the container.
+MAIL_ASSET_DIR = pathlib.Path(__file__).resolve().parent / "mail_assets"
+
+#: Image types the email logo may use, mapped to their MIME subtype. SVG is
+#: deliberately absent: Gmail and Outlook do not render it at all, by CID or
+#: any other transport, so allowing it here would silently produce a broken
+#: logo for most recipients. Rasterize instead (rsvg-convert, inkscape).
+MAIL_LOGO_TYPES = {
+    ".png": "png",
+    ".jpg": "jpeg",
+    ".jpeg": "jpeg",
+    ".gif": "gif",
+}
 
 
 @setting_utilities.validator({PluginSettings.PROJECTS_ENABLED})
@@ -394,3 +419,40 @@ def validate_aimdl_counts(doc):
             "AIMDL Counts must be a boolean.",
             "value",
         )
+
+
+@setting_utilities.validator(PluginSettings.MAIL_LOGO)
+def validate_mail_logo(doc):
+    value = doc["value"]
+    if not isinstance(value, str):
+        raise ValidationException("Setting must be a string.", "value")
+    value = value.strip()
+    if value:
+        suffix = pathlib.PurePath(value).suffix.lower()
+        if suffix not in MAIL_LOGO_TYPES:
+            raise ValidationException(
+                "Email logo must be one of {}; SVG is not rendered by Gmail "
+                "or Outlook, so rasterize it first.".format(
+                    ", ".join(sorted(MAIL_LOGO_TYPES))
+                ),
+                "value",
+            )
+        # A bare filename names a bundled asset, which ships with the package
+        # and so can be checked right here -- a typo is a permanent silent
+        # fallback to no logo otherwise. A path is left unchecked on purpose:
+        # the setting is routinely configured before the file is mounted into
+        # the container, and lib/mail.py logs and degrades if it is missing.
+        if "/" not in value and not (MAIL_ASSET_DIR / value).is_file():
+            available = sorted(
+                path.name
+                for path in MAIL_ASSET_DIR.glob("*")
+                if path.suffix.lower() in MAIL_LOGO_TYPES
+            )
+            raise ValidationException(
+                "No bundled email logo named {!r}. Available: {}. Pass an "
+                "absolute path to use a file outside the package.".format(
+                    value, ", ".join(available) or "none"
+                ),
+                "value",
+            )
+    doc["value"] = value

@@ -17,6 +17,15 @@ setup(
     data_files=[
         ("schemas", ["girder_jsonforms/schemas/datacite-v4.5.json"]),
     ],
+    # MANIFEST.in alone covers the sdist; package_data is what puts these in
+    # the wheel, which is how the plugin actually gets installed.
+    package_data={
+        "girder_jsonforms": [
+            "mail_templates/*.mako",
+            "mail_assets/*.png",
+            "schemas/*.json",
+        ],
+    },
     include_package_data=True,
     license="BSD-3-Clause",
     classifiers=[
@@ -46,6 +55,8 @@ setup(
         "console_scripts": [
             "girder-jsonforms-migrate-metadata-dates = "
             "girder_jsonforms.scripts.migrate_metadata_dates:main",
+            "girder-jsonforms-preview-mail = "
+            "girder_jsonforms.scripts.preview_mail:main",
         ],
         "girder.plugin": ["jsonforms = girder_jsonforms:JSONFormsPlugin"],
         "girder_worker_plugins": [
