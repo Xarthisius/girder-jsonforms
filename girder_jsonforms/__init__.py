@@ -400,6 +400,13 @@ class JSONFormsPlugin(GirderPlugin):
         from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
 
         Item().ensureIndices([("meta.data_type", {"unique": False})])
+        # The AIMDL item queries all filter on a base parent, a data type and
+        # (for /aimdl/partition) an updated-since bound. meta.data_type_1 alone
+        # scans every item of that type site-wide before the base parent is
+        # applied as a filter.
+        Item().ensureIndices(
+            [([("baseParentId", 1), ("meta.data_type", 1), ("updated", 1)], {})]
+        )
         # Scoping lookup for BaseLabResource._readable_folder_clause, which
         # resolves a collection's readable folders once instead of joining a
         # folder onto every matching item.
