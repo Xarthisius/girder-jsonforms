@@ -3,6 +3,7 @@
 """
 
 import datetime
+import hashlib
 
 import pytest
 from girder.constants import AccessType
@@ -313,17 +314,21 @@ class TestPartitionPermissions:
             Folder().remove(direct)
             Folder().remove(viagroup)
 
-    def test_both_folder_clause_branches_agree(
-        self, server, admin, user, aimdl_collection, monkeypatch
+    @pytest.mark.parametrize("batch", [1, 2, 1000])
+    def test_batching_does_not_change_the_result(
+        self, server, admin, user, aimdl_collection, monkeypatch, batch
     ):
-        """``$nin <unreadable>`` and ``$in <readable>`` must select the same items.
+        """Folders are decided in batches, so batch size must not be observable.
 
-        ``_readable_folder_clause`` names whichever side is smaller; forcing the
-        threshold to 0 takes the ``$in`` branch on data that would otherwise take
-        the ``$nin`` one, so the two have to agree.
+        ``_find_readable_items`` flushes every ``FOLDER_RESOLVE_BATCH`` items and
+        caches each decision for later items. A batch of 1 flushes on every item
+        (exercising the mid-stream path and the cache across batches), 1000 keeps
+        everything in a single trailing flush; both have to agree, and neither
+        may leak the unreadable folder.
         """
         from girder.models.folder import Folder
 
+        monkeypatch.setattr(aimdl_mod.BaseLabResource, "FOLDER_RESOLVE_BATCH", batch)
         readable = Folder().createFolder(
             aimdl_collection,
             "readable",
@@ -339,17 +344,24 @@ class TestPartitionPermissions:
             public=False,
         )
         try:
-            self._mk_item(readable, admin, "visible", "aaa")
-            self._mk_item(hidden, admin, "invisible", "bbb")
+            # Interleave folders so a per-item flush alternates decisions, and
+            # repeat each so the cached branch is hit too.
+            for name, folder, sha in [
+                ("vis1", readable, "aaa"),
+                ("hid1", hidden, "bbb"),
+                ("vis2", readable, "ccc"),
+                ("hid2", hidden, "ddd"),
+            ]:
+                self._mk_item(folder, admin, name, sha)
 
-            via_nin = self._request(server, aimdl_collection, user)
-            monkeypatch.setattr(aimdl_mod.BaseLabResource, "MAX_DENIED_FOLDERS", 0)
-            via_in = self._request(server, aimdl_collection, user)
+            got = self._request(server, aimdl_collection, user)
 
-            assert via_nin == via_in
-            # And neither leaks the hidden folder's checksum: the digest matches
-            # the one-item partition, not the admin's two-item view.
-            assert via_nin != self._request(server, aimdl_collection, admin)
+            # Only the two readable checksums may contribute to the digest.
+            expected = hashlib.sha256(
+                "".join(sorted(["aaa", "ccc"])).encode("utf-8")
+            ).hexdigest()
+            assert got == {"JHAMAA00001//2026-01-02T00:00:00+00:00": expected}
+            assert got != self._request(server, aimdl_collection, admin)
         finally:
             Folder().remove(readable)
             Folder().remove(hidden)

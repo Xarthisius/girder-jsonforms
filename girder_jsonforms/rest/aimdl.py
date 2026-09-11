@@ -297,14 +297,28 @@ class BaseLabResource(Resource):
 
         return Item().findWithPermissions(q, user=user, level=AccessType.READ)
 
-    #: Above this many unreadable folders, name the readable ones instead -- see
-    #: :meth:`_readable_folder_clause`. The exact value barely matters; it only
-    #: has to keep the losing side of that choice from being enormous.
-    MAX_DENIED_FOLDERS = 1000
+    #: How many undecided items to hold before resolving their folders in one
+    #: query -- see :meth:`_find_readable_items`. Caps peak memory; the folder
+    #: set saturates long before a large result set is exhausted, so raising it
+    #: buys nothing and lowering it only costs a few more folder queries.
+    FOLDER_RESOLVE_BATCH = 1000
+
+    @staticmethod
+    def _readable_folder_ids(folder_ids, user):
+        """Of ``folder_ids``, return the set ``user`` can read."""
+        return {
+            folder["_id"]
+            for folder in Folder().findWithPermissions(
+                {"_id": {"$in": list(folder_ids)}},
+                user=user,
+                level=AccessType.READ,
+                fields={"_id": 1},
+            )
+        }
 
     @classmethod
-    def _readable_folder_clause(cls, q, user):
-        """Build a query fragment restricting items to folders ``user`` can read.
+    def _find_readable_items(cls, q, user=None, fields=None):
+        """Yield the items matching ``q`` that ``user`` can read.
 
         ``Item`` carries no ACL of its own, so ``Item().findWithPermissions``
         resolves access by ``$lookup``-ing the owning folder of *every* matching
@@ -314,83 +328,74 @@ class BaseLabResource(Resource):
         ``girder/utility/acl_mixin.py``). Over a whole collection that is tens of
         thousands of joins and a spill to disk on a single request.
 
-        Folders are far fewer than the items inside them, so resolve access once
-        against ``Folder`` -- a real ``AccessControlledModel``, hence a plain
-        indexed find -- and hand the item query a ``folderId`` predicate instead.
+        Resolving access against ``Folder`` instead -- a real
+        ``AccessControlledModel``, hence a plain indexed find -- is far cheaper,
+        but only if the folders it looks at are the ones the result actually
+        uses. Enumerating every folder under the base parent is a fixed cost
+        paid per request no matter how few items match, and on a collection
+        whose folders inherit its ACL that means scanning all of them to learn
+        almost nothing. So run the item query first and decide the folders it
+        references, in batches and cached: a whole-collection listing touches
+        the hundreds of folders that hold the matching items rather than the
+        tens of thousands that exist, and an incremental poll touches a handful.
 
-        Which side of that set to name is worth choosing at runtime. ``q`` is
-        already pinned to a base parent, so every candidate item's folder lies
-        under it and is either readable or not: ``folderId $nin <unreadable>``
-        and ``folderId $in <readable>`` select exactly the same items. A
-        collection's folders inherit its ACL when created, so in practice nearly
-        all of them are readable and the unreadable side is a handful of
-        exceptions -- naming the readable side ships tens of thousands of ids
-        into every request for nothing. Name the unreadable side when it is
-        small, and fall back to the readable side when it is not.
+        The trade-off is that the ACL is no longer a predicate Mongo can apply,
+        so items the user cannot read are fetched and dropped here. That is what
+        the ``$lookup`` did too, and the folder set saturates quickly in
+        practice; a user who can read almost nothing under the base parent is
+        the one case where naming the readable folders up front would transfer
+        less.
 
-        Returns ``None`` when ``q`` is not scoped to a base parent (nothing to
-        bound the folder query by, so the caller should fall back to
-        ``findWithPermissions``), or an empty dict when every folder under the
-        base parent is readable and no predicate is needed at all.
-        """
-        base_parent = {
-            key: q[key] for key in ("baseParentId", "baseParentType") if key in q
-        }
-        if "baseParentId" not in base_parent:
-            return None
-
-        readable = Folder().permissionClauses(user, AccessType.READ)
-        denied = [
-            folder["_id"]
-            for folder in Folder().find(
-                dict(base_parent, **{"$nor": [readable]}),
-                fields={"_id": 1},
-                limit=cls.MAX_DENIED_FOLDERS + 1,
-            )
-        ]
-        if not denied:
-            # Everything under the base parent is readable.
-            return {}
-        if len(denied) <= cls.MAX_DENIED_FOLDERS:
-            return {"folderId": {"$nin": denied}}
-
-        return {
-            "folderId": {
-                "$in": [
-                    folder["_id"]
-                    for folder in Folder().findWithPermissions(
-                        base_parent,
-                        user=user,
-                        level=AccessType.READ,
-                        fields={"_id": 1},
-                    )
-                ]
-            }
-        }
-
-    @classmethod
-    def _find_readable_items(cls, q, user=None, fields=None):
-        """``Item().findWithPermissions`` without the per-item folder join.
-
-        See :meth:`_readable_folder_clause` for why the join is worth avoiding.
+        Yields documents rather than returning a cursor, so callers that need
+        ``count()`` or server-side paging want ``findWithPermissions``. Yielded
+        documents always carry ``folderId``, which drives the decision, even if
+        ``fields`` did not ask for it.
         """
         if user and user["admin"]:
             # findWithPermissions short-circuits the same way: an admin reads
             # everything, so there is no ACL to apply.
-            return Item().find(q, fields=fields)
+            yield from Item().find(q, fields=fields)
+            return
 
-        folder_clause = cls._readable_folder_clause(q, user)
-        if folder_clause is None:
-            return Item().findWithPermissions(
+        if "baseParentId" not in q:
+            # Unscoped query. Nothing here is wrong for it, but it is also not
+            # the shape this is for, so leave it on the core path.
+            yield from Item().findWithPermissions(
                 q, user=user, level=AccessType.READ, fields=fields
             )
+            return
 
-        if "folderId" in q and "folderId" in folder_clause:
-            # Don't clobber a caller-supplied folder filter; intersect with it.
-            query = {"$and": [q, folder_clause]}
-        else:
-            query = dict(q, **folder_clause)
-        return Item().find(query, fields=fields)
+        # folderId drives the access decision, so project it whether or not the
+        # caller asked for it.
+        if fields is not None and not fields.get("folderId"):
+            fields = dict(fields, folderId=1)
+
+        decided = {}
+        pending = []
+
+        def flush():
+            unknown = {item.get("folderId") for item in pending} - set(decided)
+            unknown.discard(None)
+            if unknown:
+                readable = cls._readable_folder_ids(unknown, user)
+                decided.update({fid: fid in readable for fid in unknown})
+            for item in pending:
+                # An item with no folderId has no folder to inherit an ACL from;
+                # the $lookup this replaces matched nothing for it either.
+                if decided.get(item.get("folderId")):
+                    yield item
+            pending.clear()
+
+        for item in Item().find(q, fields=fields):
+            folder_id = item.get("folderId")
+            if folder_id in decided:
+                if decided[folder_id]:
+                    yield item
+                continue
+            pending.append(item)
+            if len(pending) >= cls.FOLDER_RESOLVE_BATCH:
+                yield from flush()
+        yield from flush()
 
     @classmethod
     def _igsn_date_map(cls, q, user=None, ignore_time=False):
