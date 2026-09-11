@@ -312,3 +312,44 @@ class TestPartitionPermissions:
             Group().remove(group)
             Folder().remove(direct)
             Folder().remove(viagroup)
+
+    def test_both_folder_clause_branches_agree(
+        self, server, admin, user, aimdl_collection, monkeypatch
+    ):
+        """``$nin <unreadable>`` and ``$in <readable>`` must select the same items.
+
+        ``_readable_folder_clause`` names whichever side is smaller; forcing the
+        threshold to 0 takes the ``$in`` branch on data that would otherwise take
+        the ``$nin`` one, so the two have to agree.
+        """
+        from girder.models.folder import Folder
+
+        readable = Folder().createFolder(
+            aimdl_collection,
+            "readable",
+            parentType="collection",
+            creator=admin,
+            public=True,
+        )
+        hidden = Folder().createFolder(
+            aimdl_collection,
+            "hidden",
+            parentType="collection",
+            creator=admin,
+            public=False,
+        )
+        try:
+            self._mk_item(readable, admin, "visible", "aaa")
+            self._mk_item(hidden, admin, "invisible", "bbb")
+
+            via_nin = self._request(server, aimdl_collection, user)
+            monkeypatch.setattr(aimdl_mod.BaseLabResource, "MAX_DENIED_FOLDERS", 0)
+            via_in = self._request(server, aimdl_collection, user)
+
+            assert via_nin == via_in
+            # And neither leaks the hidden folder's checksum: the digest matches
+            # the one-item partition, not the admin's two-item view.
+            assert via_nin != self._request(server, aimdl_collection, admin)
+        finally:
+            Folder().remove(readable)
+            Folder().remove(hidden)

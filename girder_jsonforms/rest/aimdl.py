@@ -297,9 +297,14 @@ class BaseLabResource(Resource):
 
         return Item().findWithPermissions(q, user=user, level=AccessType.READ)
 
-    @staticmethod
-    def _readable_folder_clause(q, user):
-        """Build a ``folderId`` predicate covering the folders ``user`` can read.
+    #: Above this many unreadable folders, name the readable ones instead -- see
+    #: :meth:`_readable_folder_clause`. The exact value barely matters; it only
+    #: has to keep the losing side of that choice from being enormous.
+    MAX_DENIED_FOLDERS = 1000
+
+    @classmethod
+    def _readable_folder_clause(cls, q, user):
+        """Build a query fragment restricting items to folders ``user`` can read.
 
         ``Item`` carries no ACL of its own, so ``Item().findWithPermissions``
         resolves access by ``$lookup``-ing the owning folder of *every* matching
@@ -309,24 +314,58 @@ class BaseLabResource(Resource):
         ``girder/utility/acl_mixin.py``). Over a whole collection that is tens of
         thousands of joins and a spill to disk on a single request.
 
-        Folders are orders of magnitude fewer than the items inside them, so
-        resolve the readable set once and turn access control into an indexed
-        ``folderId`` predicate instead. Returns ``None`` when ``q`` is not scoped
-        to a base parent -- there is then nothing to bound the folder query by,
-        and the caller should fall back to ``findWithPermissions``.
+        Folders are far fewer than the items inside them, so resolve access once
+        against ``Folder`` -- a real ``AccessControlledModel``, hence a plain
+        indexed find -- and hand the item query a ``folderId`` predicate instead.
+
+        Which side of that set to name is worth choosing at runtime. ``q`` is
+        already pinned to a base parent, so every candidate item's folder lies
+        under it and is either readable or not: ``folderId $nin <unreadable>``
+        and ``folderId $in <readable>`` select exactly the same items. A
+        collection's folders inherit its ACL when created, so in practice nearly
+        all of them are readable and the unreadable side is a handful of
+        exceptions -- naming the readable side ships tens of thousands of ids
+        into every request for nothing. Name the unreadable side when it is
+        small, and fall back to the readable side when it is not.
+
+        Returns ``None`` when ``q`` is not scoped to a base parent (nothing to
+        bound the folder query by, so the caller should fall back to
+        ``findWithPermissions``), or an empty dict when every folder under the
+        base parent is readable and no predicate is needed at all.
         """
         base_parent = {
             key: q[key] for key in ("baseParentId", "baseParentType") if key in q
         }
         if "baseParentId" not in base_parent:
             return None
+
+        readable = Folder().permissionClauses(user, AccessType.READ)
+        denied = [
+            folder["_id"]
+            for folder in Folder().find(
+                dict(base_parent, **{"$nor": [readable]}),
+                fields={"_id": 1},
+                limit=cls.MAX_DENIED_FOLDERS + 1,
+            )
+        ]
+        if not denied:
+            # Everything under the base parent is readable.
+            return {}
+        if len(denied) <= cls.MAX_DENIED_FOLDERS:
+            return {"folderId": {"$nin": denied}}
+
         return {
-            "$in": [
-                folder["_id"]
-                for folder in Folder().findWithPermissions(
-                    base_parent, user=user, level=AccessType.READ, fields={"_id": 1}
-                )
-            ]
+            "folderId": {
+                "$in": [
+                    folder["_id"]
+                    for folder in Folder().findWithPermissions(
+                        base_parent,
+                        user=user,
+                        level=AccessType.READ,
+                        fields={"_id": 1},
+                    )
+                ]
+            }
         }
 
     @classmethod
@@ -346,11 +385,11 @@ class BaseLabResource(Resource):
                 q, user=user, level=AccessType.READ, fields=fields
             )
 
-        if "folderId" in q:
+        if "folderId" in q and "folderId" in folder_clause:
             # Don't clobber a caller-supplied folder filter; intersect with it.
-            query = {"$and": [q, {"folderId": folder_clause}]}
+            query = {"$and": [q, folder_clause]}
         else:
-            query = dict(q, folderId=folder_clause)
+            query = dict(q, **folder_clause)
         return Item().find(query, fields=fields)
 
     @classmethod
