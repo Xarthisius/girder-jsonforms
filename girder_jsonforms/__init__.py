@@ -400,6 +400,10 @@ class JSONFormsPlugin(GirderPlugin):
         from girder.api.v1.folder import Folder as FolderResource  # noqa: F401
 
         Item().ensureIndices([("meta.data_type", {"unique": False})])
+        # Scoping lookup for BaseLabResource._readable_folder_clause, which
+        # resolves a collection's readable folders once instead of joining a
+        # folder onto every matching item.
+        Folder().ensureIndices([([("baseParentId", 1), ("baseParentType", 1)], {})])
         Item().exposeFields(level=AccessType.READ, fields={"projectId"})
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")

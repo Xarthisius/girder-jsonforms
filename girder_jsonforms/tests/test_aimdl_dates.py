@@ -5,6 +5,7 @@
 import datetime
 
 import pytest
+from girder.constants import AccessType
 
 import girder_jsonforms.rest.aimdl as aimdl_mod
 from girder_jsonforms.rest.aimdl import (
@@ -185,3 +186,129 @@ class TestPartitionRoundTrip:
             assert [i["name"] for i in resp.json] == ["pdv1"]
         finally:
             Folder().remove(folder)
+
+
+@pytest.mark.plugin("jsonforms")
+class TestPartitionPermissions:
+    """``list_partitions`` resolves item access through the owning folder's ACL.
+
+    The implementation no longer joins a folder onto every matching item (see
+    ``BaseLabResource._readable_folder_clause``), so these pin the access
+    semantics that replaced: public folders are readable, private ones are not,
+    and a direct or group grant makes one readable.
+    """
+
+    @staticmethod
+    def _mk_item(folder, creator, name, sha):
+        from girder.models.item import Item
+
+        item = Item().createItem(name, creator, folder)
+        return Item().setMetadata(
+            item,
+            {
+                "igsn": "JHAMAA00001",
+                "data_type": "xrd_raw",
+                "experiment_date": "2026-01-02",
+                "checksum": {"sha256": sha},
+            },
+        )
+
+    def _params(self, collection):
+        return {
+            "dataType": "xrd_raw",
+            "baseParentType": "collection",
+            "baseParentId": str(collection["_id"]),
+        }
+
+    def _request(self, server, collection, user):
+        from pytest_girder.assertions import assertStatusOk
+
+        resp = server.request(
+            path="/aimdl/partition",
+            method="GET",
+            user=user,
+            params=self._params(collection),
+        )
+        assertStatusOk(resp)
+        return resp.json
+
+    def test_private_folder_is_invisible(self, server, admin, user, aimdl_collection):
+        from girder.models.folder import Folder
+
+        # Folders inherit the parent collection's ACL (copyAccessPolicies), and
+        # the fixture collection is public -- so opt out explicitly.
+        folder = Folder().createFolder(
+            aimdl_collection,
+            "private",
+            parentType="collection",
+            creator=admin,
+            public=False,
+        )
+        try:
+            self._mk_item(folder, admin, "xrd1", "aaa")
+            # admin reads everything; a plain user reads nothing here.
+            assert len(self._request(server, aimdl_collection, admin)) == 1
+            assert self._request(server, aimdl_collection, user) == {}
+        finally:
+            Folder().remove(folder)
+
+    def test_public_folder_is_visible(self, server, admin, user, aimdl_collection):
+        from girder.models.folder import Folder
+
+        folder = Folder().createFolder(
+            aimdl_collection,
+            "public",
+            parentType="collection",
+            creator=admin,
+            public=True,
+        )
+        try:
+            self._mk_item(folder, admin, "xrd1", "aaa")
+            assert list(self._request(server, aimdl_collection, user)) == [
+                "JHAMAA00001//2026-01-02T00:00:00+00:00"
+            ]
+        finally:
+            Folder().remove(folder)
+
+    def test_direct_and_group_grants(self, server, admin, user, aimdl_collection):
+        from girder.models.folder import Folder
+        from girder.models.group import Group
+
+        direct = Folder().createFolder(
+            aimdl_collection,
+            "direct",
+            parentType="collection",
+            creator=admin,
+            public=False,
+        )
+        viagroup = Folder().createFolder(
+            aimdl_collection,
+            "viagroup",
+            parentType="collection",
+            creator=admin,
+            public=False,
+        )
+        group = Group().createGroup("readers", admin)
+        try:
+            self._mk_item(direct, admin, "xrd1", "aaa")
+            self._mk_item(viagroup, admin, "xrd2", "bbb")
+
+            # Neither is readable yet, so the two items contribute no partition.
+            assert self._request(server, aimdl_collection, user) == {}
+
+            Folder().setUserAccess(direct, user, AccessType.READ, save=True)
+            only_direct = self._request(server, aimdl_collection, user)
+
+            Group().addUser(group, user, level=AccessType.READ)
+            Folder().setGroupAccess(viagroup, group, AccessType.READ, save=True)
+            both = self._request(server, aimdl_collection, user)
+
+            # One partition key throughout (same igsn + date), but the digest
+            # must change once the group grant brings the second checksum in.
+            assert list(only_direct) == list(both)
+            assert only_direct != both
+            assert both == self._request(server, aimdl_collection, admin)
+        finally:
+            Group().remove(group)
+            Folder().remove(direct)
+            Folder().remove(viagroup)

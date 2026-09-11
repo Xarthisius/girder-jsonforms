@@ -298,7 +298,63 @@ class BaseLabResource(Resource):
         return Item().findWithPermissions(q, user=user, level=AccessType.READ)
 
     @staticmethod
-    def _igsn_date_map(q, user=None, ignore_time=False):
+    def _readable_folder_clause(q, user):
+        """Build a ``folderId`` predicate covering the folders ``user`` can read.
+
+        ``Item`` carries no ACL of its own, so ``Item().findWithPermissions``
+        resolves access by ``$lookup``-ing the owning folder of *every* matching
+        item and then ``$match``-ing the joined document -- a computed field no
+        index can serve, with the whole folder doc attached to each item and the
+        caller's field projection applied only after the join (see
+        ``girder/utility/acl_mixin.py``). Over a whole collection that is tens of
+        thousands of joins and a spill to disk on a single request.
+
+        Folders are orders of magnitude fewer than the items inside them, so
+        resolve the readable set once and turn access control into an indexed
+        ``folderId`` predicate instead. Returns ``None`` when ``q`` is not scoped
+        to a base parent -- there is then nothing to bound the folder query by,
+        and the caller should fall back to ``findWithPermissions``.
+        """
+        base_parent = {
+            key: q[key] for key in ("baseParentId", "baseParentType") if key in q
+        }
+        if "baseParentId" not in base_parent:
+            return None
+        return {
+            "$in": [
+                folder["_id"]
+                for folder in Folder().findWithPermissions(
+                    base_parent, user=user, level=AccessType.READ, fields={"_id": 1}
+                )
+            ]
+        }
+
+    @classmethod
+    def _find_readable_items(cls, q, user=None, fields=None):
+        """``Item().findWithPermissions`` without the per-item folder join.
+
+        See :meth:`_readable_folder_clause` for why the join is worth avoiding.
+        """
+        if user and user["admin"]:
+            # findWithPermissions short-circuits the same way: an admin reads
+            # everything, so there is no ACL to apply.
+            return Item().find(q, fields=fields)
+
+        folder_clause = cls._readable_folder_clause(q, user)
+        if folder_clause is None:
+            return Item().findWithPermissions(
+                q, user=user, level=AccessType.READ, fields=fields
+            )
+
+        if "folderId" in q:
+            # Don't clobber a caller-supplied folder filter; intersect with it.
+            query = {"$and": [q, {"folderId": folder_clause}]}
+        else:
+            query = dict(q, folderId=folder_clause)
+        return Item().find(query, fields=fields)
+
+    @classmethod
+    def _igsn_date_map(cls, q, user=None, ignore_time=False):
         fields = {
             "meta.igsn": 1,
             "meta.checksum": 1,
@@ -309,9 +365,7 @@ class BaseLabResource(Resource):
         }
 
         igsn_map = {}
-        for item in Item().findWithPermissions(
-            q, user=user, level=AccessType.READ, fields=fields
-        ):
+        for item in cls._find_readable_items(q, user=user, fields=fields):
             # group by 'igsn//experiment_date'
             try:
                 igsn = item["meta"]["igsn"]
