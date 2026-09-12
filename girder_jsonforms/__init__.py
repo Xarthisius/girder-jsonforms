@@ -45,7 +45,11 @@ from .rest.form import Form
 from .settings import IGSN_REGEX, PluginSettings
 from .rest.project import Project
 from .worker_plugin.amdee import register_deposition_with_aimd
-from .worker_plugin.folder_ops import assign_igsn_task, delete_folder_task
+from .worker_plugin.folder_ops import (
+    assign_igsn_task,
+    classify_ebsd_folder_task,
+    delete_folder_task,
+)
 
 GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
@@ -317,6 +321,35 @@ def _assign_igsn_to_folder(self, folder, igsn, progress):
     }
 
 
+@access.user(scope=TokenScope.DATA_WRITE)
+@girderRest.boundHandler
+@autoDescribeRoute(
+    Description("Classify EBSD files recursively within a folder.")
+    .modelParam(
+        "id", "The ID of the folder to process.", model=Folder, level=AccessType.WRITE
+    )
+    .param(
+        "progress",
+        "Whether to report progress.",
+        paramType="query",
+        required=False,
+        dataType="boolean",
+        default=False,
+    )
+    .errorResponse("ID was invalid.", 400)
+    .errorResponse("Write access was denied on the folder.", 403)
+)
+def _classify_ebsd_to_folder(self, folder, progress):
+    classify_ebsd_folder_task.delay(
+        folderId=str(folder["_id"]),
+        userId=str(self.getCurrentUser()["_id"]),
+        progress=progress,
+    )
+    return {
+        "message": f"Classifying EBSD files in folder {folder['name']} in the background."
+    }
+
+
 @access.public(scope=TokenScope.DATA_READ)
 @girderRest.filtermodel(model=Collection)
 @girderRest.boundHandler
@@ -379,7 +412,11 @@ def handle_deposition_registration(event: events.Event) -> None:
 
 def add_public_settings(event):
     settings = event.info["returnVal"]
-    public_settings = [PluginSettings.AIMDL_COUNTS, PluginSettings.PROJECTS_ENABLED]
+    public_settings = [
+        PluginSettings.AIMDL_COUNTS,
+        PluginSettings.PROJECTS_ENABLED,
+        PluginSettings.MAIN_PROJECT,
+    ]
     settings.update({key: Setting().get(key) for key in public_settings})
     # A derived boolean, not the URL and emphatically not the token: the web
     # client only needs to know whether publishing is possible at all. Gating
@@ -429,6 +466,9 @@ class JSONFormsPlugin(GirderPlugin):
         info["apiRoot"].item.route("GET", ("query",), _item_advanced_search)
         info["apiRoot"].folder.route(
             "PUT", (":id", "assign_igsn"), _assign_igsn_to_folder
+        )
+        info["apiRoot"].folder.route(
+            "PUT", (":id", "classify_ebsd"), _classify_ebsd_to_folder
         )
         main_project = Setting().get(PluginSettings.MAIN_PROJECT)
         logger.info(f"Picking up {main_project} flavored endpoint")
