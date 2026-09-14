@@ -444,10 +444,17 @@ class JSONFormsPlugin(GirderPlugin):
         Item().ensureIndices(
             [([("baseParentId", 1), ("meta.data_type", 1), ("updated", 1)], {})]
         )
-        # Scoping lookup for BaseLabResource._readable_folder_clause, which
+        # Scoping lookup for BaseLabResource._readable_folder_ids, which
         # resolves a collection's readable folders once instead of joining a
         # folder onto every matching item.
         Folder().ensureIndices([([("baseParentId", 1), ("baseParentType", 1)], {})])
+        # propagate_to_projects runs on every item save carrying an IGSN and
+        # asks whether this item already has a copy in a given project. Without
+        # this the lookup is a full scan of the item collection -- 550k
+        # documents examined to return one, ~410ms, on the upload path -- and
+        # it was the single largest remaining consumer of database time once
+        # the AIMDL listing queries stopped dominating.
+        Item().ensureIndices([([("copyOfItem", 1), ("projectId", 1)], {})])
         Item().exposeFields(level=AccessType.READ, fields={"projectId"})
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
