@@ -1,11 +1,11 @@
 // Description: This file contains the EntriesWidget class.
 // This class is responsible for rendering the entries widget.
-import $ from 'jquery';
 import FormEntryCollection from '../../collections/FormEntryCollection';
 import EntriesWidgetTemplate from '../../templates/entriesWidgetTemplate.pug';
 
 import '../../stylesheets/entriesWidget.styl';
 
+const $ = girder.$; // Import jQuery from girder
 const View = girder.views.View;
 const router = girder.router;
 const PaginateWidget = girder.views.widgets.PaginateWidget;

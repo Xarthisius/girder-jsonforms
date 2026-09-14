@@ -1,0 +1,15 @@
+ul.g-user-tabs.nav.nav-tabs
+  li(class=(currentView==='list' ? 'active' : ''))
+    a(data-toggle="tab", name="list")
+      i.icon-th-list
+      if owner
+        |  My Folders
+      else
+        |  User Folders
+  li(class=(currentView==='search' ? 'active' : ''))
+    a(data-toggle="tab", name="search")
+      i.icon-chart-bar
+      if owner
+        |  My Uploads
+      else
+        |  User Uploads

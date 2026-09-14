@@ -1,5 +1,13 @@
 from typing import Any
 
+
+# NOTE: date coercion for queries/metadata lives in
+# ``girder_jsonforms.lib.metadata_dates.coerce_dates`` (strict ISO-8601). The
+# old liberal ``convert_dates`` (dateutil-based) was removed because it could
+# misclassify non-date strings, which is unsafe now that matching coercion runs
+# on the write path.
+
+
 # find all occurences of a key in a nested json
 def find_key_paths(json_data: dict, key: str, path: str = "") -> list[str]:
     results = []
@@ -108,7 +116,7 @@ def parse_jq_notation(input_dict: dict) -> dict:
                     current = current[keys[i - 1]]
                 # Extend the list to ensure the index exists
 
-                if i + 1 <= len(keys[:-1]) and is_array_index(keys[i+1]):
+                if i + 1 <= len(keys[:-1]) and is_array_index(keys[i + 1]):
                     append_object = []
                 else:
                     append_object = {}

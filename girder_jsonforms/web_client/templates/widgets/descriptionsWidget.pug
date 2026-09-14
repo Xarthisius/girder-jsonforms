@@ -1,0 +1,23 @@
+label(for="g-descriptions") Descriptions
+button.btn.btn-sm.btn-success.g-button(type="button" id="g-deposition-addDescription") Add Description
+ul.g-descriptions-list(name="descriptions").list-group
+  each description in descriptions
+    li(draggable="true").g-description-item.list-group-item
+      .input-group.mb-3
+        span.input-group-btn
+          button.btn.btn-sm.g-button(type="button" disabled)
+            i.icon-move
+        .form-group
+          select.list-group-item-action.form-control(id="g-description-type" name="type" required)
+            option(value="") Select a type
+            option(value="Abstract", selected=(description.descriptionType == "Abstract")) Abstract
+            option(value="Methods", selected=(description.descriptionType == "Methods")) Methods
+            option(value="TechnicalInfo", selected=(description.descriptionType == "TechnicalInfo")) Technical Info
+            option(value="SeriesInformation", selected=(description.descriptionType == "SeriesInformation")) Series Information
+            option(value="TableOfContents", selected=(description.descriptionType == "TableOfContents")) Table of Contents
+            option(value="Other", selected=(description.descriptionType == "Other")) Other
+        .form-group
+          textarea.g-description-description.form-control(rows="3" name="description" value=description.description)= description.description
+        span.input-group-btn
+          button.btn.btn-sm.btn-danger.g-button(type="button" id="g-deposition-removeDescription")
+            i.icon-trash
