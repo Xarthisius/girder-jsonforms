@@ -20,6 +20,14 @@ class PluginSettings:
     IGSN_PROVIDER_ID = "jsonforms.igsn_provider_id"
     IGSN_PREFIX = "jsonforms.igsn_prefix"
     AIMDL_COUNTS = "jsonforms.aimdl_counts"
+    # Seconds to cache the AIMDL listing endpoints (/aimdl/count,
+    # /aimdl/datafiles) in Redis. Item access is resolved by $lookup-ing
+    # the owning folder of every matching item, and the dashboard polls
+    # both endpoints on a timer from every open tab, so the same pipeline
+    # runs several times a minute whether or not anything changed. Zero
+    # disables caching; the cost of a non-zero value is that an item
+    # written in the last TTL seconds may not appear in a listing yet.
+    AIMDL_CACHE_TTL = "jsonforms.aimdl_cache_ttl"
     PROJECTS_ENABLED = "jsonforms.projects_enabled"
     PROJECTS_COLLECTION_NAME = "jsonforms.projects_collection_name"
     MAIN_PROJECT = "jsonforms.main_project"
@@ -59,6 +67,11 @@ SettingDefault.defaults.update(
         PluginSettings.PROJECTS_COLLECTION_NAME: "Projects",
         PluginSettings.MAIN_PROJECT: "aimdl",
         PluginSettings.PROJECTS_ENABLED: True,
+        # A minute is long enough to collapse the dashboard's polling --
+        # which is what drives the load -- and short enough that a fresh
+        # upload shows up in a listing while the uploader is still
+        # looking at it.
+        PluginSettings.AIMDL_CACHE_TTL: 60,
         # Empty means "allocate locally", preserving existing behavior.
         PluginSettings.IGSN_SERVICE_URL: "",
         PluginSettings.IGSN_SERVICE_TOKEN: "",
@@ -414,6 +427,22 @@ def validate_google_drive_enabled(doc):
     if not isinstance(doc["value"], bool):
         raise ValidationException(
             "Google Drive integration must be a boolean.",
+            "value",
+        )
+
+
+@setting_utilities.validator(PluginSettings.AIMDL_CACHE_TTL)
+def validate_aimdl_cache_ttl(doc):
+    value = doc["value"]
+    # bool is an int subclass and True would silently mean "one second".
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValidationException(
+            "AIMDL cache TTL must be an integer number of seconds.",
+            "value",
+        )
+    if value < 0:
+        raise ValidationException(
+            "AIMDL cache TTL cannot be negative; use 0 to disable caching.",
             "value",
         )
 

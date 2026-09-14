@@ -12,7 +12,12 @@ import pymongo
 from bson import Regex
 from girder.api import access
 from girder.api.describe import Description, autoDescribeRoute
-from girder.api.rest import Resource, boundHandler, filtermodel
+from girder.api.rest import (
+    Resource,
+    boundHandler,
+    filtermodel,
+    setResponseHeader,
+)
 from girder.constants import AccessType, TokenScope
 from girder.exceptions import RestException
 from girder.models.collection import Collection
@@ -24,6 +29,7 @@ from girder.models.setting import Setting
 
 from ..lib.announcement import Announcement
 from ..lib.metadata_dates import _parse_iso, coerce_dates
+from ..lib.response_cache import cached_call
 from ..models.project import Project
 from ..settings import PluginSettings
 
@@ -47,6 +53,16 @@ ALLOWED_FIELDS = {
 }
 
 logger = logging.getLogger(__name__)
+
+
+def _cache_ttl():
+    """Seconds to cache the listing endpoints for; 0 disables it.
+
+    Read per request rather than captured at import so an operator can turn
+    caching off without a restart -- which is the first thing anyone will
+    want to do if a listing ever looks stale.
+    """
+    return Setting().get(PluginSettings.AIMDL_CACHE_TTL)
 
 
 def sanitize_query(data):
@@ -179,22 +195,34 @@ class BaseLabResource(Resource):
         )
     )
     def count_datafiles(self, baseParentType, baseParentId, igsn):
+        # Outside the cache on purpose: this resolves the parent *and* checks
+        # the caller may read it, and the pipeline below applies no ACL of its
+        # own, so this is the only access check there is. A cache hit must not
+        # be a way around it.
         query = self._get_base_parent(
             baseParentType, baseParentId, user=self.getCurrentUser()
         )
         if igsn:
             query["meta.igsn"] = igsn
-        pipeline = [
-            {"$match": query},
-            {"$group": {"_id": "$meta.data_type", "count": {"$sum": 1}}},
-        ]
-        results = {}
-        for result in Item().collection.aggregate(pipeline):
-            if result["_id"] is not None:
-                results[result["_id"]] = result["count"]
-            else:
-                results["unclassified"] = result["count"]
-        return results
+
+        def compute():
+            pipeline = [
+                {"$match": query},
+                {"$group": {"_id": "$meta.data_type", "count": {"$sum": 1}}},
+            ]
+            results = {}
+            for result in Item().collection.aggregate(pipeline):
+                if result["_id"] is not None:
+                    results[result["_id"]] = result["count"]
+                else:
+                    results["unclassified"] = result["count"]
+            return results
+
+        # No user in the key. The pipeline groups every item under the base
+        # parent regardless of who asked, so everyone who got past the check
+        # above gets the same answer; keying per user would buy a miss per user
+        # for an identical result, which is most of the point of caching this.
+        return cached_call(["aimdl.count", query], _cache_ttl(), compute)
 
     @access.user
     @autoDescribeRoute(
@@ -528,18 +556,51 @@ class BaseLabResource(Resource):
             for field in extraFields:
                 fields[field] = 1
 
-        try:
-            return Item().findWithPermissions(
+        sort = deterministic_sort(sort)
+
+        def compute():
+            try:
+                cursor = Item().findWithPermissions(
+                    q,
+                    user=user,
+                    level=AccessType.READ,
+                    sort=sort,
+                    limit=limit,
+                    offset=offset,
+                    fields=fields,
+                )
+                # Both halves have to be resolved in here. filtermodel fills in
+                # Girder-Total-Count only when handed a cursor, and what a
+                # cached call can return is a list -- so take the count now,
+                # from the same cursor, and set the header below. Guarded the
+                # way core guards it: the non-aggregation fallback path of
+                # findWithPermissions returns a plain pymongo cursor, which has
+                # had no count() since pymongo 4.
+                counter = getattr(cursor, "count", None)
+                total = counter() if callable(counter) else None
+                return {"items": list(cursor), "total": total}
+            except pymongo.errors.OperationFailure as e:
+                raise RestException("Invalid 'extraFields' parameter: {}".format(e))
+
+        # Keyed per user, unlike the counts: these results *are* ACL-filtered,
+        # so two users asking the same question can get different pages. The
+        # consequence is that a permission change takes up to one TTL to show.
+        payload = cached_call(
+            [
+                "aimdl.datafiles",
+                user["_id"],
                 q,
-                user=user,
-                level=AccessType.READ,
-                sort=deterministic_sort(sort),
-                limit=limit,
-                offset=offset,
-                fields=fields,
-            )
-        except pymongo.errors.OperationFailure as e:
-            raise RestException("Invalid 'extraFields' parameter: {}".format(e))
+                sorted(fields),
+                limit,
+                offset,
+                sort,
+            ],
+            _cache_ttl(),
+            compute,
+        )
+        if payload["total"] is not None:
+            setResponseHeader("Girder-Total-Count", payload["total"])
+        return payload["items"]
 
 
 class AIMDL(BaseLabResource):
