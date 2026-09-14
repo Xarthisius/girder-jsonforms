@@ -323,6 +323,11 @@ class BaseLabResource(Resource):
         if dataType:
             q["meta.data_type"] = dataType
 
+        # Deliberately neither of the ACL strategies below. This query names one
+        # IGSN and so matches a handful of items -- four, measured -- where the
+        # $lookup costs nothing and enumerating the collection's folders costs
+        # about twice the whole request. It also has to hand filtermodel a cursor
+        # for the total count.
         return Item().findWithPermissions(q, user=user, level=AccessType.READ)
 
     #: How many undecided items to hold before resolving their folders in one
@@ -332,62 +337,128 @@ class BaseLabResource(Resource):
     FOLDER_RESOLVE_BATCH = 1000
 
     @staticmethod
-    def _readable_folder_ids(folder_ids, user):
-        """Of ``folder_ids``, return the set ``user`` can read."""
-        return {
+    def _is_admin(user):
+        """``user`` may be ``None`` (anonymous) or lack the flag entirely."""
+        return bool(user and user.get("admin"))
+
+    @staticmethod
+    def _is_base_scoped(q):
+        """Whether ``q`` names a base parent, so folders can be scoped by it."""
+        return "baseParentId" in q and "baseParentType" in q
+
+    @staticmethod
+    def _readable_folder_ids(scope, user):
+        """Ids of the folders matching ``scope`` that ``user`` can read.
+
+        The one place this module asks girder about folder access. ``Folder`` is
+        a real ``AccessControlledModel``, so this is a plain indexed find --
+        unlike ``Item``, which carries no ACL of its own and can only be filtered
+        by joining its folder. Both strategies below are built on it; they differ
+        only in which folders they ask about.
+        """
+        return [
             folder["_id"]
             for folder in Folder().findWithPermissions(
-                {"_id": {"$in": list(folder_ids)}},
-                user=user,
-                level=AccessType.READ,
-                fields={"_id": 1},
+                scope, user=user, level=AccessType.READ, fields={"_id": 1}
+            )
+        ]
+
+    # Two ways to apply an item ACL, because there are two access patterns and
+    # no single one wins both. Measured against a copy of production, listing
+    # every item of a data type under the AIMDL collection:
+    #
+    #     items    findWithPermissions   _find_readable_items   _acl_scoped_query
+    #        34                    1ms                    0ms                30ms
+    #     9,355                  198ms                   39ms               106ms
+    #    24,819                  562ms                  152ms               181ms
+    #    40,094                  990ms                  262ms               339ms
+    #    72,644                1,639ms                  515ms               486ms
+    #
+    # Batching wins nearly everywhere for *iteration* because it only resolves
+    # the folders the result actually references -- 18 for xrd_calibrant_raw,
+    # 1,704 for xrd_raw, against the 17,203 that exist. But it filters in Python,
+    # so it cannot express the ACL as a query, which is what server-side sorting,
+    # paging and count() need. Hence both.
+
+    @classmethod
+    def _acl_scoped_query(cls, q, user):
+        """``q`` narrowed to the folders ``user`` can read, or ``None``.
+
+        For callers that need a *query* rather than an iterable.
+        ``Item().findWithPermissions`` builds one by ``$lookup``-ing the owning
+        folder of every matching item and ``$match``-ing the joined document
+        (see ``girder/utility/acl_mixin.py``) -- forty thousand joins to return a
+        page of thirty. That join is 92-94% of the query's cost, and no index
+        reaches it: only the pipeline's first ``$match`` is index-servable and it
+        already accounts for ~46ms of a ~700ms query, while the ``$sort`` lands
+        after the join where no index can serve it either. A compound index on
+        the ``$match`` moved the total 2-4%.
+
+        Naming the readable folders up front instead turns the whole thing into
+        an ordinary indexed query -- ~10x faster for a sorted, counted page, and
+        still a real cursor. The flat cost is enumerating every folder under the
+        base parent (~30ms for seventeen thousand) whether one item matches or a
+        hundred thousand do, which is why :meth:`_find_readable_items` exists for
+        the cases that only need to iterate.
+
+        The readable set is resolved per request rather than cached: it is cheap
+        next to what it replaces, and an ACL answer that outlives the permission
+        it describes is a worse thing to own than 30ms.
+
+        Returns ``None`` when ``q`` names no base parent, so there is nothing to
+        enumerate folders by and the caller should use ``findWithPermissions``.
+        """
+        if cls._is_admin(user):
+            # Nothing to filter by: findWithPermissions short-circuits admins
+            # the same way.
+            return dict(q)
+        if not cls._is_base_scoped(q):
+            return None
+
+        scoped = dict(q)
+        # An item in an unreadable folder drops out, and so does one with no
+        # folderId at all -- exactly what the $lookup did, which joined nothing
+        # for either and so failed the permission $match. An empty list is
+        # therefore the correct query for a user who can read nothing here.
+        scoped["folderId"] = {
+            "$in": cls._readable_folder_ids(
+                {
+                    "baseParentId": q["baseParentId"],
+                    "baseParentType": q["baseParentType"],
+                },
+                user,
             )
         }
+        return scoped
 
     @classmethod
     def _find_readable_items(cls, q, user=None, fields=None):
         """Yield the items matching ``q`` that ``user`` can read.
 
-        ``Item`` carries no ACL of its own, so ``Item().findWithPermissions``
-        resolves access by ``$lookup``-ing the owning folder of *every* matching
-        item and then ``$match``-ing the joined document -- a computed field no
-        index can serve, with the whole folder doc attached to each item and the
-        caller's field projection applied only after the join (see
-        ``girder/utility/acl_mixin.py``). Over a whole collection that is tens of
-        thousands of joins and a spill to disk on a single request.
+        For callers walking a whole result set. Runs the item query first and
+        decides the folders it actually references, in batches and cached, so a
+        query matching thirty-four items asks about eighteen folders rather than
+        the seventeen thousand :meth:`_acl_scoped_query` would enumerate. That is
+        worth 2-4x over either alternative up to about fifty thousand items --
+        see the table above.
 
-        Resolving access against ``Folder`` instead -- a real
-        ``AccessControlledModel``, hence a plain indexed find -- is far cheaper,
-        but only if the folders it looks at are the ones the result actually
-        uses. Enumerating every folder under the base parent is a fixed cost
-        paid per request no matter how few items match, and on a collection
-        whose folders inherit its ACL that means scanning all of them to learn
-        almost nothing. So run the item query first and decide the folders it
-        references, in batches and cached: a whole-collection listing touches
-        the hundreds of folders that hold the matching items rather than the
-        tens of thousands that exist, and an incremental poll touches a handful.
+        The trade-off is that the ACL stops being a predicate Mongo can apply, so
+        items the user cannot read are fetched and dropped here. The ``$lookup``
+        this replaces did that too. What it costs is the ability to sort, page or
+        count server-side; callers needing those want
+        :meth:`_acl_scoped_query` instead.
 
-        The trade-off is that the ACL is no longer a predicate Mongo can apply,
-        so items the user cannot read are fetched and dropped here. That is what
-        the ``$lookup`` did too, and the folder set saturates quickly in
-        practice; a user who can read almost nothing under the base parent is
-        the one case where naming the readable folders up front would transfer
-        less.
-
-        Yields documents rather than returning a cursor, so callers that need
-        ``count()`` or server-side paging want ``findWithPermissions``. Yielded
-        documents always carry ``folderId``, which drives the decision, even if
-        ``fields`` did not ask for it.
+        Yields documents rather than a cursor. Yielded documents always carry
+        ``folderId``, which drives the decision, even if ``fields`` did not ask
+        for it.
         """
-        if user and user["admin"]:
-            # findWithPermissions short-circuits the same way: an admin reads
-            # everything, so there is no ACL to apply.
+        if cls._is_admin(user):
             yield from Item().find(q, fields=fields)
             return
 
-        if "baseParentId" not in q:
-            # Unscoped query. Nothing here is wrong for it, but it is also not
-            # the shape this is for, so leave it on the core path.
+        if not cls._is_base_scoped(q):
+            # Not the shape this is for; nothing here is wrong for it, but the
+            # folder set it would resolve is unbounded.
             yield from Item().findWithPermissions(
                 q, user=user, level=AccessType.READ, fields=fields
             )
@@ -405,7 +476,9 @@ class BaseLabResource(Resource):
             unknown = {item.get("folderId") for item in pending} - set(decided)
             unknown.discard(None)
             if unknown:
-                readable = cls._readable_folder_ids(unknown, user)
+                readable = set(
+                    cls._readable_folder_ids({"_id": {"$in": list(unknown)}}, user)
+                )
                 decided.update({fid: fid in readable for fid in unknown})
             for item in pending:
                 # An item with no folderId has no folder to inherit an ACL from;
@@ -559,7 +632,25 @@ class BaseLabResource(Resource):
         sort = deterministic_sort(sort)
 
         def compute():
+            # Both halves have to be resolved in here. filtermodel fills in
+            # Girder-Total-Count only when handed a cursor, and what a cached
+            # call can return is a list -- so take the count alongside the page
+            # and set the header below.
             try:
+                scoped = self._acl_scoped_query(q, user)
+                if scoped is not None:
+                    return {
+                        "items": list(
+                            Item().find(
+                                scoped,
+                                fields=fields,
+                                sort=sort,
+                                limit=limit,
+                                offset=offset,
+                            )
+                        ),
+                        "total": Item().collection.count_documents(scoped),
+                    }
                 cursor = Item().findWithPermissions(
                     q,
                     user=user,
@@ -569,13 +660,9 @@ class BaseLabResource(Resource):
                     offset=offset,
                     fields=fields,
                 )
-                # Both halves have to be resolved in here. filtermodel fills in
-                # Girder-Total-Count only when handed a cursor, and what a
-                # cached call can return is a list -- so take the count now,
-                # from the same cursor, and set the header below. Guarded the
-                # way core guards it: the non-aggregation fallback path of
-                # findWithPermissions returns a plain pymongo cursor, which has
-                # had no count() since pymongo 4.
+                # Guarded the way core guards it: the non-aggregation fallback
+                # path of findWithPermissions returns a plain pymongo cursor,
+                # which has had no count() since pymongo 4.
                 counter = getattr(cursor, "count", None)
                 total = counter() if callable(counter) else None
                 return {"items": list(cursor), "total": total}
