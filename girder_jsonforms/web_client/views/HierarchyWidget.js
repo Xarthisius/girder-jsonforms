@@ -25,6 +25,7 @@ wrap(HierarchyWidget, 'initialize', function (initialize, ...args) {
           lowerName: 'Name',
           created: 'Created',
           updated: 'Updated',
+          size: 'Size',
         },
     });
     this.render();
