@@ -727,7 +727,24 @@ class Deposition(AccessControlledModel):
                     return alt_id.get("alternateIdentifier")
         return None
 
-    def create_batch(self, main_deposition, indices, already_registered=False):
+    def create_batch(
+        self, main_deposition, indices, already_registered=False, *,
+        relation_type="IsPartOf", inverse_relation_type="HasPart", child_titles=None,
+    ):
+        """Create children with optional relationships and per-index titles.
+
+        ``relation_type`` points from each child to its parent;
+        ``inverse_relation_type`` points from the parent to each child. Callers
+        supply a matching DataCite relationship pair (for example,
+        IsDerivedFrom/IsSourceOf). ``child_titles`` maps exact IGSN index strings
+        to titles; omitted indices retain the parent-title/index default.
+        """
+        if child_titles is not None and (
+            not isinstance(child_titles, dict)
+            or any(not isinstance(title, str) or not title.strip()
+                   for title in child_titles.values())
+        ):
+            raise ValidationException("child_titles must map indices to nonempty titles")
         # Register the children centrally first. If the registry rejects the
         # batch (a duplicate index, an unknown parent) nothing is written
         # locally either -- otherwise Girder would be left holding children the
@@ -759,7 +776,7 @@ class Deposition(AccessControlledModel):
             }
 
         relatedIdentifier = {
-            "relationType": "IsPartOf",
+            "relationType": relation_type,
             "relatedIdentifier": main_deposition["igsn"],
             "relatedIdentifierType": "IGSN",
         }
@@ -769,12 +786,12 @@ class Deposition(AccessControlledModel):
         for index in indices:
             metadata = copy.deepcopy(main_deposition["metadata"])
             metadata["relatedIdentifiers"].append(relatedIdentifier)
-            # remove all hasPart relations from the child metadata to avoid circular references
+            # Do not inherit the parent's outgoing child relationships.
             relatedIdentifiers = metadata.get("relatedIdentifiers", [])
             metadata["relatedIdentifiers"] = [
                 relatedIdentifier
                 for relatedIdentifier in relatedIdentifiers
-                if relatedIdentifier["relationType"] != "HasPart"
+                if relatedIdentifier["relationType"] not in {"HasPart", inverse_relation_type}
             ]
             metadata.pop("url", None)
             metadata.pop("doi", None)
@@ -786,7 +803,8 @@ class Deposition(AccessControlledModel):
             )
             child_igsn = f"{main_deposition['igsn']}-{igsn_index}"
             child_metadata = {
-                "titles": [{"title": f"{titles[0]['title']} - {igsn_index}"}],
+                "titles": [{"title": (child_titles or {}).get(
+                    igsn_index, f"{titles[0]['title']} - {igsn_index}")}],
                 "doi": f"{igsn_prefix}/{child_igsn}",
                 **metadata.copy(),
             }
@@ -847,10 +865,10 @@ class Deposition(AccessControlledModel):
             for deposition, sample_id in zip(depositions, sample_result.inserted_ids):
                 deposition["sampleId"] = sample_id
 
-        # HasPart for the main deposition
+        # Add the inverse relationships to the parent.
         has_parts = [
             {
-                "relationType": "HasPart",
+                "relationType": inverse_relation_type,
                 "relatedIdentifier": _["igsn"],
                 "relatedIdentifierType": "IGSN",
             }

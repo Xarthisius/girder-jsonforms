@@ -812,3 +812,78 @@ class TestPublishTaskRequiresPublic:
             publish_deposition(str(deposition["_id"]), metadata_only=True)
         igsn_service.put_record.assert_called_once()
         igsn_service.publish.assert_not_called()
+
+
+class TestBatchMetadataOptions:
+    @pytest.mark.parametrize("custom", [False, True])
+    def test_relationships_titles_and_creation_event(
+        self, local_mode, admin, igsn_metadata, custom
+    ):
+        model = Deposition()
+        main = model.create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        inherited = [
+            {"relationType": "HasPart", "relatedIdentifier": "OTHER-001",
+             "relatedIdentifierType": "IGSN"},
+            {"relationType": "IsSourceOf", "relatedIdentifier": "OTHER-002",
+             "relatedIdentifierType": "IGSN"},
+            {"relationType": "References", "relatedIdentifier": "REFERENCE",
+             "relatedIdentifierType": "IGSN"},
+        ]
+        main["metadata"]["relatedIdentifiers"] = inherited
+        model.collection.update_one(
+            {"_id": main["_id"]},
+            {"$set": {"metadata.relatedIdentifiers": inherited}},
+        )
+        options = dict(
+            relation_type="IsDerivedFrom", inverse_relation_type="IsSourceOf",
+            child_titles={"001": "Custom sample"},
+        ) if custom else {}
+        forward = "IsDerivedFrom" if custom else "IsPartOf"
+        inverse = "IsSourceOf" if custom else "HasPart"
+
+        def check_created(event_name, info):
+            assert event_name == "deposition.created"
+            children = list(model.find({"_id": {"$in": info["ids"]}}))
+            assert len(children) == 2
+            for child in children:
+                index = child["igsn"].rsplit("-", 1)[1]
+                expected_title = (
+                    "Custom sample" if custom and index == "001"
+                    else f"Remote Sample - {index}"
+                )
+                assert child["metadata"]["titles"] == [{"title": expected_title}]
+                relations = child["metadata"]["relatedIdentifiers"]
+                assert {"relationType": forward, "relatedIdentifier": main["igsn"],
+                        "relatedIdentifierType": "IGSN"} in relations
+                assert inherited[0] not in relations
+                assert (inherited[1] in relations) is (not custom)
+                assert inherited[2] in relations
+                assert child["access"] == main["access"]
+                assert child["creatorId"] == main["creatorId"]
+                assert child["parentId"] == main["_id"]
+
+        with patch("girder_jsonforms.models.deposition.events.trigger",
+                   side_effect=check_created) as trigger:
+            model.create_batch(main, [("001", "LOCAL-001"), ("002", None)], **options)
+        trigger.assert_called_once()
+        parent = model.load(main["_id"], force=True)
+        for index in ("001", "002"):
+            assert {"relationType": inverse,
+                    "relatedIdentifier": f"{main['igsn']}-{index}",
+                    "relatedIdentifierType": "IGSN"} in parent["metadata"]["relatedIdentifiers"]
+        child = model.findOne({"igsn": f"{main['igsn']}-001"})
+        assert child["metadata"]["alternateIdentifiers"] == [
+            {"alternateIdentifier": "LOCAL-001", "alternateIdentifierType": "Local"}
+        ]
+        assert main["metadata"]["relatedIdentifiers"] == inherited
+
+    @pytest.mark.parametrize("titles", [{"001": ""}, {"001": "  "}, {"001": None}, []])
+    def test_invalid_titles_fail_before_allocation(
+        self, remote_mode, igsn_service, admin, igsn_metadata, titles
+    ):
+        model = Deposition()
+        main = model.create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        with pytest.raises(ValidationException, match="child_titles"):
+            model.create_batch(main, [("001", None)], child_titles=titles)
+        igsn_service.allocate_children.assert_not_called()
+        assert model.find({"parentId": main["_id"]}).count() == 0
