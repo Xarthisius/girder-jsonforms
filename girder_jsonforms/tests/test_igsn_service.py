@@ -879,7 +879,20 @@ class TestBatchMetadataOptions:
         ]
         assert main["metadata"]["relatedIdentifiers"] == inherited
 
-    @pytest.mark.parametrize("titles", [{"001": ""}, {"001": "  "}, {"001": None}, []])
+    @pytest.mark.parametrize(
+        "titles",
+        [
+            {"001": ""},
+            {"001": "  "},
+            {"001": None},
+            [],
+            # Keys that match no index would otherwise be a silent no-op: the
+            # child keeps the default title and the caller never learns why.
+            {"002": "Typo"},
+            {"001": "Fine", "1": "Wrong padding"},
+            {1: "Not a string index"},
+        ],
+    )
     def test_invalid_titles_fail_before_allocation(
         self, remote_mode, igsn_service, admin, igsn_metadata, titles
     ):
@@ -889,6 +902,27 @@ class TestBatchMetadataOptions:
             model.create_batch(main, [("001", None)], child_titles=titles)
         igsn_service.allocate_children.assert_not_called()
         assert model.find({"parentId": main["_id"]}).count() == 0
+
+    def test_unmatched_title_key_names_itself(
+        self, remote_mode, igsn_service, admin, igsn_metadata
+    ):
+        """The error has to name the offending key to be worth raising."""
+        model = Deposition()
+        main = model.create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        with pytest.raises(ValidationException, match="no matching index for '002'"):
+            model.create_batch(
+                main, [("001", None)], child_titles={"002": "Typo"}
+            )
+
+    def test_empty_child_titles_is_not_an_error(
+        self, local_mode, admin, igsn_metadata
+    ):
+        """An empty mapping means "no overrides", not a bad argument."""
+        model = Deposition()
+        main = model.create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        model.create_batch(main, [("001", None)], child_titles={})
+        child = model.findOne({"igsn": f"{main['igsn']}-001"})
+        assert child["metadata"]["titles"] == [{"title": "Remote Sample - 001"}]
 
     def test_a_second_batch_does_not_inherit_the_first_pairs_inverse(
         self, local_mode, admin, igsn_metadata

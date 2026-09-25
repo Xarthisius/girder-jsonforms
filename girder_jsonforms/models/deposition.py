@@ -776,17 +776,32 @@ class Deposition(AccessControlledModel):
             raise ValidationException(
                 "relation_type and inverse_relation_type must differ"
             )
-        if child_titles is not None and (
-            not isinstance(child_titles, dict)
-            or any(
-                not isinstance(title, str) or not title.strip()
-                for title in child_titles.values()
+        if child_titles is None:
+            child_titles = {}
+        if not isinstance(child_titles, dict):
+            raise ValidationException(
+                "child_titles must be a dict mapping indices to titles"
             )
+        if blank := sorted(
+            repr(index)
+            for index, title in child_titles.items()
+            if not isinstance(title, str) or not title.strip()
         ):
             raise ValidationException(
-                "child_titles must map indices to nonempty titles"
+                f"child_titles must map indices to nonempty titles; "
+                f"bad entries for {', '.join(blank)}"
             )
-        child_titles = child_titles or {}
+        # A key that matches no index is a silent no-op -- the child quietly
+        # keeps the default "<parent title> - <index>" -- so treat it as the
+        # caller error it almost always is (a typo, or an index built with
+        # different padding than the one passed in ``indices``).
+        if unknown := sorted(
+            repr(index)
+            for index in set(child_titles) - {igsn_index for igsn_index, _ in indices}
+        ):
+            raise ValidationException(
+                f"child_titles has no matching index for {', '.join(unknown)}"
+            )
         # Register the children centrally first. If the registry rejects the
         # batch (a duplicate index, an unknown parent) nothing is written
         # locally either -- otherwise Girder would be left holding children the
