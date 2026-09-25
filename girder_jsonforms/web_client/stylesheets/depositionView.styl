@@ -1,0 +1,185 @@
+.g-deposition-actions
+  float right
+
+  button
+    margin-left 10px
+    padding 4px 8px
+
+.g-deposition-container
+  position relative
+
+.g-three-column-layout
+  display flex
+  gap 20px
+  margin-top 20px
+
+  .g-main-content
+    flex 0 0 80%
+    display flex
+    gap 30px
+    min-width 0
+
+    .g-left-column
+      flex 1
+      min-width 0
+
+    .g-middle-column
+      flex 0 0 400px
+      max-width 400px
+
+  .g-qr-column
+    flex 0 0 calc(20% - 20px)
+    min-width 150px
+
+.g-sample-code
+  position sticky
+  top 20px
+  z-index 100
+
+  canvas
+    display block
+    margin 0 auto
+
+  p.center-text
+    text-align center
+    margin-top 10px
+
+.g-sample-image-container
+  position sticky
+  top 20px
+
+  .g-sample-image
+    width 100%
+    height auto
+    border 1px solid #ddd
+    border-radius 4px
+    box-shadow 0 2px 4px rgba(0, 0, 0, 0.1)
+
+  svg a rect,
+  svg a circle {
+    transition: fill-opacity 0.2s, stroke-width 0.2s;
+    stroke: white;
+    stroke-width: 0;
+  }
+
+  svg a:hover rect,
+  svg a:hover circle {
+    fill-opacity: 0.4; /* Becomes more visible on hover */
+    stroke-width: 2;   /* Adds a slight border highlight */
+  }
+
+.g-two-column-section
+  display flex
+  gap 20px
+  margin-top 10px
+  align-items flex-start
+
+  .g-two-left
+    flex 1
+    .g-deposition-info-line
+      margin 0 0 6px 0
+
+    h3
+      margin 0 0 8px 0
+      font-size 1.15em
+      font-weight 600
+
+  .g-two-right
+    flex 0 0 300px
+
+    .g-datafiles-box
+      border 1px solid #eee
+      padding 10px
+      border-radius 4px
+      background #fafafa
+      margin-top 0
+
+      h3
+        margin 0 0 8px 0
+        font-size 1.15em
+        font-weight 600
+
+      .g-datafiles-list
+        list-style none
+        padding 0
+        margin 0
+
+        li
+          margin-bottom 6px
+
+.g-mobile-sample-tracker
+  display none
+
+  a.g-sample-tracker-link
+    display inline-flex
+    align-items center
+    gap 6px
+    padding 8px 12px
+    border-radius 4px
+    background #f8f8f8
+    border 1px solid #ddd
+    color inherit
+    text-decoration none
+
+@media (max-width: 768px)
+  .g-three-column-layout
+    flex-direction column
+    gap 12px
+
+  .g-main-content
+    flex-direction column
+    gap 12px
+
+  .g-middle-column
+    order -1
+
+  .g-qr-column
+    flex 1 0 auto
+    max-width 100%
+    min-width 0
+
+  .g-middle-column
+    flex none !important
+    max-width 100%
+    min-width 0
+
+  .g-sample-image-container,
+  .g-sample-code
+    position static
+
+  .g-qr-column
+    display none
+
+  .g-mobile-sample-tracker
+    display block
+    margin-top 18px
+// Status of this IGSN in the central registry. Shown next to the identifier so
+// "is this actually published?" is answerable at a glance -- it used to require
+// checking DataCite by hand.
+.g-igsn-status
+  display inline-block
+  margin-left 8px
+  padding 1px 8px
+  border-radius 10px
+  border 1px solid #ccc
+  color #666
+  font-size 11px
+  text-transform uppercase
+  letter-spacing .04em
+  vertical-align middle
+
+.g-igsn-status-findable
+  border-color #2f7d4f
+  color #2f7d4f
+
+.g-igsn-status-registered
+  border-color #2a6496
+  color #2a6496
+
+.g-igsn-status-failed,
+.g-igsn-status-revoked
+  border-color #a94442
+  color #a94442
+
+.g-igsn-service-error
+  color #a94442

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import requests
 from girder.constants import AccessType
+from girder.exceptions import ValidationException
 from girder.models.model_base import AccessControlledModel
 
 from ..lib.jq import (
@@ -31,6 +32,7 @@ class Form(AccessControlledModel):
                 "description",
                 "entryFileName",
                 "schema",
+                "jsHelpers",
                 "created",
                 "updated",
                 "gdriveFolderId",
@@ -38,10 +40,20 @@ class Form(AccessControlledModel):
                 "serialize",
                 "pathTemplate",
                 "uniqueField",
+                "dependencies",
+                "postEntryTask",
             ),
         )
 
     def validate(self, doc):
+        if isinstance(doc["schema"], str):
+            try:
+                if doc["schema"].startswith("http"):
+                    self._loadRemoteSchema(doc["schema"])
+                else:
+                    json.loads(doc["schema"])
+            except Exception as e:
+                raise ValidationException("Invalid schema: {}".format(str(e)))
         return doc
 
     def create_form(
@@ -50,22 +62,26 @@ class Form(AccessControlledModel):
         description,
         schema,
         creator,
+        jsHelpers=None,
         folder=None,
         pathTemplate=None,
         entryFileName=None,
         gdriveFolderId=None,
         serialize=False,
         uniqueField=None,
+        postEntryTask=None,
     ):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         form = {
             "name": name,
             "description": description,
             "schema": schema,
+            "jsHelpers": jsHelpers,
             "folderId": None,
             "gdriveFolderId": gdriveFolderId,
             "pathTemplate": pathTemplate,
+            "postEntryTask": postEntryTask,
             "entryFileName": entryFileName or "entry.json",
             "serialize": serialize,
             "created": now,
@@ -74,6 +90,9 @@ class Form(AccessControlledModel):
         }
         if folder:
             form["folderId"] = folder["_id"]
+
+        if creator is not None:
+            self.setUserAccess(form, user=creator, level=AccessType.ADMIN, save=False)
 
         return self.save(form)
 
@@ -84,13 +103,14 @@ class Form(AccessControlledModel):
         description,
         schema,
         folder=None,
+        jsHelpers=None,
         pathTemplate=None,
         entryFileName=None,
         gdriveFolderId=None,
         serialize=None,
         uniqueField=None,
     ):
-        now = datetime.datetime.utcnow()
+        now = datetime.datetime.now(datetime.UTC)
 
         form["name"] = name
         form["description"] = description
@@ -106,6 +126,9 @@ class Form(AccessControlledModel):
         if entryFileName:
             form["entryFileName"] = entryFileName
 
+        if jsHelpers:
+            form["jsHelpers"] = jsHelpers
+
         if gdriveFolderId:
             form["gdriveFolderId"] = gdriveFolderId
 
@@ -117,41 +140,100 @@ class Form(AccessControlledModel):
 
         return self.save(form)
 
+    def get_related_form_values(self, form, _type="enumSource"):
+        form_values = {}
+        for keyPath in find_key_paths(form["schema"], _type):
+            value = get_value(form["schema"], keyPath)
+            if isinstance(value, str) and value.startswith("girder.formId:"):
+                command = value.split(":")
+                formId = command[1]
+                fields = command[2:]
+                if _type == "enumSource":
+                    if len(fields) == 1:
+                        fields.append(None)
+                    if not fields:
+                        fields = ["{entry[_id]}", None]
+                form_values[keyPath] = {
+                    "formId": formId,
+                    "fields": fields,
+                }
+        return form_values
+
+    def schemaLoad(self, form):
+        if isinstance(form["schema"], str):
+            if form["schema"].startswith("http"):
+                form["schema"] = self._loadRemoteSchema(form["schema"])
+            else:
+                form["schema"] = json.loads(form["schema"])
+        return form
+
     def materialize(self, form, user):
         from .entry import FormEntry
 
-        if form["schema"].startswith("http"):
-            form["schema"] = self._loadRemoteSchema(form["schema"])
-        else:
-            form["schema"] = json.loads(form["schema"])
+        if isinstance(form["schema"], str):
+            if form["schema"].startswith("http"):
+                form["schema"] = self._loadRemoteSchema(form["schema"])
+            else:
+                form["schema"] = json.loads(form["schema"])
 
-        for keyPath in find_key_paths(form["schema"], "enumSource"):
-            value = get_value(form["schema"], keyPath)
-            if isinstance(value, str) and value.startswith("girder.formId:"):
-                formId = value.split(":")[1]
+        if isinstance(form.get("jsHelpers"), str) and form["jsHelpers"].startswith(
+            "http"
+        ):
+            form["jsHelpers"] = requests.get(form["jsHelpers"]).text
+
+        for keyPath, form_value in self.get_related_form_values(
+            form, "preload"
+        ).items():
+            formId = form_value["formId"]
+            fields = form_value["fields"]
+            try:
                 source_form = self.load(
                     formId, level=AccessType.READ, user=user, exc=True
                 )
-                enum_source = {
-                    "source": [],
-                    "title": "{{item.title}}",
-                    "value": "{{item.value}}",
-                }
-                for entry in (
-                    FormEntry()
-                    .find(
-                        {"formId": source_form["_id"]},
-                        fields={"_id": 1, source_form["uniqueField"]: 1, "data": 1},
-                    )
-                    .sort([(source_form["uniqueField"], 1)])
-                ):
-                    enum_source["source"].append(
-                        {
-                            "value": str(entry["_id"]),
-                            "title": entry["data"][source_form["uniqueField"]],
-                        }
-                    )
-                    set_value(form["schema"], keyPath, [enum_source])
+            except ValidationException:
+                raise ValidationException(
+                    f"Form {formId} linked via '{keyPath}' does not exist or is not accessible."
+                )
+            dependencies = {}
+            for dep in FormEntry().collection.find(
+                {"formId": source_form["_id"]},
+                projection={f"data.{_}": 1 for _ in fields},
+            ):
+                dep_id = str(dep.pop("_id"))
+                dependencies[dep_id] = convert_to_jq_notation(dep)
+            form["dependencies"] = dependencies
+
+        for keyPath, form_value in self.get_related_form_values(
+            form, "enumSource"
+        ).items():
+            formId = form_value["formId"]
+            enum_value, enum_title = form_value["fields"]
+            source_form = self.load(formId, level=AccessType.READ, user=user, exc=True)
+            enum_source = {
+                "source": [],
+                "title": "{{item.title}}",
+                "value": "{{item.value}}",
+            }
+
+            for entry in (
+                FormEntry()
+                .find(
+                    {"formId": source_form["_id"]},
+                    fields={"_id": 1, source_form["uniqueField"]: 1, "data": 1},
+                )
+                .sort([(source_form["uniqueField"], 1)])
+            ):
+                if enum_title:
+                    title = enum_title.format(entry=entry)
+                else:
+                    title = entry["data"][source_form["uniqueField"]]
+                enum_source["source"].append(
+                    {
+                        "value": enum_value.format(entry=entry),
+                        "title": title,
+                    }
+                )
+                set_value(form["schema"], keyPath, [enum_source])
 
         return form
 
@@ -183,7 +265,7 @@ class Form(AccessControlledModel):
         return ref_value
 
     def get_data_types(self, form):
-        schema = json.loads(form["schema"])
+        schema = form["schema"]  # Has to materialized
         types = self.infer_column_types(
             schema, definitions=schema.get("definitions", {})
         )
@@ -241,10 +323,11 @@ class Form(AccessControlledModel):
 
         return properties
 
-    def import_entries(self, form, file_obj, file_type, dry_run=True):
+    def import_entries(self, form, file_obj, file_type, user, dry_run=True):
         from .entry import FormEntry
 
-        schema = json.loads(form["schema"])
+        form = self.materialize(form, user)  # Ensure the schema is materialized
+
         io_buffer = io.BytesIO(file_obj.read())
         if file_type == "csv":
             entries = pd.read_csv(
@@ -264,7 +347,7 @@ class Form(AccessControlledModel):
         for row in parsed_entries:
             entry = row["data"]
             try:
-                jsonschema.Draft7Validator(schema).validate(entry)
+                jsonschema.Draft7Validator(form["schema"]).validate(entry)
             except jsonschema.ValidationError as e:
                 print(str(e))
                 failed += 1
@@ -274,13 +357,20 @@ class Form(AccessControlledModel):
             except KeyError:
                 failed += 1
                 continue
-            if existing_entry := FormEntry().findOne(
+            if FormEntry().findOne(
                 {"formId": form["_id"], f"data.{form['uniqueField']}": unique_id}
             ):
                 updated += 1
-                print("Updating entry", existing_entry["_id"])
             else:
                 new += 1
+            if not dry_run:
+                FormEntry().create_entry(
+                    form,
+                    entry,  # The actual data to insert
+                    None,
+                    None,
+                    user,
+                )
         return json.dumps({"new": new, "updated": updated, "failed": failed})
 
     def _loadRemoteSchema(self, url):

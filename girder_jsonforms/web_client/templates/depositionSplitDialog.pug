@@ -1,0 +1,26 @@
+.modal-dialog
+  .modal-content
+    form#g-split-form.modal-form(role="form")
+      .modal-header
+        button.close(type="button", data-dismiss="modal", aria-hidden="true") &times;
+        h4.modal-title Create a child IGSN for #{igsn}
+      .modal-body
+        .form-group
+          label(for="suffix") Suffix
+          input#suffix.form-control(type="text", name="suffix")
+        .form-group
+          label(for="title") Number of subsamples to create
+          input#batch.form-control(type="number" name="batch" value="0" min="0" max="999")
+          small.form-text.text-muted
+            | If the number of subsamples is greater than 0, the additional IGSNs will be generated
+            | with a suffix -00(n+1), -00(n+2), ... up to N, where n is the greater of the number of
+            | existing child IGSNs and the number of subsamples. If 0, a single child IGSN will be generated.
+        .form-group
+          .checkbox
+            label(for="track")
+              input.g-enable-tracking(type="checkbox" checked=true, name="track")
+              | Enable Sample Tracking of this IGSN
+        .g-validation-failed-message
+      .modal-footer
+        a.btn.btn-default(data-dismiss="modal") Close
+        button#g-split-btn.btn.btn-primary(type="submit") Split

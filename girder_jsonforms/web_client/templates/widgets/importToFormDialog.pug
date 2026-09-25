@@ -1,0 +1,27 @@
+.modal-dialog
+  .modal-content
+    form#g-import-form.modal-form(role="form")
+      .modal-header
+        button.close(type="button" data-dismiss="modal")
+          span &times;
+        h4.modal-title Import Data
+      .modal-body
+        h4 Select IGSN using search field below
+
+        .g-deposition-search-container
+        
+        .g-selected-deposition-container.hide
+          span.test-muted= 'Selected IGSN: '
+          span.g-info-type= ''
+
+        .g-form-upload-container
+
+        .g-form-processing-container.hide
+          p
+            Something something is being processed, please wait...
+        
+      .modal-footer
+        button.btn.btn-default(type="button" data-dismiss="modal") Close
+        button.g-import-form-btn.btn.btn-primary.disabled(type="submit", disabled) Submit
+
+.g-validation-failed-message

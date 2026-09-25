@@ -1,0 +1,61 @@
+table.g-depositions-list-table
+  if showHeader
+    thead
+      tr
+        if columns & columnEnum.COLUMN_ACTION_CHECKBOX
+          th
+            .dropdown.check-menu-dropdown
+              button.btn.btn-sm.btn-default.dropdown-toggle.g-deposition-check-menu-button(data-toggle="dropdown", disabled=!anyDepositionChecked)
+                input.g-deposition-checkbox-all(type="checkbox", checked=allDepositionChecked)
+                i.icon-down-dir
+              ul.dropdown-menu
+                li
+                  a.g-depositions-list-link
+                    i.icon-link
+                    | Update relation
+        if columns & columnEnum.COLUMN_IGSN
+          th 
+            a.g-column-sortable(href="#", data-sort-by="igsn") 
+              | IGSN
+              i.text-muted.icon-sort
+        if columns & columnEnum.COLUMN_TITLE
+          th
+            a.g-column-sortable(href="#", data-sort-by="metadata.titles.title")
+              | Title
+              i.text-muted.icon-sort
+        if columns & columnEnum.COLUMN_LOCAL_ID
+          th
+            a.g-column-sortable(href="#", data-sort-by="metadata.alternateIdentifiers.alternateIdentifier")
+              | Local ID
+              i.text-muted.icon-sort
+        if columns & columnEnum.COLUMN_CREATED
+          th
+            a.g-column-sortable(href="#", data-sort-by="created")
+              | Created on
+              i.text-muted.icon-sort
+        if columns & columnEnum.COLUMN_UPDATED
+          th
+            a.g-column-sortable(href="#", data-sort-by="updated")
+              | Last update
+              i.text-muted.icon-sort
+
+  tbody
+    each deposition, index in depositions
+      - var title = deposition.get('metadata')['titles'][0]['title']
+      - var id = deposition.get("metadata")["alternateIdentifiers"].find((identifier) => identifier["alternateIdentifierType"].toLowerCase() === "local")
+      - id = id ? id["alternateIdentifier"] : ''
+      tr(g-deposition-id=deposition.id)
+        if columns & columnEnum.COLUMN_ACTION_CHECKBOX
+          td
+            input.g-deposition-checkbox(type="checkbox", checked=depositionCheckedStates[deposition.id])
+        if columns & columnEnum.COLUMN_IGSN
+          td
+            a(href=`#deposition/${deposition.id}`)= deposition.get('igsn')
+        if columns & columnEnum.COLUMN_TITLE
+          td= title
+        if columns & columnEnum.COLUMN_LOCAL_ID
+          td= id || ''
+        if columns & columnEnum.COLUMN_CREATED
+          td.g-deposition-created-cell= formatDate(deposition.get('created'), DATE_SECOND)
+        if columns & columnEnum.COLUMN_UPDATED
+          td.g-deposition-updated-cell= formatDate(deposition.get('updated'), DATE_SECOND)

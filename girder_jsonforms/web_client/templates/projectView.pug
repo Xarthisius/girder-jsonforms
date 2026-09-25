@@ -1,0 +1,60 @@
+.g-project-container
+  .g-project-actions
+    button.g-back-to-projects.btn.btn-sm.btn-primary(title="Back to projects")
+      i.icon-left
+      | Back
+    if isAdmin && project.get('status') === 'under review'
+      button.g-approve-project.btn.btn-sm.btn-success(title="Approve project")
+        i.icon-ok
+        | Approve
+      button.g-reject-project.btn.btn-sm.btn-danger(title="Reject project")
+        i.icon-cancel
+        | Reject
+
+  h1.g-project-title= project.get('name')
+
+  .g-project-info
+    .g-project-info-line
+      span.text-muted= 'Project ID: '
+      span.g-info-type= project.get('projectId')
+    .g-project-info-line
+      span.text-muted= 'Status: '
+      span.g-info-type= project.get('status')
+    if project.get('description')
+      .g-project-info-line
+        span.text-muted= 'Description: '
+        span.g-info-type= project.get('description')
+
+  h2 Samples
+
+  form.g-add-sample-form.form-inline(role="form")
+    .form-group
+      select.g-add-sample-field.form-control(
+        name="sampleIgsn"
+        id="g-add-sample-field"
+        autocomplete="off"
+        placeholder="Sample IGSN"
+      )
+    button.btn.btn-sm.btn-success(type="submit")
+      i.icon-plus
+      | Add sample
+    .g-add-sample-hint
+      small.form-text.text-muted
+        | Start typing to search for a registered IGSN.
+
+  table.table.table-hover
+    thead
+      tr
+        th IGSN
+        th
+    tbody
+      each igsn in (project.get('samples') || [])
+        tr
+          td= igsn
+          td
+            button.g-remove-sample.btn.btn-sm.btn-danger(data-igsn=igsn, title="Remove sample")
+              i.icon-trash
+              | Remove
+
+  if !(project.get('samples') || []).length
+    .g-no-sample-record No samples on this project
