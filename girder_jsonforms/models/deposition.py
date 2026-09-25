@@ -28,6 +28,12 @@ from .form import Form
 
 logger = logging.getLogger(__name__)
 
+# DataCite relations that express "this deposition has children". A child must
+# never inherit one from its parent: a sibling is neither a part nor a source of
+# its siblings, and an unrelated target the parent points at is not the child's
+# to claim either. ``create_batch`` adds whatever inverse the caller asked for.
+PARENT_OUTGOING_RELATIONS = {"HasPart", "IsSourceOf"}
+
 
 class PrefixCounter(Model):
     def initialize(self):
@@ -113,7 +119,13 @@ class SchemaValidator:
     def __init__(self, filename):
         with open(filename, "r") as file:
             schema = json.loads(file.read())
+        self.schema = schema
         self.validator = jsonschema.Draft201909Validator(schema)
+
+    @property
+    def relation_types(self):
+        """The DataCite relationType vocabulary, read from the schema itself."""
+        return self.schema["definitions"]["relationType"]["enum"]
 
     def validate(self, data):
         return self.validator.validate(data)
@@ -728,8 +740,14 @@ class Deposition(AccessControlledModel):
         return None
 
     def create_batch(
-        self, main_deposition, indices, already_registered=False, *,
-        relation_type="IsPartOf", inverse_relation_type="HasPart", child_titles=None,
+        self,
+        main_deposition,
+        indices,
+        already_registered=False,
+        *,
+        relation_type="IsPartOf",
+        inverse_relation_type="HasPart",
+        child_titles=None,
     ):
         """Create children with optional relationships and per-index titles.
 
@@ -739,12 +757,36 @@ class Deposition(AccessControlledModel):
         IsDerivedFrom/IsSourceOf). ``child_titles`` maps exact IGSN index strings
         to titles; omitted indices retain the parent-title/index default.
         """
+        # Everything below is written through insert_many/update_one, which
+        # bypasses save() and so never reaches Deposition.validate(). Check the
+        # caller's vocabulary here, or a typo ("isDerivedFrom") is persisted on
+        # both the children and the parent and only surfaces much later, when
+        # DataCite rejects the record at publish time.
+        for name, value in (
+            ("relation_type", relation_type),
+            ("inverse_relation_type", inverse_relation_type),
+        ):
+            if value not in self.schema_validator.relation_types:
+                raise ValidationException(
+                    f"{name} must be a DataCite relationType, got {value!r}"
+                )
+        if relation_type == inverse_relation_type:
+            # The pair is directional: the same type both ways would claim the
+            # child and the parent stand in the same relation to each other.
+            raise ValidationException(
+                "relation_type and inverse_relation_type must differ"
+            )
         if child_titles is not None and (
             not isinstance(child_titles, dict)
-            or any(not isinstance(title, str) or not title.strip()
-                   for title in child_titles.values())
+            or any(
+                not isinstance(title, str) or not title.strip()
+                for title in child_titles.values()
+            )
         ):
-            raise ValidationException("child_titles must map indices to nonempty titles")
+            raise ValidationException(
+                "child_titles must map indices to nonempty titles"
+            )
+        child_titles = child_titles or {}
         # Register the children centrally first. If the registry rejects the
         # batch (a duplicate index, an unknown parent) nothing is written
         # locally either -- otherwise Girder would be left holding children the
@@ -783,16 +825,31 @@ class Deposition(AccessControlledModel):
 
         depositions = []
         igsn_prefix = Setting().get(PluginSettings.IGSN_PREFIX)
+        # Two ways a parent's relation is stale on a child: it is a "has
+        # children" type (the parent's parts, or what it is the source of), or
+        # it points at one of this parent's own children, i.e. at a sibling.
+        # The relation-type half alone is not enough -- a parent batched once
+        # with IsPartOf/HasPart and once with IsDerivedFrom/IsSourceOf would
+        # leak the other batch's inverse into these children, since only the
+        # pair currently being created was ever filtered. Matching the target
+        # identifier catches siblings whatever pair produced them.
+        outgoing_relations = PARENT_OUTGOING_RELATIONS | {inverse_relation_type}
+        child_prefix = f"{main_deposition['igsn']}-"
         for index in indices:
             metadata = copy.deepcopy(main_deposition["metadata"])
-            metadata["relatedIdentifiers"].append(relatedIdentifier)
-            # Do not inherit the parent's outgoing child relationships.
-            relatedIdentifiers = metadata.get("relatedIdentifiers", [])
             metadata["relatedIdentifiers"] = [
-                relatedIdentifier
-                for relatedIdentifier in relatedIdentifiers
-                if relatedIdentifier["relationType"] not in {"HasPart", inverse_relation_type}
+                related
+                for related in metadata.get("relatedIdentifiers", [])
+                if related.get("relationType") not in outgoing_relations
+                and not str(related.get("relatedIdentifier", "")).startswith(
+                    child_prefix
+                )
             ]
+            # Appended after the filter, never before: the child's own link to
+            # its parent is not the parent's to inherit, and filtering it
+            # afterwards would silently drop it whenever the caller's
+            # relation_type happened to fall in outgoing_relations.
+            metadata["relatedIdentifiers"].append(relatedIdentifier)
             metadata.pop("url", None)
             metadata.pop("doi", None)
             titles = metadata.pop("titles")
@@ -802,9 +859,11 @@ class Deposition(AccessControlledModel):
                 f"and local index {local_index}"
             )
             child_igsn = f"{main_deposition['igsn']}-{igsn_index}"
+            child_title = child_titles.get(
+                igsn_index, f"{titles[0]['title']} - {igsn_index}"
+            )
             child_metadata = {
-                "titles": [{"title": (child_titles or {}).get(
-                    igsn_index, f"{titles[0]['title']} - {igsn_index}")}],
+                "titles": [{"title": child_title}],
                 "doi": f"{igsn_prefix}/{child_igsn}",
                 **metadata.copy(),
             }
@@ -866,7 +925,7 @@ class Deposition(AccessControlledModel):
                 deposition["sampleId"] = sample_id
 
         # Add the inverse relationships to the parent.
-        has_parts = [
+        inverse_relations = [
             {
                 "relationType": inverse_relation_type,
                 "relatedIdentifier": _["igsn"],
@@ -876,7 +935,7 @@ class Deposition(AccessControlledModel):
         ]
         self.collection.update_one(
             {"_id": main_deposition["_id"]},
-            {"$addToSet": {"metadata.relatedIdentifiers": {"$each": has_parts}}},
+            {"$addToSet": {"metadata.relatedIdentifiers": {"$each": inverse_relations}}},
         )
         new_depositions = self.collection.insert_many(depositions)
         events.trigger("deposition.created", {"ids": new_depositions.inserted_ids})

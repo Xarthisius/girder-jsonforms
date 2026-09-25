@@ -855,8 +855,10 @@ class TestBatchMetadataOptions:
                 relations = child["metadata"]["relatedIdentifiers"]
                 assert {"relationType": forward, "relatedIdentifier": main["igsn"],
                         "relatedIdentifierType": "IGSN"} in relations
+                # Neither "has children" relation is the child's to inherit,
+                # whichever pair this batch was created with.
                 assert inherited[0] not in relations
-                assert (inherited[1] in relations) is (not custom)
+                assert inherited[1] not in relations
                 assert inherited[2] in relations
                 assert child["access"] == main["access"]
                 assert child["creatorId"] == main["creatorId"]
@@ -887,3 +889,71 @@ class TestBatchMetadataOptions:
             model.create_batch(main, [("001", None)], child_titles=titles)
         igsn_service.allocate_children.assert_not_called()
         assert model.find({"parentId": main["_id"]}).count() == 0
+
+    def test_a_second_batch_does_not_inherit_the_first_pairs_inverse(
+        self, local_mode, admin, igsn_metadata
+    ):
+        """A parent may be batched with more than one relationship pair.
+
+        Filtering only the inverse of the pair being created leaves the other
+        pair's inverse on the parent, and every later child inherits it -- so a
+        plain part would claim to be the source of a derived sibling.
+        """
+        model = Deposition()
+        main = model.create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        model.create_batch(
+            main, [("001", None)],
+            relation_type="IsDerivedFrom", inverse_relation_type="IsSourceOf",
+        )
+        parent = model.load(main["_id"], force=True)
+        assert {"relationType": "IsSourceOf",
+                "relatedIdentifier": f"{main['igsn']}-001",
+                "relatedIdentifierType": "IGSN"} in parent["metadata"][
+                    "relatedIdentifiers"]
+
+        model.create_batch(parent, [("002", None)])
+
+        child = model.findOne({"igsn": f"{main['igsn']}-002"})
+        assert child["metadata"]["relatedIdentifiers"] == [
+            {"relationType": "IsPartOf", "relatedIdentifier": main["igsn"],
+             "relatedIdentifierType": "IGSN"}
+        ]
+
+    @pytest.mark.parametrize(
+        "kwargs",
+        [
+            {"relation_type": "isDerivedFrom"},
+            {"inverse_relation_type": "isSourceOf"},
+            {"relation_type": "NotARelation"},
+            {"relation_type": "IsPartOf", "inverse_relation_type": "IsPartOf"},
+        ],
+    )
+    def test_invalid_relation_types_fail_before_allocation(
+        self, remote_mode, igsn_service, admin, igsn_metadata, kwargs
+    ):
+        """create_batch writes past save(), so validate() never sees these.
+
+        An unchecked typo lands on the children *and* the parent and only
+        surfaces when DataCite rejects the record.
+        """
+        model = Deposition()
+        main = model.create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        with pytest.raises(ValidationException, match="relation_type"):
+            model.create_batch(main, [("001", None)], **kwargs)
+        igsn_service.allocate_children.assert_not_called()
+        assert model.find({"parentId": main["_id"]}).count() == 0
+        parent = model.load(main["_id"], force=True)
+        assert parent["metadata"].get("relatedIdentifiers", []) == []
+
+    def test_children_and_parent_satisfy_the_datacite_schema(
+        self, local_mode, admin, igsn_metadata
+    ):
+        """Nothing else checks these documents against the schema."""
+        model = Deposition()
+        main = model.create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        model.create_batch(
+            main, [("001", None)],
+            relation_type="IsDerivedFrom", inverse_relation_type="IsSourceOf",
+        )
+        model.validate(model.load(main["_id"], force=True))
+        model.validate(model.findOne({"igsn": f"{main['igsn']}-001"}))
