@@ -1,0 +1,21 @@
+label(for="g-deposition-creators") Creators
+button.btn.btn-sm.btn-success.g-button(type="button" name="g-deposition-addCreator" id="g-deposition-addCreator") Add Creator
+ul.g-creators-list(name="creators").list-group
+  each creator in creators
+    li(draggable="true").list-group-item.g-creator-item(
+      data-creator-given-name=creator.givenName
+      data-creator-family-name=creator.familyName
+      data-creator-identifiers=creator.identifiers
+      data-creator-affiliations=creator.affiliations
+      data-creator-name-type=creator.nameType
+      data-creator-role=creator.role
+    )
+      .row
+        .col-xs-10
+          h5
+            | #{creator.givenName} #{creator.familyName} (#{creator.identifiers})
+          p.small
+            | #{creator.affiliations}
+        .col-xs-2.text-right
+          button.btn.btn-danger.btn-sm.g-delete-creator(type="button" id="g-deposition-removeCreator")
+            i.icon-trash

@@ -1,0 +1,23 @@
+.g-project-list-container
+  h1.g-project-list-title Projects
+
+  table.table.table-hover
+    thead
+      tr
+        th Project ID
+        th Name
+        th Status
+        th Samples
+    tbody
+      each project in projects
+        tr
+          td
+            a.g-project-link(href=`#project/${project.id}`, data-project-id=project.id)= project.get('projectId')
+          td= project.get('name')
+          td= project.get('status')
+          td= (project.get('samples') || []).length
+
+  if !projects.length
+    .g-no-project-record No projects found
+
+  .g-project-pagination

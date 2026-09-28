@@ -1,0 +1,46 @@
+label(for="g-related-identifiers") Related Identifiers
+button.btn.btn-sm.btn-success.g-button(type="button" id="g-deposition-addRelatedIdentifier") Add Identifier
+ul.g-related-identifiers-list(name="identifiers").list-group
+  each identifier in identifiers
+    li(draggable="true").g-related-identifier-item.list-group-item
+      .input-group.mb-3
+        span.input-group-btn
+          button.btn.btn-sm.g-button(type="button" disabled)
+            i.icon-move
+        select.form-control.g-related-identifier-relation-type(name="relationType" required).list-group-item-action
+          option(value="") Select Relation
+          option(value="HasMetadata", selected=(identifier.relationType == "HasMetadata")) Has Metadata
+          option(value="IsPartOf", selected=(identifier.relationType == "IsPartOf")) Is Part Of
+          option(value="HasPart", selected=(identifier.relationType == "HasPart")) Has Part
+          option(value="IsDerivedFrom", selected=(identifier.relationType == "IsDerivedFrom")) Is Derived From
+          option(value="IsSourceOf", selected=(identifier.relationType == "IsSourceOf")) Is Source Of
+        span.input-group-btn(style="width:0px;")
+
+        select.form-control.g-related-identifier-type(name="relatedIdentifierType" required).list-group-item-action
+          option(
+            value="",
+            disabled=(identifier.relationType == "HasMetadata" || identifier.relatedIdentifierType != "")
+          ) Select Type
+          option(
+            value="URL",
+            selected=(identifier.relatedIdentifierType == "URL" || identifier.relationType == "HasMetadata" )
+          ) URL
+          option(
+            value="IGSN",
+            selected=(identifier.relatedIdentifierType == "IGSN"),
+            disabled=(identifier.relationType == "HasMetadata")
+          ) IGSN
+          option(
+            value="DOI",
+            selected=(identifier.relatedIdentifierType == "DOI"),
+            disabled=(identifier.relationType == "HasMetadata")
+          ) DOI
+        span.input-group-btn(style="width:0px;")
+        if identifier.relationType == "HasMetadata"
+          input.form-control.g-related-metadata-scheme(type="text" name="relatedMetadataScheme" required value=identifier.relatedMetadataScheme)
+          span.input-group-btn(style="width:0px;")
+        
+        input.form-control.g-related-identifier-value(type="text" name="relatedIdentifier" required value=identifier.relatedIdentifier)
+        span.input-group-btn
+          button.btn.btn-sm.btn-danger.g-button(type="button" id="g-deposition-removeRelatedIdentifier")
+            i.icon-trash

@@ -1,0 +1,42 @@
+.modal-dialog
+  .modal-content
+    form#g-add-creator-form.modal-form(role="form")
+      .modal-header
+        button.close(type="button" data-dismiss="modal")
+          span &times;
+        h4.modal-title Add Creator
+      .modal-body
+        .form-check.form-check-inline
+            input(type="radio" name="nameType" value="Personal" checked)
+            | Person
+            input(type="radio" name="nameType" value="Organizational")
+            | Organization
+        .form-group
+          label(for="autocomplete") Search for a person or organization
+          select.basicModalAutoSelect.form-control(
+            id="autocomplete"
+            name="autocomplete"
+            placeholder="Search for a person or organization"
+            autocomplete="off"
+          )
+          small.form-text.text-muted
+            | Type to search for an existing person in ORCID. Upon selection this will auto-fill the fields below. If the person is not found, you can add them manually.
+        .form-group(hidden=(creatorType != "person")).person-fields
+          label(for="givenName") First Name
+          input.form-control(type="text" id="givenName" name="givenName" required)
+        .form-group(hidden=(creatorType != "person")).person-fields
+          label(for="familyName") Last Name
+          input.form-control(type="text" id="familyName" name="familyName" required)
+        .form-group(hidden=(creatorType != "organization")).org-fields
+          label(for="organizationName") Organization Name
+          input.form-control(type="text" id="organizationName" name="organizationName" required)
+        .form-group
+          label(for="identifiers") Identifiers
+          input.form-control(type="text" id="indentifiers" name="identifiers")
+        .form-group
+          label(for="affiliations") Affilations
+          input.form-control(type="text" id="affiliations" name="affiliations")
+        .g-validation-failed-message
+      .modal-footer
+        button.btn.btn-default(type="button" data-dismiss="modal") Close
+        button.g-add-creator-btn.btn.btn-primary(type="button") Save

@@ -1,0 +1,18 @@
+.modal-dialog
+  .modal-content
+    form#g-assign-igsn(role="form")
+      .modal-header
+        button.close(type="button", data-dismiss="modal", aria-label="Close")
+          span(aria-hidden="true") &times;
+        h4.modal-title Assign IGSN
+      .modal-body
+        p.
+          Assigning an IGSN to a folder will assign the same IGSN to all files in the folder recursively.
+          It will overwrite any existing IGSN values. Please ensure that you have the correct IGSN before proceeding.
+        .form-group
+          label(for="igsn") IGSN
+          input#assign-igsn.form-control(type="text", name="igsn", required=true, placeholder="Enter IGSN")
+        .g-validation-failed-message
+      .modal-footer
+        a.btn.btn-small.btn-default(data-dismiss="modal") Close
+        button.g-assign-igsn.btn.btn-small.btn-primary(type="submit") Assign

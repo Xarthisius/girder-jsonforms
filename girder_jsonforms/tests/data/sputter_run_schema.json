@@ -1,0 +1,839 @@
+{
+  "definitions": {
+    "igsnMetadata": {
+      "id": "igsnMetadata",
+      "type": "object",
+      "format": "grid-strict",
+      "title": "IGSN Creation",
+      "options": {
+        "grid_columns": 12,
+        "titleHidden": true
+      },
+      "properties": {
+        "_text1": {
+          "type": "string",
+          "title": "IGSN metadata",
+          "format": "hidden",
+          "description": "<p>This section gathers necessary information to create an IGSNs for each powder</p>",
+          "propertyOrder": 0,
+          "options": {
+            "grid_columns": 12,
+            "grid_break": true
+          }
+        },
+        "institution": {
+          "type": "string",
+          "description": "Originating Institution",
+          "enum": [
+            "JH"
+          ],
+          "default": "JH",
+          "propertyOrder": 1,
+          "options": {
+            "titleHidden": true,
+            "grid_columns": 3,
+            "enum_titles": [
+              "Johns Hopkins University"
+            ]
+          }
+        },
+        "groupJH": {
+          "type": "string",
+          "description": "Originating Group",
+          "enum": [
+            "A",
+            "B",
+            "X"
+          ],
+          "propertyOrder": 2,
+          "options": {
+            "titleHidden": true,
+            "dependencies": {
+              "institution": "JH"
+            },
+            "enum_titles": [
+              "Hopkins Extreme Materials Institute",
+              "Weihs Group",
+              "Other"
+            ],
+            "grid_columns": 3
+          }
+        },
+        "material": {
+          "type": "string",
+          "description": "Material Type",
+          "enum": [
+            "MA",
+            "CR"
+          ],
+          "default": "CR",
+          "propertyOrder": 3,
+          "options": {
+            "titleHidden": true,
+            "grid_columns": 3,
+            "enum_titles": [
+              "metals and alloys",
+              "ceramics"
+            ]
+          }
+        },
+        "submaterialMA": {
+          "type": "string",
+          "description": "Material Subtype",
+          "enum": [
+            "A",
+            "B",
+            "C",
+            "D",
+            "E",
+            "F",
+            "G",
+            "H",
+            "I",
+            "J",
+            "K",
+            "L"
+          ],
+          "propertyOrder": 4,
+          "options": {
+            "titleHidden": true,
+            "dependencies": {
+              "material": "MA"
+            },
+            "enum_titles": [
+              "Al-containing",
+              "commercially puremetals",
+              "Cu-containing",
+              "Fe-containing",
+              "intermetallics",
+              "Mg-containing",
+              "Ni-containing",
+              "rare earth",
+              "refactories",
+              "steels",
+              "superalloys",
+              "Ti-containing"
+            ],
+            "grid_columns": 3
+          }
+        },
+        "submaterialCR": {
+          "type": "string",
+          "description": "Material Subtype",
+          "enum": [
+            "A",
+            "C"
+          ],
+          "propertyOrder": 4,
+          "default": "A",
+          "options": {
+            "titleHidden": true,
+            "dependencies": {
+              "material": "CR"
+            },
+            "enum_titles": [
+              "carbides",
+              "nitrides"
+            ],
+            "grid_columns": 3
+          }
+        },
+        "title": {
+          "type": "string",
+          "title": "Sample Name",
+          "description": "<p>Name for the sample</p>",
+          "propertyOrder": 5,
+          "options": {
+            "grid_columns": 12,
+            "grid_break": true
+          }
+        },
+        "substrates": {
+          "type": "array",
+          "propertyOrder": 6,
+          "format": "checkbox",
+          "description": "The substrates created in the sputter run.",
+          "uniqueItems": true,
+          "default": [
+            "1",
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8"
+          ],
+          "items": {
+            "type": "string",
+            "enum": [
+              "1",
+              "2",
+              "3",
+              "4",
+              "5",
+              "6",
+              "7",
+              "8"
+            ]
+          },
+          "options": {
+            "grid_columns": 6
+          }
+        },
+        "subRows": {
+          "type": "integer",
+          "propertyOrder": 7,
+          "description": "Number of rows on each substrate",
+          "default": 6,
+          "options": {
+            "titleHidden": true,
+            "grid_columns": 3
+          }
+        },
+        "subCols": {
+          "type": "integer",
+          "propertyOrder": 8,
+          "description": "Number of columns on each substrate",
+          "default": 3,
+          "options": {
+            "titleHidden": true,
+            "grid_columns": 3,
+            "grid_break": true
+          }
+        }
+      }
+    },
+    "igsn": {
+      "id": "igsn",
+      "type": "object",
+      "title": "IGSN",
+      "description": "IGSN",
+      "options": {
+        "hidden": true
+      },
+      "properties": {
+        "suffix": {
+          "type": "string",
+          "propertyOrder": 1,
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          },
+          "default": ""
+        },
+        "prefix": {
+          "type": "string",
+          "propertyOrder": 2,
+          "description": "The unique identifier for the build.",
+          "hidden": true,
+          "template": "{{org}}{{gJH}}{{material}}{{sCR}}{{sMA}}",
+          "watch": {
+            "org": "root.igsnMeta.institution",
+            "gJH": "root.igsnMeta.groupJH",
+            "material": "root.igsnMeta.material",
+            "sCR": "root.igsnMeta.submaterialCR",
+            "sMA": "root.igsnMeta.submaterialMA"
+          },
+          "options": {
+            "grid_columns": 12,
+            "hidden": true
+          }
+        },
+        "request": {
+          "type": "boolean",
+          "propertyOrder": 3,
+          "default": true,
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        },
+        "track": {
+          "type": "boolean",
+          "propertyOrder": 4,
+          "default": true,
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        },
+        "field": {
+          "type": "string",
+          "propertyOrder": 5,
+          "default": "assignedIGSN",
+          "const": "assignedIGSN",
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        },
+        "batch": {
+          "type": "object",
+          "propertyOrder": 6,
+          "properties": {
+            "method": {
+              "type": "string",
+              "propertyOrder": 1,
+              "enum": [
+                "weihs"
+              ],
+              "default": "weihs",
+              "options": {
+                "hidden": true,
+                "grid_columns": 12
+              }
+            }
+          },
+          "options": {
+            "hidden": true,
+            "grid_columns": 12
+          }
+        }
+      }
+    },
+    "gunMeasurement": {
+      "type": "object",
+      "id": "gun_measurement",
+      "format": "grid-strict",
+      "properties": {
+        "voltage": {
+          "type": "number",
+          "description": "Voltage (V)",
+          "propertyOrder": 1,
+          "options": {
+            "grid_columns": 4
+          }
+        },
+        "current": {
+          "type": "number",
+          "description": "Current (A)",
+          "propertyOrder": 2,
+          "options": {
+            "grid_columns": 4
+          }
+        },
+        "power": {
+          "type": "number",
+          "description": "Power (W) - calculated from voltage and current",
+          "propertyOrder": 3,
+          "watch": {
+            "voltage": "gun_measurement.voltage",
+            "current": "gun_measurement.current"
+          },
+          "template": "{{multiply voltage current}}",
+          "options": {
+            "readonly": true,
+            "grid_columns": 4,
+            "grid_break": true
+          }
+        }
+      }
+    },
+    "measurement": {
+      "type": "object",
+      "format": "grid-strict",
+      "properties": {
+        "time": {
+          "type": "string",
+          "description": "Time",
+          "format": "datetime-local",
+          "propertyOrder": 1,
+          "options": {
+            "flatpickr": {
+              "dateFormat": "Z",
+              "wrap": true,
+              "allowInput": true,
+              "enableSeconds": true
+            },
+            "inputAttributes": {
+              "placeholder": "Enter datetime"
+            },
+            "grid_columns": 6
+          }
+        },
+        "rotation": {
+          "type": "number",
+          "description": "Rotation (dimensionless)",
+          "propertyOrder": 2,
+          "options": {
+            "grid_columns": 6,
+            "grid_break": true
+          }
+        },
+        "blue": {
+          "type": "object",
+          "$ref": "#/definitions/gunMeasurement",
+          "title": "Blue Gun",
+          "options": {
+            "dependencies": {
+              "root.blueGun.used": true
+            },
+            "grid_columns": 12,
+            "grid_break": true
+          }
+        },
+        "orange": {
+          "type": "object",
+          "options": {
+            "dependencies": {
+              "root.orangeGun.used": true
+            },
+            "grid_columns": 12,
+            "grid_break": true
+          },
+          "$ref": "#/definitions/gunMeasurement",
+          "title": "Orange Gun"
+        },
+        "green": {
+          "type": "object",
+          "$ref": "#/definitions/gunMeasurement",
+          "title": "Green Gun",
+          "options": {
+            "dependencies": {
+              "root.greenGun.used": true
+            },
+            "grid_columns": 12,
+            "grid_break": true
+          }
+        },
+        "yellow": {
+          "type": "object",
+          "$ref": "#/definitions/gunMeasurement",
+          "title": "Yellow Gun",
+          "options": {
+            "dependencies": {
+              "root.yellowGun.used": true
+            },
+            "grid_columns": 12,
+            "grid_break": true
+          }
+        }
+      }
+    },
+    "coloredGun": {
+      "type": "object",
+      "properties": {
+        "used": {
+          "type": "boolean",
+          "format": "checkbox",
+          "propertyOrder": 1,
+          "title": "Used",
+          "description": "Whether the gun was used.",
+          "default": false,
+          "options": {
+            "grid_columns": 1
+          }
+        },
+        "sputter": {
+          "type": "object",
+          "$ref": "#/definitions/sputter",
+          "propertyOrder": 2,
+          "title": "Sputter Parameters",
+          "description": "Parameters for the sputter gun.",
+          "options": {
+            "dependencies": {
+              "used": true
+            },
+            "grid_columns": 12
+          }
+        }
+      }
+    },
+    "sputter": {
+      "type": "object",
+      "format": "grid-strict",
+      "properties": {
+        "gun": {
+          "type": "string",
+          "enumSource": "girder.formId:684c32c09827d47f69fc31cc",
+          "propertyOrder": 1,
+          "options": {
+            "grid_columns": 3
+          }
+        },
+        "target": {
+          "type": "string",
+          "description": "Target material",
+          "enumSource": "girder.formId:684c35589827d47f69fc31ce",
+          "propertyOrder": 2,
+          "options": {
+            "grid_columns": 3
+          }
+        },
+        "powerSupply": {
+          "type": "string",
+          "description": "Power supply",
+          "enumSource": "girder.formId:684c320c9827d47f69fc31cb",
+          "propertyOrder": 3,
+          "options": {
+            "grid_columns": 3
+          }
+        },
+        "power": {
+          "type": "number",
+          "description": "Power (W)",
+          "propertyOrder": 4,
+          "options": {
+            "grid_columns": 3,
+            "grid_break": true
+          }
+        },
+        "phi": {
+          "type": "number",
+          "description": "Angle to horizontal (degrees)",
+          "propertyOrder": 5,
+          "options": {
+            "grid_columns": 3
+          }
+        },
+        "waterFlow": {
+          "type": "number",
+          "description": "Water flow rate (gal/min)",
+          "default": 1.0,
+          "propertyOrder": 6,
+          "options": {
+            "grid_columns": 3
+          }
+        },
+        "startTime": {
+          "type": "string",
+          "description": "Start time",
+          "propertyOrder": 7,
+          "format": "datetime-local",
+          "options": {
+            "flatpickr": {
+              "dateFormat": "Z",
+              "wrap": true,
+              "allowInput": true,
+              "enableSeconds": true
+            },
+            "inputAttributes": {
+              "placeholder": "Enter datetime"
+            },
+            "grid_columns": 3
+          }
+        },
+        "endTime": {
+          "type": "string",
+          "description": "End time",
+          "format": "datetime-local",
+          "propertyOrder": 8,
+          "options": {
+            "flatpickr": {
+              "dateFormat": "Z",
+              "wrap": true,
+              "allowInput": true,
+              "enableSeconds": true
+            },
+            "inputAttributes": {
+              "placeholder": "Enter datetime"
+            },
+            "grid_columns": 3,
+            "grid_break": true
+          }
+        }
+      }
+    }
+  },
+  "type": "object",
+  "format": "grid-strict",
+  "title": "Weihs Lab Sputter Record",
+  "description": "Data recording a single sputter deposition run.",
+  "properties": {
+    "igsnMeta": {
+      "$ref": "#/definitions/igsnMetadata",
+      "propertyOrder": 0
+    },
+    "igsn": {
+      "$ref": "#/definitions/igsn",
+      "propertyOrder": 0,
+      "options": {
+        "hidden": true
+      }
+    },
+    "assignedIGSN": {
+      "type": "string",
+      "propertyOrder": 0,
+      "template": "{{prefix}}{{suffix}}",
+      "watch": {
+        "prefix": "igsn.prefix",
+        "suffix": "igsn.suffix"
+      },
+      "options": {
+        "hidden": true,
+        "grid_columns": 12
+      }
+    },
+    "sputterType": {
+      "type": "string",
+      "propertyOrder": 2,
+      "description": "The type of sputter run",
+      "options": {
+        "grid_columns": 12,
+        "grid_break": true
+      },
+      "enum": [
+        "Horizontal",
+        "Vertical"
+      ]
+    },
+    "substrateType": {
+      "type": "string",
+      "propertyOrder": 3,
+      "description": "Substrate type",
+      "default": "Brass",
+      "enum": [
+        "Brass",
+        "Glass",
+        "Si",
+        "SiO2",
+        "Other"
+      ],
+      "options": {
+        "grid_columns": 3
+      }
+    },
+    "substrateOrientation": {
+      "type": "number",
+      "propertyOrder": 4,
+      "description": "Substrate orientation",
+      "default": 0,
+      "options": {
+        "grid_columns": 3
+      }
+    },
+    "bilayerSpacing": {
+      "type": "number",
+      "propertyOrder": 5,
+      "description": "Bilayer spacing (nm) - calculated from thickness and total rotations)",
+      "template": "{{divide thickness totalRotations}}",
+      "watch": {
+        "totalRotations": "root.totalRotations",
+        "thickness": "root.thickness"
+      },
+      "options": {
+        "readonly": true,
+        "grid_columns": 3
+      }
+    },
+    "thickness": {
+      "type": "number",
+      "propertyOrder": 6,
+      "description": "Total Thickness (µm)",
+      "default": 100.0,
+      "options": {
+        "grid_columns": 3,
+        "grid_break": true
+      }
+    },
+    "gasType": {
+      "type": "string",
+      "propertyOrder": 7,
+      "description": "Gas type",
+      "default": "Argon",
+      "enum": [
+        "Argon",
+        "Nitrogen",
+        "Oxygen"
+      ],
+      "options": {
+        "grid_columns": 4
+      }
+    },
+    "gasPressure": {
+      "type": "number",
+      "propertyOrder": 8,
+      "description": "Gas pressure (mtorr)",
+      "options": {
+        "grid_columns": 4
+      }
+    },
+    "rotationRate": {
+      "type": "number",
+      "propertyOrder": 9,
+      "description": "Rotation rate (Hz)",
+      "options": {
+        "grid_columns": 4,
+        "grid_break": true
+      }
+    },
+    "label1": {
+      "format": "info",
+      "title": "Pre-sputter chamber status",
+      "propertyOrder": 10,
+      "options": {
+        "grid_columns": 2,
+        "grid_offset": 5,
+        "grid_break": true
+      }
+    },
+    "basePressure": {
+      "type": "number",
+      "propertyOrder": 11,
+      "description": "Base pressure (Torr)",
+      "options": {
+        "grid_columns": 4
+      }
+    },
+    "leakRate": {
+      "type": "number",
+      "propertyOrder": 12,
+      "description": "Leak rate (Torr/min)",
+      "options": {
+        "grid_columns": 4
+      }
+    },
+    "cryoTemp": {
+      "type": "number",
+      "propertyOrder": 13,
+      "description": "Cryo temperature (K)",
+      "options": {
+        "grid_columns": 4,
+        "grid_break": true
+      }
+    },
+    "label2": {
+      "format": "info",
+      "title": "Sputter parameters",
+      "propertyOrder": 14,
+      "options": {
+        "grid_columns": 2,
+        "grid_offset": 5,
+        "grid_break": true
+      }
+    },
+    "blueGun": {
+      "type": "object",
+      "$ref": "#/definitions/coloredGun",
+      "propertyOrder": 15,
+      "title": "Blue Gun",
+      "description": "Blue Gun",
+      "options": {
+        "grid_columns": 12
+      }
+    },
+    "orangeGun": {
+      "type": "object",
+      "$ref": "#/definitions/coloredGun",
+      "propertyOrder": 16,
+      "title": "Orange Gun",
+      "description": "Orange Gun",
+      "options": {
+        "grid_columns": 12
+      }
+    },
+    "greenGun": {
+      "type": "object",
+      "$ref": "#/definitions/coloredGun",
+      "propertyOrder": 17,
+      "title": "Green Gun",
+      "description": "Green Gun",
+      "options": {
+        "grid_columns": 12
+      }
+    },
+    "yellowGun": {
+      "type": "object",
+      "$ref": "#/definitions/coloredGun",
+      "propertyOrder": 18,
+      "title": "Yellow Gun",
+      "description": "Yellow gun",
+      "options": {
+        "grid_columns": 12
+      }
+    },
+    "measurements": {
+      "type": "array",
+      "propertyOrder": 19,
+      "title": "Measurements",
+      "description": "Measurements taken during the sputter run.",
+      "items": {
+        "title": "Measurement",
+        "$ref": "#/definitions/measurement"
+      },
+      "options": {
+        "grid_columns": 12,
+        "grid_break": true
+      }
+    },
+    "label3": {
+      "format": "info",
+      "title": "Post-sputter chamber status",
+      "propertyOrder": 20,
+      "options": {
+        "grid_columns": 2,
+        "grid_offset": 5,
+        "grid_break": true
+      }
+    },
+    "totalRotations": {
+      "type": "number",
+      "propertyOrder": 21,
+      "description": "Total number of rotations",
+      "options": {
+        "grid_columns": 6
+      }
+    },
+    "finalBasePressure": {
+      "type": "number",
+      "propertyOrder": 22,
+      "description": "Final base pressure (Torr)",
+      "options": {
+        "grid_columns": 6,
+        "grid_break": true
+      }
+    },
+    "comments": {
+      "type": "string",
+      "format": "textarea",
+      "propertyOrder": 23,
+      "description": "Comments",
+      "options": {
+        "grid_columns": 12,
+        "grid_break": true
+      }
+    },
+    "sputterRunId": {
+      "type": "string",
+      "propertyOrder": 0,
+      "title": "Sputter Record Id",
+      "options": {
+        "hidden": true,
+        "grid_columns": 12
+      },
+      "template": "{{prefix}}{{suffix}}",
+      "watch": {
+        "prefix": "root.igsn.prefix",
+        "suffix": "root.igsn.suffix"
+      }
+    }
+  },
+  "if": {
+    "properties": {
+      "igsn": {
+        "properties": {
+          "request": {
+            "const": false
+          }
+        }
+      }
+    }
+  },
+  "then": {
+    "properties": {
+      "igsnMeta": {
+        "options": {
+          "hidden": true
+        },
+        "readonly": true
+      },
+      "assignedIGSN": {
+        "options": {
+          "hidden": false
+        },
+        "readonly": true
+      }
+    }
+  }
+}

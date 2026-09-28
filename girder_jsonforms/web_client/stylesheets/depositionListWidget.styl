@@ -1,0 +1,104 @@
+.g-deposition-regex
+  display table-row
+  color #333
+
+  .g-deposition-regex-options
+    color #333
+    display table-cell
+    border-radius 3px 0 0 3px
+    margin-right 0
+    border 1px solid #ccc
+    background-color #eee
+
+    &:hover
+      background-image linear-gradient(to bottom, #e2e2e2 0, #eee 80%)
+
+  .g-deposition-regex-field
+    display table-cell
+    border-radius 0 3px 3px 0
+    margin-left 0
+    border-left none
+
+.check-menu-dropdown
+  position relative
+  width 20px
+  left -2px
+
+  .g-deposition-check-menu-button
+    padding 2px 1px 0 2px
+
+    i
+      position relative
+      top -3px
+
+.g-depositions-list-table
+  width 100%
+
+  th
+    border-bottom 1px solid #d7d7d7
+  tbody>tr
+    transition background 0.4s linear
+
+    td
+      padding 3px 0
+
+    &:hover
+      background-color #f6f6f6
+
+    &.g-highlight
+      background-color #f1db74
+
+.g-deposition-list-header
+  padding-bottom 10px
+
+#g-deposition-checkbox-menu
+  display inline
+
+a.g-deposition-checkbox-menu-link
+  display inline-block
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+  color #333
+
+
+.g-deposition-filter-container
+  margin-top 7px
+  > div
+    float left
+    margin-right 10px
+  > .checkbox
+    margin 0 0 0 10px
+
+  .dropdown
+    .dropdown-menu
+      ul
+        list-style-type none
+        padding 0
+        margin 0
+    .checkbox
+      margin 8px
+    .checkbox.g-deposition-checkall
+      padding-bottom 8px
+      border-bottom 1px solid #ddd
+
+.g-page-size-container
+  float right
+  margin-top 7px
+  > span
+    margin-right 10px
+
+
+ul.g-depositions
+  margin 10px 0
+
+.g-depositions-graph
+  height calc(100vh - 230px)
+  overflow-y hidden
+  overflow-x auto
+
+.g-no-deposition-record
+  text-align center
+
+.g-deposition-worker-task-info
+  margin-top 10px
