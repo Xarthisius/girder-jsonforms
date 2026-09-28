@@ -5,7 +5,7 @@ from setuptools import find_packages, setup
 this_directory = Path(__file__).parent
 long_description = (this_directory / "README.md").read_text()
 
-girder_version = "5.0.13.dev27"
+girder_version = "5.0.18"
 
 setup(
     name="girder-jsonforms",
