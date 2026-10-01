@@ -544,7 +544,7 @@ class BaseLabResource(Resource):
     @filtermodel(model=Item)
     @autoDescribeRoute(
         Description("Get a list of items with a specific data type.")
-        .param("dataType", "The data type to filter items by.", required=True)
+        .param("dataType", "The data type to filter items by.", required=False)
         .param(
             "baseParentId",
             "The ID of the parent collection to count items in.",
@@ -596,8 +596,9 @@ class BaseLabResource(Resource):
         base_parent = self._get_base_parent(baseParentType, baseParentId, user)
         q = {
             "meta.igsn": {"$exists": True},
-            "meta.data_type": dataType,
         }
+        if dataType:
+            q["meta.data_type"] = dataType
         filters = filters or {}
         try:
             filters = sanitize_query(filters)
