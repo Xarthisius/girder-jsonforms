@@ -115,9 +115,6 @@ project_schema = {
             "enum": ["integrated", "singleInstrument", "development"],
             "default": "integrated",
         },
-        "priority": {
-            "type": "number",
-        },
         # Affiliation of the applicant. Unranked: the numbering of the `priority`
         # list it replaces implied an ordering the lab never allocated on.
         "accessCategory": {
@@ -307,7 +304,6 @@ class Project(AccessControlledModel):
                 "members",
                 "orcidResourceUrl",
                 "organization",
-                "priority",
                 "projectId",
                 "projectType",
                 "public",
@@ -349,10 +345,6 @@ class Project(AccessControlledModel):
             doc["instruments"] = []
         if "projectType" not in doc:
             doc["projectType"] = "integrated"
-        try:
-            doc["priority"] = int(doc.get("priority", 0))
-        except (ValueError, TypeError):
-            raise ValidationException("Priority must be an integer")
         try:
             self.validator(project_schema).validate(doc)
         except jsonschema.ValidationError as ve:

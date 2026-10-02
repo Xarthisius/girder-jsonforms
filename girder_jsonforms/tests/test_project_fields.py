@@ -175,6 +175,14 @@ class TestProjectFieldValidation:
         resp = _create(server, user, {"name": "Invalid", **doc})
         assertStatus(resp, 400)
 
+    def test_priority_is_gone(self, server, user, admin):
+        """`priority` implied a ranking the lab never allocated on and is
+        replaced by the unranked `accessCategory`. It is not deprecated in
+        place -- a frontend still sending it should fail loudly rather than
+        have the value silently ignored."""
+        resp = _create(server, user, {"name": "Old field", "priority": 3})
+        assertStatus(resp, 400)
+
     def test_unknown_top_level_field_is_still_rejected(self, server, user, admin):
         """Guards the property the whole plan is sequenced around: a field the
         backend has not been taught about fails the save outright."""
