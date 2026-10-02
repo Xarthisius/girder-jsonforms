@@ -2,6 +2,7 @@ import $ from 'jquery';
 import 'bootstrap-autocomplete';
 
 import template from '../templates/projectView.pug';
+import labels from './projectLabels.js';
 
 const events = girder.events;
 const router = girder.router;
@@ -71,7 +72,8 @@ var ProjectView = View.extend({
     render: function () {
         this.$el.html(template({
             project: this.model,
-            isAdmin: this.isAdmin
+            isAdmin: this.isAdmin,
+            labels: labels
         }));
 
         $('.g-add-sample-field', this.el).autoComplete({

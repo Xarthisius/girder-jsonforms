@@ -63,6 +63,28 @@ project_schema = {
                     "lastName": {"type": "string"},
                     "orcidId": {"type": "string"},
                     "email": {"type": "string", "format": "email"},
+                    # Day-to-day contact. Defaults to the PI in the UI but can be
+                    # moved to anyone, so it is its own flag rather than derived
+                    # from `role`.
+                    "isPointOfContact": {"type": "boolean"},
+                    # Whether this person is physically coming to AIMD-L; some
+                    # members only take part remotely.
+                    "onSite": {"type": "boolean"},
+                    # Career stage. Orthogonal to `role`, which is the access
+                    # level (see _role_to_access_level in lib/events.py).
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "faculty",
+                            "staff",
+                            "postdoc",
+                            "grad",
+                            "undergrad",
+                            "other",
+                        ],
+                    },
+                    # Only set when it differs from the project's organization.
+                    "institution": {"type": "string"},
                 },
                 "required": ["email", "role"],
                 "additionalProperties": False,
@@ -93,8 +115,93 @@ project_schema = {
             "enum": ["integrated", "singleInstrument", "development"],
             "default": "integrated",
         },
-        "priority": {
-            "type": "number",
+        # Affiliation of the applicant. Unranked: the numbering of the `priority`
+        # list it replaces implied an ordering the lab never allocated on.
+        "accessCategory": {
+            "type": "string",
+            "enum": [
+                "jhu",
+                "external-academic",
+                "external-corporate",
+                "external-government",
+                "external-foreign",
+            ],
+        },
+        # Home institution/company. Asked of external applicants only.
+        "organization": {"type": "string"},
+        # How the data this project generates has to be handled -- it describes
+        # the material coming into the lab, not the proposal documents. Advisory:
+        # access still defaults to the project's own members (lib/events.py).
+        "dataClassification": {
+            "type": "string",
+            "enum": [
+                "open",
+                "confidential-proprietary",
+                "confidential-controlled",
+                "opt-out",
+            ],
+        },
+        "assistanceRequired": {"type": "boolean"},
+        # Free text on purpose: "3 days", "2 half-days", "~1 week".
+        "daysRequested": {"type": "string"},
+        # The single-instrument proposal, written inline instead of uploaded.
+        "experimentPlan": {"type": "string"},
+        "safety": {
+            "type": "object",
+            "properties": {
+                "sampleHazards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "none",
+                            "toxic",
+                            "flammable",
+                            "energetic",
+                            "biosafety",
+                            "radioactive",
+                            "other",
+                        ],
+                    },
+                    "default": [],
+                },
+                "otherHazards": {
+                    "type": "array",
+                    "items": {
+                        "type": "string",
+                        "enum": [
+                            "none",
+                            "laser",
+                            "high-temperature",
+                            "high-voltage",
+                            "user-equipment",
+                        ],
+                    },
+                    "default": [],
+                },
+                "description": {"type": "string"},
+            },
+            "additionalProperties": False,
+        },
+        "funding": {
+            "type": "object",
+            "properties": {
+                "grants": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "agency": {"type": "string"},
+                            "grantNumber": {"type": "string"},
+                        },
+                        "additionalProperties": False,
+                    },
+                    "default": [],
+                },
+                # JHU internal budget/IO number.
+                "internalBudgetNumber": {"type": "string"},
+            },
+            "additionalProperties": False,
         },
         "status": {
             "type": "string",
@@ -181,20 +288,27 @@ class Project(AccessControlledModel):
             level=AccessType.READ,
             fields=(
                 "_id",
+                "accessCategory",
+                "assistanceRequired",
                 "created",
                 "creatorId",
+                "dataClassification",
+                "daysRequested",
                 "description",
+                "experimentPlan",
                 "files",
+                "funding",
                 "instruments",
                 "name",
                 "metadata",
                 "members",
                 "orcidResourceUrl",
-                "priority",
+                "organization",
                 "projectId",
                 "projectType",
                 "public",
                 "publicFlags",
+                "safety",
                 "samples",
                 "submissionFolderId",
                 "status",
@@ -231,10 +345,6 @@ class Project(AccessControlledModel):
             doc["instruments"] = []
         if "projectType" not in doc:
             doc["projectType"] = "integrated"
-        try:
-            doc["priority"] = int(doc.get("priority", 0))
-        except (ValueError, TypeError):
-            raise ValidationException("Priority must be an integer")
         try:
             self.validator(project_schema).validate(doc)
         except jsonschema.ValidationError as ve:
