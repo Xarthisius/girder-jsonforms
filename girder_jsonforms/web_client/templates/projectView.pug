@@ -20,10 +20,116 @@
     .g-project-info-line
       span.text-muted= 'Status: '
       span.g-info-type= project.get('status')
+    //- Project type decides what the proposal had to contain: a development project is
+    //- not asked for a document, funding or a public overview, so without this a thin
+    //- proposal and a development one look identical. See PROPOSAL_FORM_PLAN.md 2.5.
+    .g-project-info-line
+      span.text-muted= 'Type: '
+      span.g-info-type= labels.projectType(project.get('projectType')) || 'Not specified'
+    .g-project-info-line
+      span.text-muted= 'Access category: '
+      span.g-info-type= labels.accessCategory(project.get('accessCategory')) || 'Not specified'
+    if project.get('organization')
+      .g-project-info-line
+        span.text-muted= 'Organization: '
+        span.g-info-type= project.get('organization')
+    //- The classification is what tells staff how this project's data has to be handled
+    //- once it exists; it does not change who gets access (plan B3).
+    .g-project-info-line
+      span.text-muted= 'Data classification: '
+      span.g-info-type= labels.dataClassification(project.get('dataClassification')) || 'Not specified'
+    if project.get('daysRequested')
+      .g-project-info-line
+        span.text-muted= 'Time requested: '
+        span.g-info-type= project.get('daysRequested')
+    if project.get('assistanceRequired') !== undefined
+      .g-project-info-line
+        span.text-muted= 'Staff assistance: '
+        span.g-info-type= project.get('assistanceRequired') ? 'Required' : 'Not required'
+    if (project.get('instruments') || []).length
+      .g-project-info-line
+        span.text-muted= 'Instruments: '
+        span.g-info-type= (project.get('instruments') || []).map(function (i) { return i.name; }).join(', ')
     if project.get('description')
       .g-project-info-line
         span.text-muted= 'Description: '
         span.g-info-type= project.get('description')
+    if project.get('experimentPlan')
+      .g-project-info-line
+        span.text-muted= 'Experiments: '
+        span.g-info-type= project.get('experimentPlan')
+
+  //- Bootstrap panels rather than new CSS: this view has no stylesheet of its own and
+  //- rides on Girder's Bootstrap. A declared hazard colours the panel so it cannot be
+  //- skimmed past; an all-None declaration stays plain.
+  - var safety = project.get('safety')
+  if safety && ((safety.sampleHazards || []).length || (safety.otherHazards || []).length)
+    .panel(class=labels.hazardsDeclared(safety) ? 'panel-warning' : 'panel-default')
+      .panel-heading
+        strong Safety
+      .panel-body
+        .g-project-info-line
+          span.text-muted= 'Samples: '
+          span.g-info-type= labels.sampleHazards(safety.sampleHazards).join(', ') || 'Not declared'
+        .g-project-info-line
+          span.text-muted= 'Other hazards: '
+          span.g-info-type= labels.otherHazards(safety.otherHazards).join(', ') || 'Not declared'
+        if safety.description
+          .g-project-info-line
+            span.text-muted= 'Description: '
+            span.g-info-type= safety.description
+        if labels.needsApproval(safety)
+          .g-project-info-line
+            em.text-muted Biosafety or radioactive material: check that separate institutional approval is in place.
+
+  - var members = project.get('members') || []
+  if members.length
+    h2 Team
+    table.table.table-hover
+      thead
+        tr
+          th Name
+          th Status
+          th Institution
+          th ORCID
+          th Role
+      tbody
+        each member in members
+          tr
+            td
+              = ((member.firstName || '') + ' ' + (member.lastName || '')).trim() || member.email
+              if member.role === 'PI'
+                |  
+                span.label.label-primary PI
+              if member.isPointOfContact
+                |  
+                span.label.label-info Contact
+              if member.onSite
+                |  
+                span.label.label-default On site
+            td= labels.memberStatus(member.status) || '—'
+            td= member.institution || '—'
+            td= member.orcidId || '—'
+            td= labels.role(member.role)
+
+  - var funding = project.get('funding') || {}
+  if (funding.grants || []).length || funding.internalBudgetNumber
+    h2 Funding
+    each grant in (funding.grants || [])
+      .g-project-info-line
+        span.g-info-type= [grant.agency, grant.grantNumber].filter(Boolean).join(' — ')
+    if funding.internalBudgetNumber
+      .g-project-info-line
+        span.text-muted= 'Budget / IO number: '
+        span.g-info-type= funding.internalBudgetNumber
+
+  - var files = project.get('files') || []
+  if files.length
+    h2 Documents
+    each file in files
+      .g-project-info-line
+        span.text-muted= (file.type || 'other') + ': '
+        span.g-info-type= file.name || file.fileId
 
   h2 Samples
 
