@@ -11,7 +11,7 @@ setup(
     name="girder-jsonforms",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    version="2.1.1",
+    version="2.1.2",
     description="Girder plugin adding forms based on JSON-editor",
     packages=find_packages(),
     data_files=[

@@ -1,3 +1,4 @@
+from collections.abc import Iterator
 from typing import Any
 
 
@@ -41,6 +42,73 @@ def get_value(json_data: dict, key: str) -> dict:
         else:
             json_data = json_data[path]
     return json_data
+
+
+class JqPathError(ValueError):
+    """A path that does not fit the shape of the data it was applied to."""
+
+
+def iter_values(json_data: Any, key: str) -> Iterator[tuple[str, Any]]:
+    """Resolve a path that may contain ``[]`` ("for each element").
+
+    Yields ``(path, value)`` pairs, where ``path`` is ``key`` with every ``[]``
+    replaced by the index it matched, in the same spelling ``find_key_paths``
+    emits (``a.[0].b``), so an emitted path can be fed straight back into
+    ``get_value``. A path with no ``[]`` yields at most one pair, which makes
+    this a generalization of ``get_value`` rather than a separate notion.
+
+    Nested iteration is supported: ``a.[].b.[].c`` iterates the outer array and
+    then the inner one for each outer element.
+
+    Missing data is skipped: an element that lacks the trailing key, or an
+    explicit index past the end of a list, yields nothing while its siblings
+    still yield, with their original indices intact. A path that disagrees with
+    the shape of the data -- ``[]`` or ``[3]`` applied to anything that is not a
+    list -- raises ``JqPathError`` instead, because no amount of data fixes it.
+
+    Zero matches is therefore not an error here, and a typo'd key is
+    indistinguishable from an empty array at this layer. Callers that care
+    should report how many of the elements they expected actually matched.
+    """
+    yield from _iter_values(json_data, key.split("."), "")
+
+
+def _join(prefix: str, segment: str) -> str:
+    return f"{prefix}.{segment}" if prefix else segment
+
+
+def _iter_values(
+    node: Any, segments: list[str], prefix: str
+) -> Iterator[tuple[str, Any]]:
+    if not segments:
+        yield prefix, node
+        return
+
+    head, rest = segments[0], segments[1:]
+
+    if head == "[]":
+        if not isinstance(node, list):
+            raise JqPathError(
+                f"{prefix or '<root>'} is a {type(node).__name__}, not a list, "
+                "so [] cannot iterate it"
+            )
+        for index, item in enumerate(node):
+            yield from _iter_values(item, rest, _join(prefix, f"[{index}]"))
+        return
+
+    if head.startswith("[") and head.endswith("]"):
+        if not isinstance(node, list):
+            raise JqPathError(
+                f"{prefix or '<root>'} is a {type(node).__name__}, not a list, "
+                f"so {head} cannot index it"
+            )
+        index = int(head[1:-1])
+        if index < len(node):
+            yield from _iter_values(node[index], rest, _join(prefix, head))
+        return
+
+    if isinstance(node, dict) and head in node:
+        yield from _iter_values(node[head], rest, _join(prefix, head))
 
 
 def set_value(json_data: dict, key: str, value: Any) -> None:
