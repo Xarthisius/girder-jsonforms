@@ -34,18 +34,25 @@ deployment orchestrator:
 
 ## Commands
 
-Server-side (Python), via `tox`:
+Packaging is **uv**-driven: PEP 621 metadata in `pyproject.toml` (no `setup.py`), dev
+dependencies in a PEP 735 `[dependency-groups] dev` (no `requirements-dev.txt`), and `uv.lock`
+committed. `tox.ini` declares `requires = tox-uv`, so every tox env is built by `uv venv` /
+`uv pip install` and hardlinks out of the shared `~/.cache/uv` instead of copying a few hundred
+MB per env. The lock governs `uv sync` only — tox resolves fresh, so CI still catches upstream
+girder breakage.
 
 ```bash
+uv sync              # create/refresh .venv with the project (editable) + dev group
 tox -e lint          # ruff check .
 tox -e pytest        # full test suite with coverage (needs MongoDB + Redis running)
+uv build             # sdist + wheel
 ```
 
-Run tests directly with `pytest` (inside the tox/venv environment) once services are up:
+Run tests directly with `pytest` once services are up:
 
 ```bash
-pytest girder_jsonforms/tests/test_entry.py                    # single file
-pytest girder_jsonforms/tests/test_entry.py -k test_name       # single test
+uv run pytest girder_jsonforms/tests/test_entry.py                 # single file
+uv run pytest girder_jsonforms/tests/test_entry.py -k test_name    # single test
 ```
 
 Tests use `pytest-girder`, which requires a running MongoDB (the CI uses `mongo:4.2`) and Redis

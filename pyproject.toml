@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "girder-jsonforms"
+version = "2.1.2"
+description = "Girder plugin adding forms based on JSON-editor"
+readme = "README.md"
+license = "BSD-3-Clause"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Environment :: Web Environment",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+]
+dependencies = [
+    "girder>=5.0.18",
+    "girder-worker>=5.0.18",
+    "girder-wholetale>=2.0.13",
+    "girder-jobs>=5.0.18",
+    "girder-sample-tracker>=2.0.0",  # Required for the sample tracker to test JSONForms
+    "girder-oauth>=5.0.18",
+    "google-api-python-client",
+    "google-auth-oauthlib",
+    "jsondiff",
+    "pandas",
+    "openpyxl",
+]
+
+[project.scripts]
+girder-jsonforms-migrate-metadata-dates = "girder_jsonforms.scripts.migrate_metadata_dates:main"
+girder-jsonforms-preview-mail = "girder_jsonforms.scripts.preview_mail:main"
+
+[project.entry-points."girder.plugin"]
+jsonforms = "girder_jsonforms:JSONFormsPlugin"
+
+[project.entry-points."girder_worker_plugins"]
+jsonforms = "girder_jsonforms.worker_plugin:JSONFormsWorkerPlugin"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "pytest-mock",
+    "pytest-girder>=5.0.0a5.dev0",
+    "pytest-xdist",
+    "responses",
+]
+
+# Pinned to the package itself: a bare find_packages() also walks build/ and
+# .eggs/ when they are lying around.
+[tool.setuptools.packages.find]
+include = ["girder_jsonforms*"]
+
+# MANIFEST.in alone covers the sdist; package-data is what puts these in
+# the wheel, which is how the plugin actually gets installed.
+[tool.setuptools.package-data]
+girder_jsonforms = [
+    "mail_templates/*.mako",
+    "mail_assets/*.png",
+    "schemas/*.json",
+]
+
+[tool.setuptools.data-files]
+schemas = ["girder_jsonforms/schemas/datacite-v4.5.json"]
+
+[tool.pytest.ini_options]
+cache_dir = "build/test/pytest_cache"
+junit_family = "xunit2"
+testpaths = ["girder_jsonforms/tests"]
