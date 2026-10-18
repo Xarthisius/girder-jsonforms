@@ -34,6 +34,7 @@ dependencies = [
 [project.scripts]
 girder-jsonforms-migrate-metadata-dates = "girder_jsonforms.scripts.migrate_metadata_dates:main"
 girder-jsonforms-preview-mail = "girder_jsonforms.scripts.preview_mail:main"
+girder-jsonforms-reconcile-igsn = "girder_jsonforms.scripts.reconcile_igsn:main"
 
 [project.entry-points."girder.plugin"]
 jsonforms = "girder_jsonforms:JSONFormsPlugin"
