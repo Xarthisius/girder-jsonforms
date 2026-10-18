@@ -593,6 +593,13 @@ class Deposition(Resource):
                 girder_job_title=f"Registering {deposition['igsn']} with AIMD portal",
             )
         elif action in ("publish", "sync"):
+            user = self.getCurrentUser()
+            isAdmin = user and user.get("admin", False)
+            if not isAdmin:
+                raise RestException(
+                    "Only admins can publish or sync depositions. "
+                    "Please contact your administrator if you need this action."
+                )
             if get_client() is None:
                 raise RestException(
                     "Publication is handled by the central IGSN registry, which "
@@ -604,7 +611,7 @@ class Deposition(Resource):
             if action == "publish":
                 DepositionModel().requireAccessFlags(
                     deposition,
-                    user=self.getCurrentUser(),
+                    user=user,
                     flags="jsonforms.publish_igsn",
                 )
                 # And the record has to be public already. Syncing metadata is
