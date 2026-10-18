@@ -284,6 +284,53 @@ class TestRemoteVocabularies:
         assert vocabularies["institutions"] == institutions
 
 
+class TestTenantScopedVocabularies:
+    """The vocabulary is the registry's; the permission is the tenant's.
+
+    Offering JH to a tenant that only holds AB means the refusal arrives after
+    the whole form has been filled in.
+    """
+
+    @staticmethod
+    def _two_institutions(igsn_service):
+        igsn_service.vocabularies.return_value = {
+            "institutions": {
+                "AB": {"name": "Remote Inst", "labs": {"C": "Remote Lab"}},
+                "JH": {"name": "Other Inst", "labs": {"A": "Other Lab"}},
+            },
+            "materials": {
+                "DE": {"name": "Remote Material", "subcategories": {"F": "Sub"}}
+            },
+        }
+
+    def test_only_the_tenants_institutions_are_offered(self, remote_mode, igsn_service):
+        self._two_institutions(igsn_service)
+        igsn_service.whoami.return_value = {"allowed_institutions": ["AB"]}
+        vocabularies = igsn_vocab.get_vocabularies()
+        assert list(vocabularies["institutions"]) == ["AB"]
+        # Materials are not tenant-scoped; the service only restricts institutions.
+        assert list(vocabularies["materials"]) == ["DE"]
+
+    def test_an_empty_allowance_means_unrestricted(self, remote_mode, igsn_service):
+        """Matching ``validate_prefix``, which only checks a non-empty list."""
+        self._two_institutions(igsn_service)
+        igsn_service.whoami.return_value = {"allowed_institutions": []}
+        assert sorted(igsn_vocab.get_vocabularies()["institutions"]) == ["AB", "JH"]
+
+    def test_an_unreadable_tenant_leaves_the_vocabulary_alone(
+        self, remote_mode, igsn_service
+    ):
+        """Better the old over-wide list than no form at all."""
+        self._two_institutions(igsn_service)
+        igsn_service.whoami.side_effect = IGSNServiceError("down")
+        assert sorted(igsn_vocab.get_vocabularies()["institutions"]) == ["AB", "JH"]
+
+    def test_the_tenant_is_read_once_per_cache_refresh(self, remote_mode, igsn_service):
+        igsn_vocab.get_vocabularies()
+        igsn_vocab.get_vocabularies()
+        assert igsn_service.whoami.call_count == 1
+
+
 class TestMirroredState:
     def test_findable_marks_the_deposition_published(
         self, remote_mode, igsn_service, admin, igsn_metadata

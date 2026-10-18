@@ -50,6 +50,25 @@ class TestSettingsEndpoint:
         assertStatusOk(response)
         assert response.json["igsn_institutions"]["AB"]["name"] == "Remote Inst"
 
+    def test_only_offers_what_this_tenant_may_allocate(
+        self, remote_mode, igsn_service, server
+    ):
+        """The dropdown is built from this response; a forbidden prefix in it
+        is a form the user can only fill in to be refused."""
+        igsn_service.vocabularies.return_value = {
+            "institutions": {
+                "AB": {"name": "Remote Inst", "labs": {"C": "Remote Lab"}},
+                "JH": {"name": "Other Inst", "labs": {"A": "Other Lab"}},
+            },
+            "materials": {
+                "DE": {"name": "Remote Material", "subcategories": {"F": "Sub"}}
+            },
+        }
+        igsn_service.whoami.return_value = {"allowed_institutions": ["AB"]}
+        response = server.request(path="/deposition/settings", method="GET")
+        assertStatusOk(response)
+        assert list(response.json["igsn_institutions"]) == ["AB"]
+
     def test_falls_back_to_local_settings(self, local_mode, server, igsn_settings):
         institutions, _ = igsn_settings
         response = server.request(path="/deposition/settings", method="GET")

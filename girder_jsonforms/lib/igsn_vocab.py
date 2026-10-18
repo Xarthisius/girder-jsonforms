@@ -10,6 +10,13 @@ answer briefly. The local settings remain the fallback for local mode and for
 when the service is momentarily unreachable: rejecting a prefix that was valid
 five minutes ago is worse than using a slightly stale vocabulary, since the
 service validates every allocation again anyway.
+
+The registry's vocabulary is global but allocation is tenant-scoped, so the two
+are not the same list. ``GET /vocabularies`` returns every institution the
+registry knows; ``GET /whoami`` says which of them this instance's tenant may
+allocate under. Without the intersection the form happily offers JH to a tenant
+that only holds AB, and the refusal arrives after the metadata has been filled
+in -- readable now, but still a dead end.
 """
 
 import logging
@@ -43,6 +50,41 @@ def invalidate():
         _cache["value"] = None
 
 
+def _permitted(institutions, client):
+    """Narrow the registry's institutions to the ones this tenant may use.
+
+    An empty ``allowed_institutions`` means unrestricted -- the service reads it
+    that way too (``validate_prefix`` only checks when the list is non-empty),
+    and the two must agree or the form offers less than the registry accepts.
+
+    A ``whoami`` that fails is not worth discarding a good vocabulary over: the
+    unfiltered list is what was shown before, and the allocation is validated
+    again at the service anyway.
+    """
+    try:
+        allowed = set((client.whoami() or {}).get("allowed_institutions") or ())
+    except IGSNServiceError:
+        logger.exception("Could not read the tenant from the IGSN service")
+        return institutions
+
+    if not allowed:
+        return institutions
+
+    permitted = {
+        code: value for code, value in institutions.items() if code in allowed
+    }
+    if not permitted:
+        # Nothing the tenant is allowed to use exists in the vocabulary, so the
+        # dropdown will be empty. That is the honest answer -- every prefix
+        # would be refused -- but it is a misconfiguration, not a normal state.
+        logger.warning(
+            "Tenant is allowed institutions %s, none of which the IGSN "
+            "vocabulary defines",
+            sorted(allowed),
+        )
+    return permitted
+
+
 def get_vocabularies():
     """Return ``{"institutions": ..., "materials": ...}``."""
     client = None
@@ -62,7 +104,7 @@ def get_vocabularies():
     try:
         remote = client.vocabularies()
         value = {
-            "institutions": remote["institutions"],
+            "institutions": _permitted(remote["institutions"], client),
             "materials": remote["materials"],
         }
     except (IGSNServiceError, KeyError):

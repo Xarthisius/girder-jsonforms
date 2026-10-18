@@ -135,6 +135,14 @@ def igsn_service():
         "institutions": {"AB": {"name": "Remote Inst", "labs": {"C": "Remote Lab"}}},
         "materials": {"DE": {"name": "Remote Material", "subcategories": {"F": "Sub"}}},
     }
+    # An unrestricted tenant, which is what the service means by an empty
+    # allowed_institutions. Tests that care about tenant scoping override it.
+    client.whoami.return_value = {
+        "slug": "test",
+        "name": "Test Tenant",
+        "allowed_institutions": [],
+        "doi_prefix": "10.83961",
+    }
 
     targets = (
         "girder_jsonforms.lib.igsn_client.get_client",
