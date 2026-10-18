@@ -350,7 +350,11 @@ class Deposition(Resource):
         except pymongo.errors.BulkWriteError as e:
             raise RestException(f"Error creating child depositions: {e.details}")
         except IGSNServiceError as e:
-            raise RestException(f"IGSN registry rejected the batch: {e}")
+            # Re-raised only to name the operation; ``e`` already carries the
+            # registry's reason and the status it should surface as.
+            raise RestException(
+                f"IGSN registry rejected the batch: {e.detail or e}", code=e.code
+            )
         return DepositionModel().load(
             result.inserted_ids[0], user=self.getCurrentUser()
         )

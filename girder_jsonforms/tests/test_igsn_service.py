@@ -14,6 +14,7 @@ Fixtures live in ``conftest.py``.
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from girder.exceptions import ValidationException
 from girder.models.setting import Setting
 
@@ -281,6 +282,53 @@ class TestRemoteVocabularies:
         ):
             vocabularies = igsn_vocab.get_vocabularies()
         assert vocabularies["institutions"] == institutions
+
+
+class TestTenantScopedVocabularies:
+    """The vocabulary is the registry's; the permission is the tenant's.
+
+    Offering JH to a tenant that only holds AB means the refusal arrives after
+    the whole form has been filled in.
+    """
+
+    @staticmethod
+    def _two_institutions(igsn_service):
+        igsn_service.vocabularies.return_value = {
+            "institutions": {
+                "AB": {"name": "Remote Inst", "labs": {"C": "Remote Lab"}},
+                "JH": {"name": "Other Inst", "labs": {"A": "Other Lab"}},
+            },
+            "materials": {
+                "DE": {"name": "Remote Material", "subcategories": {"F": "Sub"}}
+            },
+        }
+
+    def test_only_the_tenants_institutions_are_offered(self, remote_mode, igsn_service):
+        self._two_institutions(igsn_service)
+        igsn_service.whoami.return_value = {"allowed_institutions": ["AB"]}
+        vocabularies = igsn_vocab.get_vocabularies()
+        assert list(vocabularies["institutions"]) == ["AB"]
+        # Materials are not tenant-scoped; the service only restricts institutions.
+        assert list(vocabularies["materials"]) == ["DE"]
+
+    def test_an_empty_allowance_means_unrestricted(self, remote_mode, igsn_service):
+        """Matching ``validate_prefix``, which only checks a non-empty list."""
+        self._two_institutions(igsn_service)
+        igsn_service.whoami.return_value = {"allowed_institutions": []}
+        assert sorted(igsn_vocab.get_vocabularies()["institutions"]) == ["AB", "JH"]
+
+    def test_an_unreadable_tenant_leaves_the_vocabulary_alone(
+        self, remote_mode, igsn_service
+    ):
+        """Better the old over-wide list than no form at all."""
+        self._two_institutions(igsn_service)
+        igsn_service.whoami.side_effect = IGSNServiceError("down")
+        assert sorted(igsn_vocab.get_vocabularies()["institutions"]) == ["AB", "JH"]
+
+    def test_the_tenant_is_read_once_per_cache_refresh(self, remote_mode, igsn_service):
+        igsn_vocab.get_vocabularies()
+        igsn_vocab.get_vocabularies()
+        assert igsn_service.whoami.call_count == 1
 
 
 class TestMirroredState:
@@ -991,3 +1039,49 @@ class TestBatchMetadataOptions:
         )
         model.validate(model.load(main["_id"], force=True))
         model.validate(model.findOne({"igsn": f"{main['igsn']}-001"}))
+
+
+class TestServiceErrorsCarryTheRegistrysReason:
+    """A refusal must arrive as something the person who caused it can read.
+
+    "Institution JH is not permitted for this tenant" used to reach the browser
+    as a bare 500: the exception came up from ``PrefixCounter.get_next``, far
+    below any endpoint, and nothing on the way translated it.
+    """
+
+    @staticmethod
+    def _client_returning(status_code, detail):
+        client = IGSNClient(IGSN_SERVICE_URL, "token")
+        response = MagicMock(status_code=status_code)
+        response.json.return_value = {"detail": detail}
+        client._session.request = MagicMock(return_value=response)
+        return client
+
+    def test_a_refusal_is_a_400_quoting_the_service(self):
+        detail = "Institution JH is not permitted for this tenant"
+        client = self._client_returning(400, detail)
+        with pytest.raises(IGSNServiceError) as excinfo:
+            client.allocate("JHAMAL")
+        assert excinfo.value.code == 400
+        assert excinfo.value.status_code == 400
+        assert excinfo.value.detail == detail
+        assert detail in str(excinfo.value)
+        # The verb and path belong in the log, not in the user's face.
+        assert "POST /identifiers" not in str(excinfo.value)
+
+    @pytest.mark.parametrize("status_code", [401, 403, 500, 503])
+    def test_our_own_failures_are_502_not_the_callers_fault(self, status_code):
+        client = self._client_returning(status_code, "nope")
+        with pytest.raises(IGSNServiceError) as excinfo:
+            client.allocate("ABCDEF")
+        assert excinfo.value.code == 502
+
+    def test_an_unreachable_service_is_502(self):
+        client = IGSNClient(IGSN_SERVICE_URL, "token")
+        client._session.request = MagicMock(
+            side_effect=requests.ConnectionError("no route to host")
+        )
+        with pytest.raises(IGSNServiceError) as excinfo:
+            client.allocate("ABCDEF")
+        assert excinfo.value.code == 502
+        assert "unreachable" in str(excinfo.value)

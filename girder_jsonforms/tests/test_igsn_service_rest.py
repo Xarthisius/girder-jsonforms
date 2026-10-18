@@ -50,6 +50,25 @@ class TestSettingsEndpoint:
         assertStatusOk(response)
         assert response.json["igsn_institutions"]["AB"]["name"] == "Remote Inst"
 
+    def test_only_offers_what_this_tenant_may_allocate(
+        self, remote_mode, igsn_service, server
+    ):
+        """The dropdown is built from this response; a forbidden prefix in it
+        is a form the user can only fill in to be refused."""
+        igsn_service.vocabularies.return_value = {
+            "institutions": {
+                "AB": {"name": "Remote Inst", "labs": {"C": "Remote Lab"}},
+                "JH": {"name": "Other Inst", "labs": {"A": "Other Lab"}},
+            },
+            "materials": {
+                "DE": {"name": "Remote Material", "subcategories": {"F": "Sub"}}
+            },
+        }
+        igsn_service.whoami.return_value = {"allowed_institutions": ["AB"]}
+        response = server.request(path="/deposition/settings", method="GET")
+        assertStatusOk(response)
+        assert list(response.json["igsn_institutions"]) == ["AB"]
+
     def test_falls_back_to_local_settings(self, local_mode, server, igsn_settings):
         institutions, _ = igsn_settings
         response = server.request(path="/deposition/settings", method="GET")
@@ -229,6 +248,42 @@ class TestDeleteRevokes:
         assert Deposition().load(deposition["_id"], force=True) is None
 
 
+class TestRegistryRejectionIsReadable:
+    """The whole point of the translation: the UI shows the registry's words."""
+
+    def test_create_deposition_reports_why_the_prefix_was_refused(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        detail = "Institution JH is not permitted for this tenant"
+        igsn_service.allocate.side_effect = IGSNServiceError(
+            f"IGSN registry rejected the request: {detail}",
+            status_code=400,
+            detail=detail,
+        )
+        response = server.request(
+            path="/deposition",
+            method="POST",
+            user=admin,
+            params={"prefix": "JHAMAL", "metadata": json.dumps(igsn_metadata)},
+        )
+        assertStatus(response, 400)
+        assert detail in response.json["message"]
+        assert Deposition().find({}).count() == 0
+
+    def test_an_unreachable_registry_is_a_502(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        igsn_service.allocate.side_effect = IGSNServiceError("service is unreachable")
+        response = server.request(
+            path="/deposition",
+            method="POST",
+            user=admin,
+            params={"prefix": "ABCDEF", "metadata": json.dumps(igsn_metadata)},
+        )
+        assertStatus(response, 502)
+        assert Deposition().find({}).count() == 0
+
+
 class TestChildDepositionEndpoint:
     def test_batch_indices_come_from_the_registry(
         self, remote_mode, igsn_service, server, admin, igsn_metadata
@@ -354,6 +409,234 @@ class TestReconcile:
 
         Deposition().create_deposition(igsn_metadata, admin, prefix="ABCDEF")
         assert reconcile() is None
+
+    def test_pending_only_skips_what_has_already_settled(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        """One request per deposition saved, and `limit` left meaningful."""
+        from ..worker_plugin.igsn_registry import reconcile
+
+        settled = Deposition().create_deposition(
+            igsn_metadata, admin, prefix="ABCDEF"
+        )
+        Deposition().collection.update_one(
+            {"_id": settled["_id"]}, {"$set": {"serviceStatus": "findable"}}
+        )
+        Deposition().create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        igsn_service.get_record.reset_mock()
+        igsn_service.get_record.side_effect = lambda igsn: igsn_record(
+            igsn, status="findable"
+        )
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ):
+            summary = reconcile(pending_only=True)
+
+        assert summary["updated"] == 1
+        igsn_service.get_record.assert_called_once_with("ABCDEF00002")
+
+    def test_pending_only_includes_depositions_minted_before_the_mirror(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        from ..worker_plugin.igsn_registry import reconcile
+
+        deposition = Deposition().create_deposition(
+            igsn_metadata, admin, prefix="ABCDEF"
+        )
+        Deposition().collection.update_one(
+            {"_id": deposition["_id"]}, {"$unset": {"serviceStatus": ""}}
+        )
+        igsn_service.get_record.side_effect = lambda igsn: igsn_record(
+            igsn, status="registered"
+        )
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ):
+            assert reconcile(pending_only=True)["updated"] == 1
+
+
+class TestPublicationStateComesBack:
+    """Publishing is queued at the service and answered by DataCite later.
+
+    Nothing pushes that back, so without the poll the deposition keeps the
+    status allocation left on it -- "reserved" -- however long ago the DOI was
+    actually registered.
+    """
+
+    @staticmethod
+    def _published(igsn_service, admin, igsn_metadata, status, **kwargs):
+        from ..worker_plugin.igsn_registry import publish_deposition
+
+        deposition = Deposition().create_deposition(
+            igsn_metadata, admin, prefix="ABCDEF", public=True
+        )
+        igsn_service.get_record.side_effect = lambda igsn: igsn_record(
+            igsn, status=status
+        )
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ), patch(
+            "girder_jsonforms.models.deposition.get_client", return_value=igsn_service
+        ):
+            publish_deposition(str(deposition["_id"]), **kwargs)
+        return Deposition().load(deposition["_id"], force=True)
+
+    def test_a_registered_record_stops_reading_as_reserved(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        refreshed = self._published(
+            igsn_service, admin, igsn_metadata, "registered", target="registered"
+        )
+        assert refreshed["serviceStatus"] == "registered"
+        assert refreshed["submitted"] is True
+        # Only `findable` is "published"; a registered DOI resolves but is not
+        # indexed, and findable is still a real next step.
+        assert refreshed["state"] == "draft"
+
+    def test_a_findable_record_is_published(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        refreshed = self._published(igsn_service, admin, igsn_metadata, "findable")
+        assert refreshed["serviceStatus"] == "findable"
+        assert refreshed["state"] == "published"
+
+    def test_checking_stops_once_the_record_settles(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        self._published(igsn_service, admin, igsn_metadata, "findable")
+        assert igsn_service.get_record.call_count == 1
+
+    def test_a_record_still_in_flight_is_checked_again_then_given_up_on(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        """Bounded: past the schedule it is reconcile's problem, not a loop."""
+        from ..worker_plugin.igsn_registry import REFRESH_DELAYS
+
+        self._published(igsn_service, admin, igsn_metadata, "reserved")
+        # One check per delay in the schedule, then the chain ends.
+        assert igsn_service.get_record.call_count == len(REFRESH_DELAYS)
+
+    def test_a_recursive_publish_tracks_the_children_too(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        from ..worker_plugin.igsn_registry import publish_deposition
+
+        deposition = Deposition().create_deposition(
+            igsn_metadata, admin, prefix="ABCDEF", public=True
+        )
+        Deposition().create_batch(deposition, [("001", None), ("002", None)])
+        igsn_service.get_record.side_effect = lambda igsn: igsn_record(
+            igsn, status="findable"
+        )
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ), patch(
+            "girder_jsonforms.models.deposition.get_client", return_value=igsn_service
+        ):
+            publish_deposition(str(deposition["_id"]), recurse=True)
+
+        for child in Deposition().find({"parentId": deposition["_id"]}):
+            assert child["serviceStatus"] == "findable", child["igsn"]
+            assert child["state"] == "published", child["igsn"]
+
+    def test_a_record_the_registry_lost_is_not_retried(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        """Reconcile reports those; polling will not conjure the record."""
+        self._published(igsn_service, admin, igsn_metadata, "findable")
+        igsn_service.get_record.reset_mock()
+        igsn_service.get_record.side_effect = lambda igsn: None
+
+        from ..worker_plugin.igsn_registry import refresh_publication_state
+
+        deposition = Deposition().findOne({"igsn": "ABCDEF00001"})
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ):
+            summary = refresh_publication_state([str(deposition["_id"])])
+        assert summary == {"settled": 0, "pending": 0, "missing": 1, "errors": 0}
+        assert igsn_service.get_record.call_count == 1
+
+    def test_nothing_is_checked_in_local_mode(
+        self, local_mode, server, admin, igsn_metadata
+    ):
+        from ..worker_plugin.igsn_registry import refresh_publication_state
+
+        deposition = Deposition().create_deposition(
+            igsn_metadata, admin, prefix="ABCDEF"
+        )
+        assert refresh_publication_state([str(deposition["_id"])]) is None
+
+
+class TestReconcileCommand:
+    """``girder-jsonforms-reconcile-igsn``: the timer-driven backstop."""
+
+    def test_it_mirrors_status_and_exits_clean(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        from ..scripts.reconcile_igsn import main
+
+        deposition = Deposition().create_deposition(
+            igsn_metadata, admin, prefix="ABCDEF"
+        )
+        igsn_service.get_record.side_effect = lambda igsn: igsn_record(
+            igsn, status="findable"
+        )
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ):
+            assert main(["--prefix", "ABCDEF"]) == 0
+        assert Deposition().load(deposition["_id"], force=True)["state"] == "published"
+
+    def test_a_registry_it_cannot_read_is_a_failure(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        """Cron has to hear about it."""
+        from ..scripts.reconcile_igsn import main
+
+        Deposition().create_deposition(igsn_metadata, admin, prefix="ABCDEF")
+        igsn_service.get_record.side_effect = IGSNServiceError("unreachable")
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ):
+            assert main([]) == 1
+
+    def test_it_checks_only_unsettled_records_unless_asked_for_all(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        from ..scripts.reconcile_igsn import main
+
+        deposition = Deposition().create_deposition(
+            igsn_metadata, admin, prefix="ABCDEF"
+        )
+        Deposition().collection.update_one(
+            {"_id": deposition["_id"]}, {"$set": {"serviceStatus": "findable"}}
+        )
+        igsn_service.get_record.reset_mock()
+        with patch(
+            "girder_jsonforms.worker_plugin.igsn_registry.get_client",
+            return_value=igsn_service,
+        ):
+            assert main([]) == 0
+            igsn_service.get_record.assert_not_called()
+            assert main(["--all"]) == 0
+            igsn_service.get_record.assert_called_once_with("ABCDEF00001")
+
+    def test_local_mode_is_not_a_failure(
+        self, local_mode, server, admin, igsn_metadata
+    ):
+        """A cron entry left behind after switching modes must not start
+        mailing the operator every quarter hour."""
+        from ..scripts.reconcile_igsn import main
+
+        assert main([]) == 0
 
 
 class TestRegistryEnabledPublicSetting:

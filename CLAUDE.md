@@ -48,6 +48,29 @@ tox -e pytest        # full test suite with coverage (needs MongoDB + Redis runn
 uv build             # sdist + wheel
 ```
 
+### Releasing
+
+The version is recorded in four tracked files — `pyproject.toml` (`[project] version`, the
+only one the wheel actually carries), `uv.lock`'s editable self-entry, and the web client's
+`package.json` + `package-lock.json` (root *and* `packages[""]`) — plus the git tag. Nothing
+derives any of them from the others, which is how `package.json` came to sit two patch
+releases behind. `scripts/bump_version.py` writes all four at once and verifies them by
+re-reading the files afterwards:
+
+```bash
+scripts/bump_version.py --check            # report all five records, exit 1 if they disagree
+scripts/bump_version.py patch              # or minor / major / an explicit X.Y.Z
+scripts/bump_version.py patch -n           # dry run
+scripts/bump_version.py patch --commit --tag
+```
+
+It never pushes; it prints the remaining commands. **Pushing the `vX.Y.Z` tag is the release**
+— `.github/workflows/release.yml` publishes to PyPI on any `refs/tags/` push, so the tag has to
+agree with `pyproject.toml`. The script lives in the root `scripts/`, which `MANIFEST.in`
+prunes, so `check-manifest` in that workflow stays green. Versions are plain `X.Y.Z` only:
+anything with a prerelease segment would have to be spelled differently for PEP 440 and for
+npm's semver.
+
 Run tests directly with `pytest` once services are up:
 
 ```bash
