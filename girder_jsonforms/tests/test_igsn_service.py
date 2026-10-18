@@ -14,6 +14,7 @@ Fixtures live in ``conftest.py``.
 from unittest.mock import MagicMock, patch
 
 import pytest
+import requests
 from girder.exceptions import ValidationException
 from girder.models.setting import Setting
 
@@ -991,3 +992,49 @@ class TestBatchMetadataOptions:
         )
         model.validate(model.load(main["_id"], force=True))
         model.validate(model.findOne({"igsn": f"{main['igsn']}-001"}))
+
+
+class TestServiceErrorsCarryTheRegistrysReason:
+    """A refusal must arrive as something the person who caused it can read.
+
+    "Institution JH is not permitted for this tenant" used to reach the browser
+    as a bare 500: the exception came up from ``PrefixCounter.get_next``, far
+    below any endpoint, and nothing on the way translated it.
+    """
+
+    @staticmethod
+    def _client_returning(status_code, detail):
+        client = IGSNClient(IGSN_SERVICE_URL, "token")
+        response = MagicMock(status_code=status_code)
+        response.json.return_value = {"detail": detail}
+        client._session.request = MagicMock(return_value=response)
+        return client
+
+    def test_a_refusal_is_a_400_quoting_the_service(self):
+        detail = "Institution JH is not permitted for this tenant"
+        client = self._client_returning(400, detail)
+        with pytest.raises(IGSNServiceError) as excinfo:
+            client.allocate("JHAMAL")
+        assert excinfo.value.code == 400
+        assert excinfo.value.status_code == 400
+        assert excinfo.value.detail == detail
+        assert detail in str(excinfo.value)
+        # The verb and path belong in the log, not in the user's face.
+        assert "POST /identifiers" not in str(excinfo.value)
+
+    @pytest.mark.parametrize("status_code", [401, 403, 500, 503])
+    def test_our_own_failures_are_502_not_the_callers_fault(self, status_code):
+        client = self._client_returning(status_code, "nope")
+        with pytest.raises(IGSNServiceError) as excinfo:
+            client.allocate("ABCDEF")
+        assert excinfo.value.code == 502
+
+    def test_an_unreachable_service_is_502(self):
+        client = IGSNClient(IGSN_SERVICE_URL, "token")
+        client._session.request = MagicMock(
+            side_effect=requests.ConnectionError("no route to host")
+        )
+        with pytest.raises(IGSNServiceError) as excinfo:
+            client.allocate("ABCDEF")
+        assert excinfo.value.code == 502
+        assert "unreachable" in str(excinfo.value)

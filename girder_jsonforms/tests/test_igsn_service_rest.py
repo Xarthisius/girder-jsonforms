@@ -229,6 +229,42 @@ class TestDeleteRevokes:
         assert Deposition().load(deposition["_id"], force=True) is None
 
 
+class TestRegistryRejectionIsReadable:
+    """The whole point of the translation: the UI shows the registry's words."""
+
+    def test_create_deposition_reports_why_the_prefix_was_refused(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        detail = "Institution JH is not permitted for this tenant"
+        igsn_service.allocate.side_effect = IGSNServiceError(
+            f"IGSN registry rejected the request: {detail}",
+            status_code=400,
+            detail=detail,
+        )
+        response = server.request(
+            path="/deposition",
+            method="POST",
+            user=admin,
+            params={"prefix": "JHAMAL", "metadata": json.dumps(igsn_metadata)},
+        )
+        assertStatus(response, 400)
+        assert detail in response.json["message"]
+        assert Deposition().find({}).count() == 0
+
+    def test_an_unreachable_registry_is_a_502(
+        self, remote_mode, igsn_service, server, admin, igsn_metadata
+    ):
+        igsn_service.allocate.side_effect = IGSNServiceError("service is unreachable")
+        response = server.request(
+            path="/deposition",
+            method="POST",
+            user=admin,
+            params={"prefix": "ABCDEF", "metadata": json.dumps(igsn_metadata)},
+        )
+        assertStatus(response, 502)
+        assert Deposition().find({}).count() == 0
+
+
 class TestChildDepositionEndpoint:
     def test_batch_indices_come_from_the_registry(
         self, remote_mode, igsn_service, server, admin, igsn_metadata

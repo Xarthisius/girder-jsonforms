@@ -19,6 +19,7 @@ Two rules matter here:
 import logging
 
 import requests
+from girder.exceptions import RestException
 from girder.models.setting import Setting
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
@@ -29,16 +30,40 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_TIMEOUT = 30
 
+# Upstream statuses that mean "the caller asked for something the registry will
+# not do": a prefix outside the tenant's vocabulary, an identifier that already
+# exists, a published record that cannot be withdrawn. The service's own
+# explanation is the useful part and the person filling in the form can act on
+# it, so these become a 400 carrying that message.
+#
+# Everything else -- our service token rejected, a 5xx, an unreachable host --
+# is this deployment's problem rather than the caller's, so it becomes a 502
+# and the detail is left to the log.
+CLIENT_ERROR_STATUSES = frozenset({400, 404, 409, 422})
 
-class IGSNServiceError(Exception):
+
+def _rest_code(status_code):
+    return 400 if status_code in CLIENT_ERROR_STATUSES else 502
+
+
+class IGSNServiceError(RestException):
     """The IGSN registry service could not satisfy a request.
 
     Deliberately fatal to whatever operation raised it: a Girder deposition must
     never exist without a matching record in the registry.
+
+    It is a ``RestException`` so that the fatality is a *useful* one. Identifier
+    allocation happens several levels below the endpoint -- in
+    ``PrefixCounter.get_next``, and off the ``model.entry.save`` event for the
+    form path -- and most of those call sites have no business knowing about
+    HTTP. Left as a plain exception it reached the REST layer as an unhandled
+    error, so "Institution JH is not permitted for this tenant" showed up in the
+    UI as a bare 500. Subclassing means every path reports the registry's reason
+    without each one having to catch and translate.
     """
 
     def __init__(self, message, status_code=None, detail=None):
-        super().__init__(message)
+        super().__init__(message, code=_rest_code(status_code))
         self.status_code = status_code
         self.detail = detail
 
@@ -82,9 +107,25 @@ class IGSNClient:
                 detail = response.json().get("detail")
             except ValueError:
                 detail = response.text[:500]
+            # The verb and path are what an operator needs, so they go to the
+            # log; the message itself is shown to the user verbatim for a 4xx,
+            # where they would only be noise.
+            logger.warning(
+                "IGSN service returned %s for %s %s: %s",
+                response.status_code,
+                method,
+                path,
+                detail,
+            )
+            if response.status_code in CLIENT_ERROR_STATUSES:
+                message = f"IGSN registry rejected the request: {detail}"
+            else:
+                message = (
+                    f"IGSN service returned {response.status_code} for "
+                    f"{method} {path}: {detail}"
+                )
             raise IGSNServiceError(
-                f"IGSN service returned {response.status_code} for "
-                f"{method} {path}: {detail}",
+                message,
                 status_code=response.status_code,
                 detail=detail,
             )
