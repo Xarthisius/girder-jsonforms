@@ -1,0 +1,30 @@
+.modal-dialog
+  .modal-content
+    form#g-refresh-datacite(role="form")
+      .modal-header
+        button.close(type="button", data-dismiss="modal", aria-label="Close")
+          span(aria-hidden="true") &times;
+        h4.modal-title Refresh DataCite metadata
+      .modal-body
+        p.
+          Fetches the current DataCite record for this DOI and replaces the metadata file the
+          landing page is built from. Your browser contacts DataCite directly: the credentials
+          below are not sent to or stored by Girder.
+        .form-group
+          label(for="g-datacite-doi") DOI
+          input#g-datacite-doi.form-control(type="text", required=true, value=doi, placeholder="10.xxxx/xxxx-xxxx")
+        .form-group
+          label(for="g-datacite-api") DataCite API
+          select#g-datacite-api.form-control
+            each api in apis
+              option(value=api.url)= api.label + " (" + api.url + ")"
+        .form-group
+          label(for="g-datacite-user") Repository ID
+          input#g-datacite-user.form-control(type="text", required=true, autocomplete="username", placeholder="e.g. ABC.XYZ")
+        .form-group
+          label(for="g-datacite-password") Password
+          input#g-datacite-password.form-control(type="password", required=true, autocomplete="current-password")
+        .g-validation-failed-message
+      .modal-footer
+        a.btn.btn-small.btn-default(data-dismiss="modal") Close
+        button.g-refresh-datacite-submit.btn.btn-small.btn-primary(type="submit") Fetch and replace

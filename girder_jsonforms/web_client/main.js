@@ -9,7 +9,9 @@ import './views/widgets/DepositionListWidget';
 import AssignIGSNWidget from './views/widgets/AssignIGSNView';
 import ClassifyEbsdWidget from './views/widgets/ClassifyEbsdView';
 import DataCiteCardView from './views/CollectionLandingPage';
+import RefreshDataCiteDialog from './views/widgets/RefreshDataCiteDialog';
 import folderActionsTemplate from './templates/folderActions.pug';
+import collectionActionsTemplate from './templates/collectionActions.pug';
 
 const { getCurrentUser } = girder.auth;
 const { AccessType } = girder.constants;
@@ -55,10 +57,25 @@ wrap(CollectionView, 'render', function (render) {
     const meta = this.model.get("meta");
     if (meta && meta.datacite) {
         var landingPage = new DataCiteCardView({parentView: this, url: meta.datacite}).render()
+        this.dataCiteCard = landingPage;
         const collectionHeader = document.querySelector('.g-collection-header');
         collectionHeader.append(landingPage.el);
+        if (getCurrentUser() && getCurrentUser().get('admin')) {
+            this.$('.g-collection-actions-menu a.g-edit-collection').parent().after(
+                collectionActionsTemplate());
+        }
     }
 });
+
+CollectionView.prototype.events['click a.g-refresh-datacite'] = function (event) {
+    event.preventDefault();
+    new RefreshDataCiteDialog({
+        el: $('#g-dialog-container'),
+        parentView: this,
+        collection: this.model,
+        card: this.dataCiteCard,
+    }).render();
+};
 
 wrap(GlobalNavView, 'render', function (render) {
     render.call(this);
