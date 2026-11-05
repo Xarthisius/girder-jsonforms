@@ -161,8 +161,35 @@ var DataCiteCardView = View.extend({
                 diplayId = diplayId.substring(0, 25) + "..." + diplayId.substring(diplayId.length - 10);
             }
             
-            return { type: relType, href: href, display: diplayId, generalType: genType };
+            return {
+                type: relType,
+                href: href,
+                display: diplayId,
+                fullId: relId,
+                idType: idType,
+                generalType: genType
+            };
         }).filter(Boolean);
+
+        // Group by relation + resource type, so the shared labels are shown once per group
+        // instead of once per identifier. Groups keep the order of their first appearance.
+        var humanize = function(s) {
+            var words = s.replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+            return words.charAt(0).toUpperCase() + words.slice(1);
+        };
+        var groupedRelatedIds = _.map(
+            _.groupBy(processedRelatedIds, function(r) { return r.type + "\u0000" + r.generalType; }),
+            function(items) {
+                return {
+                    relation: humanize(items[0].type),
+                    generalType: humanize(items[0].generalType),
+                    count: items.length,
+                    items: items.slice().sort(function(a, b) {
+                        return a.display.localeCompare(b.display, undefined, { numeric: true });
+                    })
+                };
+            }
+        );
         
         // 8. Sidebar details
         var types = attrs.types || {};
@@ -208,7 +235,7 @@ var DataCiteCardView = View.extend({
             creators: processedCreators,
             abstract: abstractText,
             subjects: processedSubjects,
-            relatedIdentifiers: processedRelatedIds,
+            relatedIdentifiers: groupedRelatedIds,
             resourceType: resourceType,
             version: attrs.version || "1.0",
             size: sizes.length > 0 ? sizes[0] : "Not specified",

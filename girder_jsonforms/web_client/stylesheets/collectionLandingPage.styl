@@ -198,21 +198,60 @@ $orcidColorInternal = #a9c751
     &:last-child
       margin-bottom 0 !important
 
-  .link-list-embed
+  .related-groups-embed
+    display flex !important
+    flex-direction column !important
+    gap 0.85rem !important
+    margin 0 0 1.25rem 0 !important
+
+  .related-group-header-embed
+    display flex !important
+    flex-wrap wrap !important
+    align-items baseline !important
+    gap 0.5rem !important
+    margin-bottom 0.35rem !important
+    font-size 0.8em !important
+
+  .related-relation-embed
+    font-weight 600 !important
+    color $textMainInternal !important
+
+  .related-group-meta-embed
+    color $textMutedInternal !important
+
+  .related-chips-embed
+    display flex !important
+    flex-wrap wrap !important
+    gap 0.3rem !important
     list-style none !important
     padding 0 !important
     margin 0 !important
-    font-size 0.8em !important
     li
-      margin-bottom 0.35rem !important
-      text-overflow ellipsis !important
-      overflow hidden !important
-      white-space nowrap !important
-      padding 0 !important
       list-style-type none !important
-    a
-      color $accentInternal !important
-      text-decoration none !important
+      margin 0 !important
+      padding 0 !important
+      max-width 100% !important
+
+  .related-chip-embed
+    display block !important
+    max-width 100% !important
+    overflow hidden !important
+    text-overflow ellipsis !important
+    white-space nowrap !important
+    background $badgeBgInternal !important
+    border 1px solid $borderInternal !important
+    border-radius 4px !important
+    padding 0.1rem 0.4rem !important
+    font-family monospace !important
+    font-size 0.75em !important
+    color $accentInternal !important
+    text-decoration none !important
+    &:hover
+      border-color $accentInternal !important
+
+  .related-empty-embed
+    font-size 0.8em !important
+    color $textMutedInternal !important
 
   // 1. Transition styling for the wrapper shell
   transition padding 0.25s ease-out, box-shadow 0.25s ease-out

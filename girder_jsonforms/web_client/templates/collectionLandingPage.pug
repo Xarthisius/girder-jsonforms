@@ -54,15 +54,19 @@ mixin rorIcon()
           span.tag-embed(style="background: none; color: var(--text-muted-internal); padding:0;") None listed
 
       h2.section-title-embed Related Identifiers
-      ul.link-list-embed
+      .related-groups-embed
         if relatedIdentifiers && relatedIdentifiers.length > 0
-          each rel in relatedIdentifiers
-            li
-              | 🔗 
-              strong #{rel.type}: 
-              a(href=rel.href, target="_blank") #{rel.display} (#{rel.generalType})
+          each group in relatedIdentifiers
+            .related-group-embed
+              .related-group-header-embed
+                span.related-relation-embed= group.relation
+                span.related-group-meta-embed #{group.generalType} &middot; #{group.count}
+              ul.related-chips-embed
+                each rel in group.items
+                  li
+                    a.related-chip-embed(href=rel.href, target="_blank", rel="noopener noreferrer", title=(rel.idType ? rel.idType + ": " : "") + rel.fullId)= rel.display
         else
-          li No related identifiers listed.
+          .related-empty-embed No related identifiers listed.
 
     .meta-sidebar-embed
       .meta-item-embed
