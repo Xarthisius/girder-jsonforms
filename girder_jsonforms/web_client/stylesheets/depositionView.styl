@@ -87,7 +87,7 @@
   .g-two-right
     flex 0 0 300px
 
-    .g-datafiles-box
+    .g-datafiles-box, .g-funding-box
       border 1px solid #eee
       padding 10px
       border-radius 4px
@@ -99,13 +99,16 @@
         font-size 1.15em
         font-weight 600
 
-      .g-datafiles-list
+      .g-datafiles-list, .g-funding-list
         list-style none
         padding 0
         margin 0
 
         li
           margin-bottom 6px
+
+    .g-datafiles-box + .g-funding-box
+      margin-top 10px
 
 .g-mobile-sample-tracker
   display none

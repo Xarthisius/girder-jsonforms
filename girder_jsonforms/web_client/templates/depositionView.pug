@@ -179,6 +179,18 @@
                           span.text-muted= label + ': '
                           span.g-info-type= ' ' + val
 
+                if metadata.fundingReferences && metadata.fundingReferences.length > 0
+                  .g-funding-box
+                    .g-deposition-info-line
+                      h3
+                        | Funding
+                    ul.g-funding-list
+                      each fund in metadata.fundingReferences
+                        li(title=fund.awardTitle || null)
+                          span.g-info-type= fund.funderName || 'Unknown Funder'
+                          if fund.awardNumber
+                            span.text-muted= ' (#' + fund.awardNumber + ')'
+
             if trackerUrl !== "#sample/null"
               .g-mobile-sample-tracker
                 a.g-sample-tracker-link(href=trackerUrl, title="Tracker link")
