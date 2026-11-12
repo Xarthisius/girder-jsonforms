@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import json
 import logging
+import re
 from pathlib import Path
 
 import cherrypy
@@ -127,7 +128,13 @@ def igsn_search(query, types, user, level, limit, offset):
         "folder": ["_id", "name", "description", "parentId", "meta.igsn"],
         "item": ["_id", "name", "description", "folderId", "meta.igsn"],
     }
-    query = {"meta.igsn": {"$regex": query, "$options": "i"}}
+    # A prefix match ("all data associated with JHAMAA00001", children
+    # included). Anchored and case sensitive so it runs as a range scan on
+    # meta.igsn_1; the previous unanchored /i regex could not use an index and
+    # scanned every item (~570ms per page). IGSNs are uppercase (IGSN_REGEX),
+    # so uppercasing the query keeps it effectively case insensitive.
+    query = {"meta.igsn": {"$regex": "^" + re.escape(query.strip().upper())}}
+    sort = [("meta.igsn", 1), ("_id", 1)]
     for modelName in types:
         if modelName not in allowed:
             continue
@@ -135,7 +142,9 @@ def igsn_search(query, types, user, level, limit, offset):
         if model is None:
             continue
         if hasattr(model, "filterResultsByPermission"):
-            cursor = model.find(query, fields=allowed[modelName] + ["public", "access"])
+            cursor = model.find(
+                query, fields=allowed[modelName] + ["public", "access"], sort=sort
+            )
             results[modelName] = [
                 model.filter(obj, user)
                 for obj in model.filterResultsByPermission(
@@ -144,7 +153,13 @@ def igsn_search(query, types, user, level, limit, offset):
             ]
         else:
             results[modelName] = list(
-                model.find(query, fields=allowed[modelName], limit=limit, offset=offset)
+                model.find(
+                    query,
+                    fields=allowed[modelName],
+                    limit=limit,
+                    offset=offset,
+                    sort=sort,
+                )
             )
     return results
 
@@ -455,6 +470,11 @@ class JSONFormsPlugin(GirderPlugin):
         # it was the single largest remaining consumer of database time once
         # the AIMDL listing queries stopped dominating.
         Item().ensureIndices([([("copyOfItem", 1), ("projectId", 1)], {})])
+        # The "igsn" search mode (the deposition page's data listing) is an
+        # anchored prefix regex on meta.igsn; without these it was a full
+        # collection scan per page. aimdl's exact meta.igsn lookups benefit too.
+        Item().ensureIndices(["meta.igsn"])
+        Folder().ensureIndices(["meta.igsn"])
         Item().exposeFields(level=AccessType.READ, fields={"projectId"})
         ModelImporter.registerModel("deposition", DepositionModel, plugin="jsonforms")
         ModelImporter.registerModel("entry", FormEntryModel, plugin="jsonforms")
