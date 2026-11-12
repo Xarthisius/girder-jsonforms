@@ -22,7 +22,6 @@ def _create_form(server, user, schema, unique_field="name"):
             "description": schema["description"],
             "pathTemplate": None,
             "entryFileName": None,
-            "gdriveFolderId": None,
             "uniqueField": unique_field,  # Use the unique field specified
         },
         body=json.dumps(schema),

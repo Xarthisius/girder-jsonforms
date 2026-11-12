@@ -35,7 +35,6 @@ class Form(AccessControlledModel):
                 "jsHelpers",
                 "created",
                 "updated",
-                "gdriveFolderId",
                 "folderId",
                 "serialize",
                 "pathTemplate",
@@ -66,7 +65,6 @@ class Form(AccessControlledModel):
         folder=None,
         pathTemplate=None,
         entryFileName=None,
-        gdriveFolderId=None,
         serialize=False,
         uniqueField=None,
         postEntryTask=None,
@@ -79,7 +77,6 @@ class Form(AccessControlledModel):
             "schema": schema,
             "jsHelpers": jsHelpers,
             "folderId": None,
-            "gdriveFolderId": gdriveFolderId,
             "pathTemplate": pathTemplate,
             "postEntryTask": postEntryTask,
             "entryFileName": entryFileName or "entry.json",
@@ -106,7 +103,6 @@ class Form(AccessControlledModel):
         jsHelpers=None,
         pathTemplate=None,
         entryFileName=None,
-        gdriveFolderId=None,
         serialize=None,
         uniqueField=None,
     ):
@@ -128,9 +124,6 @@ class Form(AccessControlledModel):
 
         if jsHelpers:
             form["jsHelpers"] = jsHelpers
-
-        if gdriveFolderId:
-            form["gdriveFolderId"] = gdriveFolderId
 
         if serialize is not None:
             form["serialize"] = serialize

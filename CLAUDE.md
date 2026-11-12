@@ -131,8 +131,7 @@ here via `girder.events.bind`, not discoverable from the model/REST files alone.
   form's *materialized* schema with `jsonschema`. Every save diffs against the previous version and records a
   `Changeset` (via `jsondiff`). `create_entry`/`update_entry` can also move files/folders from a temporary
   upload location into a `pathTemplate`-derived destination (`handle_source`) and, if `form.serialize` is
-  set, dump the entry as a JSON file into the destination folder and optionally push it to Google Drive
-  (`handle_serialization`, `events.trigger("gdrive.upload", ...)`).
+  set, dump the entry as a JSON file into the destination folder (`handle_serialization`).
 - **`models/deposition.py`** (`Deposition`): represents a minted IGSN (an identifier for a physical sample),
   with DataCite-schema-shaped `metadata` (validated against `schemas/datacite-v4.5.json`). Depositions are
   created automatically from a `FormEntry` save via the `model.entry.save` event (`register_deposition`) when
@@ -317,7 +316,7 @@ All plugin settings live in `settings.py` (`PluginSettings`), each with a Girder
 `setting_utilities.validator`/`default`. Notable ones: `IGSN_PREFIX`/`IGSN_CLIENT_ID`/`IGSN_PROVIDER_ID`
 (DataCite registration identity), `IGSN_INSTITUTIONS`/`IGSN_MATERIALS` (the controlled vocabularies IGSN
 prefixes are validated against), `PROJECTS_COLLECTION_NAME` (the Girder Collection all project submission
-folders live under), `GOOGLE_DRIVE_ENABLED`.
+folders live under).
 
 ### Web client
 

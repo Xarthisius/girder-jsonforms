@@ -199,12 +199,6 @@ class Form(Resource):
             dataType="string",
         )
         .param(
-            "gdriveFolderId",
-            "Google Drive folder ID to save the form entry",
-            required=False,
-            dataType="string",
-        )
-        .param(
             "serialize",
             "Store the form schema as a serialized JSON string",
             required=False,
@@ -240,7 +234,6 @@ class Form(Resource):
         folder,
         pathTemplate,
         entryFileName,
-        gdriveFolderId,
         serialize,
         uniqueField,
         postEntryTask,
@@ -258,7 +251,6 @@ class Form(Resource):
             folder=folder,
             pathTemplate=pathTemplate,
             entryFileName=entryFileName,
-            gdriveFolderId=gdriveFolderId or None,
             serialize=serialize,
             uniqueField=uniqueField,
             jsHelpers=jsHelpers,
@@ -299,12 +291,6 @@ class Form(Resource):
             dataType="string",
         )
         .param(
-            "gdriveFolderId",
-            "Google Drive folder ID to save the form entry",
-            required=False,
-            dataType="string",
-        )
-        .param(
             "serialize",
             "Store the form schema as a serialized JSON string",
             required=False,
@@ -341,7 +327,6 @@ class Form(Resource):
         folder,
         pathTemplate,
         entryFileName,
-        gdriveFolderId,
         serialize,
         uniqueField,
         postEntryTask,
@@ -362,8 +347,6 @@ class Form(Resource):
                 form["pathTemplate"] = None
             else:
                 form["pathTemplate"] = pathTemplate
-        if gdriveFolderId:
-            form["gdriveFolderId"] = gdriveFolderId
         if serialize is not None:
             form["serialize"] = serialize
         if uniqueField is not None:

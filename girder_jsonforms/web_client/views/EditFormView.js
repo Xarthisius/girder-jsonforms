@@ -248,9 +248,6 @@ const EditFormView = View.extend({
         if (value.targetPath) {
             reference.targetPath = value.targetPath;
         }
-        if (this.model.get('gdriveFolderId')) {
-            reference.gdriveFolderId = this.model.get('gdriveFolderId');
-        }
 
         new UploadWidget({
             el: $('#g-dialog-container'),

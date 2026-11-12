@@ -118,7 +118,6 @@ var reference = {
     formField: field
 };
 if (value.targetPath) { reference.targetPath = value.targetPath; }
-if (this.model.get('gdriveFolderId')) { reference.gdriveFolderId = ...; }
 ```
 
 The reference is serialized into `otherParams.reference` and travels with the
@@ -130,7 +129,6 @@ upload to the server. Key fields:
 | `formField`   | The dotted path of the `file` field (used by batch numbering). |
 | `targetPath`  | The value of `targetPath` **at upload time** (see §6 caveat).   |
 | `<uniqueField>` | The entry's unique id (e.g. `sampleId`).                     |
-| `gdriveFolderId` | Optional Google Drive target.                               |
 
 On `g:uploadFinished` the returned file ids are appended to the `file` field via
 `setField` (`EditFormView.js:271`), so the form value now records which files
@@ -266,15 +264,11 @@ metadata even though `targetPath` itself is now resolved from form data: batch
 numbering keys off `formField`, and the number is layered on top of the resolved
 base path.
 
-## 8. Serialization and Google Drive
+## 8. Serialization
 
 If the form has `serialize: true`, `handle_serialization` (`models/entry.py:284`)
 dumps the entry itself as a JSON file into each resolved destination folder,
-reusing the same `targetPath` / `get_destination_folder` machinery. When a
-`gdriveFolderId` is configured, both moved files and the serialized entry are
-pushed to Google Drive via the `gdrive.upload` event, using
-`os.path.join(path, file_name)` as the Drive-side path — again built from the
-resolved `path`.
+reusing the same `targetPath` / `get_destination_folder` machinery.
 
 ## 9. Lifecycle summary
 
