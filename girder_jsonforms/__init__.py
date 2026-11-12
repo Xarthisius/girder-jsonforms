@@ -14,7 +14,6 @@ from girder.api.describe import Description, autoDescribeRoute
 from girder.constants import AccessType, TokenScope, registerAccessFlag
 from girder.exceptions import GirderException, ValidationException
 from girder.models.collection import Collection
-from girder.models.file import File
 from girder.models.folder import Folder
 from girder.models.item import Item
 from girder.models.setting import Setting
@@ -23,7 +22,6 @@ from girder.plugin import GirderPlugin, registerPluginStaticContent
 from girder.utility import mail_utils, search
 from girder.utility.model_importer import ModelImporter
 
-from .lib.google_drive import authenticate_gdrive, upload_file_to_gdrive
 from .lib.locks import distributed_lock
 from .lib.events import (
     ensure_group,
@@ -52,7 +50,6 @@ from .worker_plugin.folder_ops import (
     delete_folder_task,
 )
 
-GDRIVE_SERVICE = None
 logger = logging.getLogger(__name__)
 
 
@@ -98,28 +95,6 @@ def annotate_upload(event):
     if item is None:
         return
     Item().setMetadata(item, {"igsn": reference["igsn"], "type": reference["type"]})
-
-
-def upload_to_gdrive(event):
-    global GDRIVE_SERVICE
-    if GDRIVE_SERVICE is None:
-        logger.error("Google Drive integration is not enabled.")
-        return
-    info = event.info
-    file = info["file"]
-
-    with File().open(file) as fh:
-        gdrive_file_id = upload_file_to_gdrive(
-            GDRIVE_SERVICE,
-            info["gdriveFolderId"],
-            info["path"],
-            fh,
-            mimetype=file["mimeType"],
-        )
-    parent = Item().load(
-        file["itemId"], level=AccessType.WRITE, user=info["currentUser"]
-    )
-    Item().setMetadata(parent, {"gdriveFileId": gdrive_file_id})
 
 
 def igsn_search(query, types, user, level, limit, offset):
@@ -484,12 +459,6 @@ class JSONFormsPlugin(GirderPlugin):
         ModelImporter.registerModel(
             "prefixcounter", PrefixCounterModel, plugin="jsonforms"
         )
-        global GDRIVE_SERVICE
-        if Setting().get(PluginSettings.GOOGLE_DRIVE_ENABLED):
-            try:
-                GDRIVE_SERVICE = authenticate_gdrive()
-            except ValueError:
-                logger.exception("Failed to authenticate with Google Drive")
         info["apiRoot"].item.route("GET", ("query",), _item_advanced_search)
         info["apiRoot"].folder.route(
             "PUT", (":id", "assign_igsn"), _assign_igsn_to_folder
@@ -544,8 +513,6 @@ class JSONFormsPlugin(GirderPlugin):
         events.bind("project.samples_added", "jsonforms", process_add_samples)
         events.bind("project.samples_removed", "jsonforms", process_remove_samples)
 
-        if GDRIVE_SERVICE is not None:
-            events.bind("gdrive.upload", "jsonforms", upload_to_gdrive)
         try:
             search.addSearchMode("igsn", igsn_search)
         except GirderException:

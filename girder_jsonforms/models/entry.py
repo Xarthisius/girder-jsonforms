@@ -8,7 +8,6 @@ import re
 import bson
 import jsondiff
 import jsonschema
-from girder import events
 from girder.constants import AccessType
 from girder.exceptions import ValidationException
 from girder.models.folder import Folder
@@ -148,7 +147,6 @@ class Changeset(acl_mixin.AccessControlMixin, Model):
 
 class FormEntry(acl_mixin.AccessControlMixin, Model):
     def initialize(self):
-        global GDRIVE_SERVICE
         self.name = "entry"
         # TODO: create indices for all pairs?
         # self.ensureIndices(["formId", "data.sampleId"])
@@ -312,7 +310,6 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 )
             child = self.unique(child, target)
             Folder().move(child, target, "folder")
-            # TODO upload to GDrive
             entry["folders"].append(child["_id"])
             dirty = True
 
@@ -331,19 +328,6 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 )
             child = self.unique(child, target)
             child = Item().move(child, target)
-            for file in Item().childFiles(child):
-                # Upload to GDrive
-                gdrive_folder_id = child.get("meta", {}).get("gdriveFolderId")
-                if gdrive_folder_id:
-                    events.trigger(
-                        "gdrive.upload",
-                        {
-                            "file": file,
-                            "gdriveFolderId": gdrive_folder_id,
-                            "path": os.path.join(path, file["name"]),
-                            "currentUser": creator,
-                        },
-                    )
             entry["files"].append(child["_id"])
             dirty = True
         Folder().remove(source)
@@ -376,25 +360,13 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
                 reference = {
                     f"{unique_field}": uniqueId,
                     "targetPath": path,
-                    "gdriveFolderId": form.get("gdriveFolderId"),
                 }
                 size = f.getbuffer().nbytes
                 upload = self._get_upload_for_entry(
                     form["entryFileName"], target, creator, size, reference
                 )
                 # not really chunking here as JSON is small
-                upload = Upload().handleChunk(upload, RequestBodyStream(f, size))
-                if form.get("gdriveFolderId"):
-                    events.trigger(
-                        "gdrive.upload",
-                        {
-                            "file": upload,
-                            "gdriveFolderId": form["gdriveFolderId"],
-                            "gdriveFileId": reference.get("gdriveFileId"),
-                            "path": os.path.join(path, upload["name"]),
-                            "currentUser": creator,
-                        },
-                    )
+                Upload().handleChunk(upload, RequestBodyStream(f, size))
             processed.add(target["_id"])
 
         return self.save(entry, creator=creator)
@@ -403,8 +375,6 @@ class FormEntry(acl_mixin.AccessControlMixin, Model):
     def _get_upload_for_entry(fname, target, creator, size, reference):
         if existing_item := Item().findOne({"name": fname, "folderId": target["_id"]}):
             file = Item().childFiles(existing_item)[0]
-            if "gdriveFileId" in existing_item.get("meta", {}):
-                reference["gdriveFileId"] = existing_item["meta"]["gdriveFileId"]
             reference["itemId"] = existing_item["_id"]
             serialized_reference = json.dumps(
                 reference, sort_keys=True, allow_nan=False, cls=JsonEncoder
