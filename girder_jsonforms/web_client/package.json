@@ -1,6 +1,6 @@
 {
     "name": "@girder/girder-jsonforms",
-    "version": "2.1.4",
+    "version": "2.1.5",
     "description": "JSON-editor forms in Girder",
     "homepage": "https://github.com/Xarthisius/girder-jsonforms",
     "bugs": {
