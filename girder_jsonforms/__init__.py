@@ -415,6 +415,10 @@ def add_public_settings(event):
     settings["jsonforms.igsn_registry_enabled"] = bool(
         (Setting().get(PluginSettings.IGSN_SERVICE_URL) or "").strip()
     )
+    # Lets the web client show the Projects nav to reviewers, not only site
+    # admins: it checks this id against the current user's own ``groups``.
+    group = reviewers_group(create=False)
+    settings["jsonforms.reviewers_group_id"] = str(group["_id"]) if group else None
 
 
 class JSONFormsPlugin(GirderPlugin):
