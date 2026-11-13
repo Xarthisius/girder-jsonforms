@@ -1,5 +1,5 @@
 [run]
-omit = .venv/*,girder_jsonforms/tests/*
+omit = .venv/*,girder_jsonforms/tests/*,girder_jsonforms/scripts/send_review_notice.py
 
 [report]
-omit = .venv/*,girder_jsonforms/tests/*
+omit = .venv/*,girder_jsonforms/tests/*,girder_jsonforms/scripts/send_review_notice.py
