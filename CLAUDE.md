@@ -251,9 +251,14 @@ client renders it by any transport, so it has to be rasterized first.
 
 "Reviewers" resolves to site admins plus whoever holds the `jsonforms.review_projects` access flag
 **on that project**, whether directly or through a group — in practice the members of the standing
-reviewers group above, which is granted the flag as each proposal is submitted. Links point at the proposals UI (`https://projects.$DOMAIN/proposal/<_id>`), derived
-from the same `DOMAIN` env var `worker_plugin/orcid.py` uses so an emailed link and an ORCID record
-agree; `lib/mail.py:projects_url` is the single place to change if that ever becomes a setting.
+reviewers group above, which is granted the flag as each proposal is submitted. The reviewers'
+mail links to Girder's own project page (`<girder>/#project/<_id>`, `lib/mail.py:girder_project_url`),
+because that is where the approve/reject buttons are; it uses an explicitly stored `core.email_host`,
+else `https://girder.$DOMAIN`, and only as a last resort the setting's request-derived default,
+which behind Traefik is the container's address. The decision mail goes to the creator and PIs, who use the proposals UI
+(`https://projects.$DOMAIN/proposal/<_id>`), derived from the same `DOMAIN` env var
+`worker_plugin/orcid.py` uses so an emailed link and an ORCID record agree;
+`lib/mail.py:projects_url` is the single place to change if that ever becomes a setting.
 
 `scripts/preview_mail.py` renders the templates with sample data straight through Mako -- no
 Girder, database, or SMTP involved -- for eyeballing them locally:
@@ -334,3 +339,58 @@ changes.
 - The `IGSN_REGEX` in `settings.py` (`^[A-Z]{6}[0-9]{5}[A-Z0-9\-]*$`) is the canonical shape of a full IGSN
   (6-char prefix + 5-digit sequence, optionally with `-NNN` batch suffixes) — assume other IGSN-parsing code
   should agree with it.
+
+## Local testing
+
+The suite needs a MongoDB on `localhost:27017` and a Redis on `localhost:6379`. The dev
+stack's `mongo`/`redis` sit on swarm overlay networks with no published ports, so they
+neither satisfy the tests nor collide with these containers.
+
+```sh
+# First time: create the services (no auth needed)
+docker run -d --name test-mongo -p 27017:27017 --ulimit nofile=64000:64000 mongo:4.4
+docker run -d --name test-redis -p 6379:6379 redis:7-alpine
+
+# Afterwards they are usually just stopped: reuse them instead of recreating
+docker start test-mongo test-redis
+docker inspect test-mongo --format '{{json .HostConfig.Ulimits}}'   # confirm the ulimit stuck
+
+export DOCKER_HOST="unix:///var/run/docker.sock"
+export GIRDER_NOTIFICATION_REDIS_URL="redis://localhost:6379/"
+
+tox -e pytest                                   # the env is `pytest`; there is no `test`
+tox -e pytest -- --cov-report=term-missing      # posargs reach pytest: per-file missing lines
+tox -e pytest -- girder_jsonforms/tests/test_project_email.py -k girder_project_url
+
+docker stop test-mongo test-redis               # `docker rm` too only if you want them gone
+```
+
+`tox -e pytest` always measures coverage (`--cov=girder_jsonforms`) and writes
+`coverage.xml`; `--cov-report=term-missing` adds the per-file table to the terminal.
+Parallelism is `-n {env:PYTEST_XDIST_N:4}`. At the default `-n 4`, the full suite (500
+tests) took about 2m20s on a 32-core box, with 74% total coverage (measured 2026-11-13).
+Raising `PYTEST_XDIST_N` past 8 is where the ulimit below starts to matter.
+
+**The `--ulimit` on mongo is load-bearing above `-n 8`, and its absence fails
+confusingly.** `pytest-girder` gives every test its own database, so a wide run holds
+hundreds of WiredTiger files open at once. Against a default-limit mongo (1024 fds),
+`-n 16` makes mongod **abort mid-run** — `Too many open files` → `WT_PANIC` →
+`fassert()` → exit 14 — and every remaining test then errors against a dead database,
+which reads like a mass code regression rather than a resource limit. 64000 is
+MongoDB's own documented recommendation. Measured 2026-08-21.
+
+The `Too many index builds running simultaneously` line that shows up in the same log
+is **INFO and benign**: mongo throttling itself back to 3 concurrent builds, which
+resolves on its own. It is not the failure, and raising
+`maxNumActiveUserIndexBuilds` does not help.
+
+Even the tests documented as "no fixtures" (`test_mail_preview.py`) need Mongo up:
+importing the `girder_jsonforms` package loads `girder_worker`, whose task discovery
+instantiates `Deposition()` and connects to the database. Without services the failure
+is a 20-second `ServerSelectionTimeoutError` at collection, not a test failure. To check
+mail rendering with nothing running, run the preview script by path rather than as
+the installed console script; that way it never imports the package:
+
+```sh
+uv run python girder_jsonforms/scripts/preview_mail.py --text --variant submitted --stdout
+```

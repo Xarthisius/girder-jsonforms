@@ -13,6 +13,13 @@ from ..scripts.preview_mail import VARIANTS, logo_data_uri, render
 SVG = b'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"></svg>'
 
 
+def _expected_link(variant):
+    # Reviewers go to Girder's project page, everyone else to the proposals UI.
+    if variant == "submitted":
+        return "https://girder.test/#project/"
+    return "https://projects.test/proposal/"
+
+
 @pytest.mark.parametrize("variant", sorted(VARIANTS))
 def test_every_variant_renders(variant):
     html = render(
@@ -23,7 +30,7 @@ def test_every_variant_renders(variant):
     )
     assert "Test Proposals" in html
     assert "JHU250001" in html
-    assert "https://projects.test/proposal/" in html
+    assert _expected_link(variant) in html
 
 
 def test_comment_override_reaches_the_decision_template():
@@ -213,7 +220,7 @@ def test_every_variant_has_a_text_alternative(variant):
         plain=True,
     )
     assert "JHU250001" in text
-    assert "https://projects.test/proposal/" in text
+    assert _expected_link(variant) in text
     # Plain text: no markup, and no HTML escaping applied to it.
     assert "<p" not in text
     assert "&amp;" not in text

@@ -54,6 +54,9 @@ dev = [
 # .eggs/ when they are lying around.
 [tool.setuptools.packages.find]
 include = ["girder_jsonforms*"]
+# Namespace discovery would otherwise walk web_client/node_modules, and a half-deleted
+# one (an interrupted `npm ci`) then fails `pip install -e .` outright.
+exclude = ["*.node_modules", "*.node_modules.*"]
 
 # MANIFEST.in alone covers the sdist; package-data is what puts these in
 # the wheel, which is how the plugin actually gets installed.

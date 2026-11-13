@@ -103,7 +103,11 @@ wrap(GlobalNavView, 'render', function (render) {
         console.warn('No existing .g-global-nav-li elements found.');
     }
     const publicSettings = getPublicSettings() || {};
-    if (getCurrentUser() && getCurrentUser().get('admin') && publicSettings['jsonforms.projects_enabled']) {
+    const user = getCurrentUser();
+    const reviewersGroupId = publicSettings['jsonforms.reviewers_group_id'];
+    const canReview = user && (user.get('admin') ||
+        (!!reviewersGroupId && (user.get('groups') || []).includes(reviewersGroupId)));
+    if (canReview && publicSettings['jsonforms.projects_enabled']) {
         const projectsNav = createNavItem({
             name: 'Projects',
             icon: 'icon-briefcase',

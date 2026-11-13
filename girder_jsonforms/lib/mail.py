@@ -73,6 +73,26 @@ def projects_url(project=None):
     return f"{base}/proposal/{project['_id']}"
 
 
+def girder_project_url(project):
+    """URL of ``project``'s page in Girder's own web client.
+
+    Reviewers act on a proposal there (the approve/reject buttons live on that
+    page), so their notification links to it rather than to the proposals UI.
+    An explicitly stored ``core.email_host`` wins; otherwise ``girder.$DOMAIN``,
+    because the setting's default is derived from the current request's local
+    host, which behind a proxy is not the public one.
+    """
+    stored = Setting().findOne({"key": SettingKey.EMAIL_HOST})
+    domain = os.environ.get("DOMAIN", "")
+    if stored and stored.get("value"):
+        base = stored["value"]
+    elif domain:
+        base = f"https://girder.{domain}"
+    else:
+        base = Setting().get(SettingKey.EMAIL_HOST) or ""
+    return f"{base.rstrip('/')}/#project/{project['_id']}"
+
+
 def _emails(users):
     return sorted({user["email"] for user in users if user.get("email")})
 
@@ -243,7 +263,7 @@ def send_submitted_notification(project):
     logo = logo_attachment()
     params = {
         "project": project,
-        "projectUrl": projects_url(project),
+        "projectUrl": girder_project_url(project),
         "submitter": _submitter_name(project),
         "logoUrl": f"cid:{LOGO_CID}" if logo else None,
     }
