@@ -3,7 +3,7 @@
     button.g-back-to-projects.btn.btn-sm.btn-primary(title="Back to projects")
       i.icon-left
       | Back
-    if isAdmin && project.get('status') === 'under review'
+    if project.get('_canReview') && project.get('status') === 'under review'
       button.g-approve-project.btn.btn-sm.btn-success(title="Approve project")
         i.icon-ok
         | Approve

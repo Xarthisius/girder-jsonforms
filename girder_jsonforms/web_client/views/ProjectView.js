@@ -7,7 +7,6 @@ import labels from './projectLabels.js';
 const events = girder.events;
 const router = girder.router;
 const { restRequest } = girder.rest;
-const { getCurrentUser } = girder.auth;
 const View = girder.views.View;
 
 var ProjectView = View.extend({
@@ -42,8 +41,6 @@ var ProjectView = View.extend({
 
     initialize: function (settings) {
         this.model = settings.model;
-        const user = getCurrentUser();
-        this.isAdmin = !!(user && user.get('admin'));
         this.render();
     },
 
@@ -72,7 +69,6 @@ var ProjectView = View.extend({
     render: function () {
         this.$el.html(template({
             project: this.model,
-            isAdmin: this.isAdmin,
             labels: labels
         }));
 

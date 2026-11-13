@@ -356,6 +356,18 @@ class Project(AccessControlledModel):
             ) from ve
         return doc
 
+    def filter(self, doc, user, additionalKeys=None):
+        filtered = super().filter(doc, user, additionalKeys=additionalKeys)
+        if filtered is not None:
+            # Mirrors the check in rest/project.py:update_project, so the client can
+            # offer approve/reject to reviewers, not only to site admins.
+            filtered["_canReview"] = filtered[
+                "_accessLevel"
+            ] >= AccessType.WRITE and self.hasAccessFlags(
+                doc, user=user, flags="jsonforms.review_projects"
+            )
+        return filtered
+
     @property
     def project_collection(self):
         if self._project_collection is None:
