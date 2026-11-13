@@ -156,3 +156,75 @@ def test_empty_setting_means_no_standing_group(
     )
     assert project["status"] == "under review"
     assert project.get("access", {}).get("groups", []) == []
+
+
+def _can_review(server, project, user):
+    resp = server.request(path=f"/project/{project['_id']}", method="GET", user=user)
+    assert resp.status == "200 OK", resp.json
+    return resp.json["_canReview"]
+
+
+@pytest.mark.plugin("jsonforms")
+def test_can_review_tells_the_client_who_gets_the_buttons(
+    server, admin, user, reviewer, draft_project, eagerWorkerTasks
+):
+    """_canReview mirrors update_project's check (WRITE plus the flag), so the
+    approve/reject buttons appear for reviewers and site admins only."""
+    project = ProjectModel().update_project(
+        draft_project, {"status": "under review"}, user
+    )
+
+    assert _can_review(server, project, reviewer) is True
+    assert _can_review(server, project, admin) is True
+    # The creator holds ADMIN on their own proposal but not the flag, so may
+    # not judge it.
+    assert _can_review(server, project, user) is False
+
+
+@pytest.mark.plugin("jsonforms")
+def test_can_review_needs_write_as_well_as_the_flag(
+    server, admin, user, reviewer, draft_project, eagerWorkerTasks
+):
+    group = reviewers_group()
+    project = ProjectModel().update_project(
+        draft_project, {"status": "under review"}, user
+    )
+    project = ProjectModel().setGroupAccess(
+        project, group, AccessType.READ, flags=[REVIEW_FLAG], save=True
+    )
+
+    assert _can_review(server, project, reviewer) is False
+
+
+@pytest.mark.plugin("jsonforms")
+def test_can_review_is_set_on_listed_projects(
+    server, admin, user, reviewer, draft_project, eagerWorkerTasks
+):
+    ProjectModel().update_project(draft_project, {"status": "under review"}, user)
+
+    resp = server.request(path="/project", method="GET", user=reviewer)
+    assert resp.status == "200 OK", resp.json
+    assert [p["_canReview"] for p in resp.json] == [True]
+
+
+@pytest.mark.plugin("jsonforms")
+def test_public_settings_name_the_reviewers_group(server, admin):
+    """The web client shows the Projects nav entry to members of this group."""
+    group = reviewers_group()  # a fresh test database has none until asked
+    resp = server.request(path="/system/public_settings", method="GET")
+    assert resp.json["jsonforms.reviewers_group_id"] == str(group["_id"])
+
+    Setting().set(PluginSettings.REVIEWERS_GROUP_NAME, "")
+    resp = server.request(path="/system/public_settings", method="GET")
+    assert resp.json["jsonforms.reviewers_group_id"] is None
+
+
+@pytest.mark.plugin("jsonforms")
+def test_public_settings_do_not_create_the_group(server, admin):
+    """Anyone can fetch public settings, so doing so must not create anything."""
+    Group().remove(reviewers_group())
+
+    resp = server.request(path="/system/public_settings", method="GET")
+    assert resp.json["jsonforms.reviewers_group_id"] is None
+    name = Setting().get(PluginSettings.REVIEWERS_GROUP_NAME)
+    assert Group().findOne({"name": name}) is None
