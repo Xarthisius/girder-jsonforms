@@ -251,9 +251,14 @@ client renders it by any transport, so it has to be rasterized first.
 
 "Reviewers" resolves to site admins plus whoever holds the `jsonforms.review_projects` access flag
 **on that project**, whether directly or through a group — in practice the members of the standing
-reviewers group above, which is granted the flag as each proposal is submitted. Links point at the proposals UI (`https://projects.$DOMAIN/proposal/<_id>`), derived
-from the same `DOMAIN` env var `worker_plugin/orcid.py` uses so an emailed link and an ORCID record
-agree; `lib/mail.py:projects_url` is the single place to change if that ever becomes a setting.
+reviewers group above, which is granted the flag as each proposal is submitted. The reviewers'
+mail links to Girder's own project page (`<girder>/#project/<_id>`, `lib/mail.py:girder_project_url`),
+because that is where the approve/reject buttons are; it uses an explicitly stored `core.email_host`,
+else `https://girder.$DOMAIN`, and only as a last resort the setting's request-derived default,
+which behind Traefik is the container's address. The decision mail goes to the creator and PIs, who use the proposals UI
+(`https://projects.$DOMAIN/proposal/<_id>`), derived from the same `DOMAIN` env var
+`worker_plugin/orcid.py` uses so an emailed link and an ORCID record agree;
+`lib/mail.py:projects_url` is the single place to change if that ever becomes a setting.
 
 `scripts/preview_mail.py` renders the templates with sample data straight through Mako -- no
 Girder, database, or SMTP involved -- for eyeballing them locally:

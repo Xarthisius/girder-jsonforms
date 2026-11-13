@@ -200,7 +200,13 @@ def render(
         project["status"] = extra["status"]
     params = {
         "project": project,
-        "projectUrl": f"{projects_base}/proposal/{project['_id']}",
+        # Reviewers are sent to Girder's own project page, as lib/mail.py does;
+        # the submitter and PIs to the proposals UI.
+        "projectUrl": (
+            f"{host}/#project/{project['_id']}"
+            if variant == "submitted"
+            else f"{projects_base}/proposal/{project['_id']}"
+        ),
         "brandName": brand_name,
         "host": host,
         "logoUrl": logo_url,

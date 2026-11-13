@@ -7,6 +7,7 @@ import pytest
 from girder.exceptions import ValidationException
 from girder.models.setting import Setting
 from girder.models.user import User
+from girder.settings import SettingKey
 
 from ..lib import mail
 from ..models.project import Project as ProjectModel
@@ -86,7 +87,9 @@ def test_submitting_notifies_reviewers(
     assert draft_project["projectId"] in msg["Subject"]
     body = _body(msg)
     assert "is ready for review" in body
-    assert f"/proposal/{draft_project['_id']}" in body
+    # Reviewers act in Girder, so they are linked to its project page.
+    assert f"/#project/{draft_project['_id']}" in body
+    assert "/proposal/" not in body
     # The project name is user input and must reach the email escaped.
     assert "&lt;alloys&gt;" in body
     assert "<alloys>" not in body
@@ -145,6 +148,19 @@ def test_reviewer_emails_include_flag_holders(
 
     assert mail.reviewer_emails(project) == sorted(
         {admin["email"], reviewer["email"]}
+    )
+
+
+@pytest.mark.plugin("jsonforms")
+def test_girder_project_url(server, draft_project, monkeypatch):
+    monkeypatch.setenv("DOMAIN", "example.org")
+    assert mail.girder_project_url(draft_project) == (
+        f"https://girder.example.org/#project/{draft_project['_id']}"
+    )
+    # An explicitly configured email host wins over the derived one.
+    Setting().set(SettingKey.EMAIL_HOST, "https://data.example.com/")
+    assert mail.girder_project_url(draft_project) == (
+        f"https://data.example.com/#project/{draft_project['_id']}"
     )
 
 
