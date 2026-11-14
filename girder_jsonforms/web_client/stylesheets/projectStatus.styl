@@ -1,0 +1,37 @@
+@import '_projectTokens'
+
+// The status pill, used on both the project page and the projects list. Imported from
+// each view's JS, which the bundler dedupes, so it is emitted once.
+.g-project-status
+  display inline-flex
+  align-items center
+  gap 2px
+  flex-shrink 0
+  padding 5px 14px 5px 10px
+  border 1px solid
+  border-radius 999px
+  font-size 13px
+  font-weight 600
+  letter-spacing .04em
+  text-transform uppercase
+  white-space nowrap
+  color $status-draft
+  background $status-draft-bg
+  border-color alpha($status-draft, .35)
+
+  &.g-project-status-under-review
+    color $status-review
+    background $status-review-bg
+    border-color alpha($status-review, .35)
+  &.g-project-status-accepted
+    color $status-accepted
+    background $status-accepted-bg
+    border-color alpha($status-accepted, .35)
+  &.g-project-status-rejected
+    color $status-rejected
+    background $status-rejected-bg
+    border-color alpha($status-rejected, .35)
+
+  &.g-project-status-sm
+    padding 2px 10px 2px 7px
+    font-size 11px

@@ -2,11 +2,13 @@ import $ from 'jquery';
 import 'bootstrap-autocomplete';
 
 import template from '../templates/projectView.pug';
+import '../stylesheets/projectStatus.styl';
+import '../stylesheets/projectView.styl';
 import labels from './projectLabels.js';
 
 const events = girder.events;
 const router = girder.router;
-const { restRequest } = girder.rest;
+const { getApiRoot, restRequest } = girder.rest;
 const View = girder.views.View;
 
 var ProjectView = View.extend({
@@ -69,7 +71,11 @@ var ProjectView = View.extend({
     render: function () {
         this.$el.html(template({
             project: this.model,
-            labels: labels
+            labels: labels,
+            // Core's download endpoint accepts the session cookie, so a plain link works
+            // without a token in the URL. `inline` lets a reviewer read a PDF in a tab.
+            fileUrl: (fileId, inline) => `${getApiRoot()}/file/${fileId}/download` +
+                (inline ? '?contentDisposition=inline' : '')
         }));
 
         $('.g-add-sample-field', this.el).autoComplete({

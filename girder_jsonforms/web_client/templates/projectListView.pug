@@ -1,23 +1,42 @@
 .g-project-list-container
-  h1.g-project-list-title Projects
-
-  table.table.table-hover
-    thead
-      tr
-        th Project ID
-        th Name
-        th Status
-        th Samples
-    tbody
-      each project in projects
-        tr
-          td
-            a.g-project-link(href=`#project/${project.id}`, data-project-id=project.id)= project.get('projectId')
-          td= project.get('name')
-          td= project.get('status')
-          td= (project.get('samples') || []).length
-
-  if !projects.length
-    .g-no-project-record No projects found
+  .g-project-list-header
+    h1.g-project-list-title Projects
+  if projects.length
+    .g-project-list-card
+      table.table.g-project-list-table
+        thead
+          tr
+            th Project
+            th Status
+            th.text-right Samples
+            th.text-right Updated
+        tbody
+          each project in projects
+            //- A reviewer's next job is the proposals waiting on them; mark those rows.
+            - var awaiting = project.get('_canReview') && project.get('status') === 'under review'
+            tr.g-project-row(class=awaiting ? 'g-project-row-awaiting' : '', data-project-id=project.id)
+              td
+                .g-project-row-title
+                  a.g-project-link(href=`#project/${project.id}`, data-project-id=project.id)= project.get('name') || project.get('projectId')
+                  if awaiting
+                    span.g-project-row-flag Needs review
+                .g-project-row-meta
+                  span.g-project-row-id= project.get('projectId')
+                  each part in [project.get('organization'), labels.projectType(project.get('projectType'))].filter(Boolean)
+                    span.g-project-row-sep ·
+                    span= part
+              td
+                span.g-project-status.g-project-status-sm(
+                  class=`g-project-status-${labels.statusClass(project.get('status'))}`)
+                  i(class=`icon-${labels.statusIcon(project.get('status'))}`)
+                  = labels.status(project.get('status'))
+              td.text-right.g-project-row-num= (project.get('samples') || []).length
+              td.text-right.g-project-row-date
+                if project.get('updated')
+                  = formatDate(project.get('updated'), DATE_DAY)
+                else
+                  | —
+  else
+    .g-no-project-record.g-project-list-empty No projects found
 
   .g-project-pagination

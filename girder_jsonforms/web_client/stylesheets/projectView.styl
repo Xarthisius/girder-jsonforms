@@ -1,0 +1,267 @@
+@import '_projectTokens'
+
+.g-project-container
+  max-width 1280px
+  padding-bottom 30px
+
+.g-project-toolbar
+  margin-bottom 12px
+
+.g-project-header
+  display flex
+  align-items flex-start
+  justify-content space-between
+  gap 20px
+  padding 18px 22px
+  background #fff
+  border 1px solid $border
+  border-left 5px solid $status-draft
+  border-radius 6px
+
+  &.g-project-header-under-review
+    border-left-color #e0a100
+  &.g-project-header-accepted
+    border-left-color $status-accepted
+  &.g-project-header-rejected
+    border-left-color $status-rejected
+
+.g-project-eyebrow
+  color $muted
+  font-size 13px
+  letter-spacing .02em
+
+  .g-project-id
+    font-family monospace
+    font-weight 600
+    color #333
+
+  .g-project-eyebrow-sep
+    margin 0 8px
+
+.g-project-title
+  margin 4px 0 0 0
+  font-size 26px
+  font-weight 600
+  line-height 1.25
+
+.g-project-review-bar
+  display flex
+  align-items center
+  justify-content space-between
+  flex-wrap wrap
+  gap 12px
+  margin-top 12px
+  padding 12px 18px
+  background $status-review-bg
+  border 1px solid alpha($status-review, .3)
+  border-radius 6px
+  color $status-review
+  font-weight 500
+
+  .g-project-review-actions .btn + .btn
+    margin-left 8px
+
+.g-project-layout
+  display flex
+  align-items flex-start
+  gap 20px
+  margin-top 20px
+
+  .g-project-main
+    flex 1 1 auto
+    min-width 0
+
+  .g-project-side
+    flex 0 0 340px
+    min-width 0
+
+.g-project-section
+  background #fff
+  border 1px solid $border
+  border-radius 6px
+  padding 16px 18px
+  margin-bottom 16px
+
+  .table
+    margin-bottom 0
+
+.g-project-section-title
+  display flex
+  align-items center
+  gap 8px
+  margin 0 0 12px 0
+  font-size 13px
+  font-weight 700
+  letter-spacing .06em
+  text-transform uppercase
+  color $muted
+
+.g-project-count
+  padding 0 7px
+  border-radius 9px
+  background #eef0f3
+  color $muted
+  font-size 11px
+  letter-spacing 0
+
+.g-project-prose
+  white-space pre-line
+  line-height 1.55
+
+.g-project-empty
+  color $muted
+  font-style italic
+
+.g-project-facts
+  margin 0
+
+  dt
+    color $muted
+    font-size 12px
+    font-weight 500
+    margin-top 10px
+
+    &:first-child
+      margin-top 0
+
+  dd
+    margin 2px 0 0 0
+
+.g-project-chip
+  display inline-block
+  margin 2px 4px 2px 0
+  padding 1px 8px
+  border-radius 4px
+  background #eef2f7
+  font-size 12px
+
+.g-project-safety.g-project-safety-hazard
+  background #fffaf0
+  border-color #f0c36d
+  border-left 5px solid #e0a100
+
+  .g-project-section-title
+    color $status-review
+
+.g-project-safety-note
+  margin-top 12px
+  padding 8px 10px
+  border-radius 4px
+  background $status-rejected-bg
+  color $status-rejected
+  font-size 13px
+
+.g-project-table
+  th
+    color $muted
+    font-size 12px
+    font-weight 600
+    border-bottom-width 1px !important
+
+  .label
+    margin-left 4px
+
+.g-project-member-name
+  font-weight 500
+
+.g-project-member-email
+  display block
+  font-size 12px
+  color $muted
+
+.g-project-documents
+  list-style none
+  margin 0
+  padding 0
+
+  li
+    display flex
+    align-items stretch
+    gap 6px
+
+    & + li
+      margin-top 8px
+
+.g-project-document
+  flex 1 1 auto
+  display flex
+  align-items center
+  gap 10px
+  min-width 0
+  padding 8px 10px
+  border 1px solid $border
+  border-radius 5px
+  color inherit
+  text-decoration none
+  transition border-color .15s, background .15s
+
+  &:hover, &:focus
+    border-color #8fb3d9
+    background #f5f9fd
+    text-decoration none
+    color inherit
+
+    .g-project-document-action
+      color #2a6496
+
+.g-project-document-icon
+  font-size 22px
+  color #c0392b
+
+  &.icon-file-word
+    color #2b579a
+  &.icon-file-excel
+    color #217346
+  &.icon-file-powerpoint
+    color #d24726
+  &.icon-doc-text, &.icon-file-image, &.icon-file-archive
+    color $muted
+
+.g-project-document-text
+  flex 1 1 auto
+  display flex
+  flex-direction column
+  min-width 0
+
+.g-project-document-name
+  font-weight 500
+  overflow hidden
+  text-overflow ellipsis
+  white-space nowrap
+
+.g-project-document-type
+  font-size 12px
+  color $muted
+
+.g-project-document-action
+  color #a0a8b2
+
+.g-project-document-preview
+  display flex
+  align-items center
+  padding 0 10px
+  border 1px solid $border
+  border-radius 5px
+  color $muted
+
+  &:hover, &:focus
+    border-color #8fb3d9
+    background #f5f9fd
+    color #2a6496
+    text-decoration none
+
+.g-add-sample-form
+  margin-bottom 12px
+
+@media (max-width: 991px)
+  .g-project-layout
+    flex-direction column
+
+    .g-project-side
+      flex-basis auto
+      width 100%
+      // Documents and details matter most to a reviewer; keep them above the long sections.
+      order -1
+
+  .g-project-header
+    flex-direction column
