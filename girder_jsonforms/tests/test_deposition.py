@@ -761,6 +761,10 @@ class TestDepositionResource:
         )
 
 
+# The same plugin set as the rest of the module, which shares one server (see
+# conftest._module_girder); these tests only touch the PrefixCounter model.
+@pytest.mark.plugin("sample_tracker")
+@pytest.mark.plugin("wholetale")
 @pytest.mark.plugin("jsonforms")
 class TestPrefixCounter:
     """Test cases for the PrefixCounter model."""

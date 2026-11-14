@@ -1,14 +1,16 @@
-"""Shared fixtures for the centralized-IGSN tests.
+"""Shared fixtures: one Girder server and database per module, and the IGSN tests'.
 
-Girder's own fixtures (``db``, ``server``, ``admin``, ``user``, ...) come from
-pytest-girder; everything here is specific to the IGSN registry. It lives in a
-conftest rather than being imported between test modules so pytest resolves it
-without cross-module fixture imports.
-
-Names are prefixed ``igsn_`` to stay clear of the same-purpose fixtures the
-older test modules define for themselves.
+``db`` and ``server`` are overridden here (see ``_module_girder``); the rest of
+Girder's fixtures (``admin``, ``user``, ``fsAssetstore``, ...) come from
+pytest-girder and build on the overridden ``db``. The IGSN registry fixtures
+live in a conftest rather than being imported between test modules so pytest
+resolves them without cross-module fixture imports, and are prefixed ``igsn_``
+to stay clear of the same-purpose fixtures the older test modules define for
+themselves.
 """
 
+import hashlib
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -17,6 +19,128 @@ from girder.models.setting import Setting
 from ..lib import igsn_vocab
 from ..lib.igsn_client import IGSNClient
 from ..settings import PluginSettings
+
+
+def _module_plugins(module_node):
+    """The one ``plugin`` marker set every test in a module agrees on.
+
+    A module shares one server, so it can load only one set of plugins. Mixed
+    sets are a usage error rather than something to guess around: give the
+    odd tests the module's markers, or move them. Tests with no marker (plain
+    or db-only ones) are ignored, and order does not count.
+    """
+    found = {}
+    for item in module_node.session.items:
+        if item.module is not module_node.obj:
+            continue
+        markers = list(item.iter_markers("plugin"))
+        if not markers:
+            continue
+        if any(len(m.args) > 1 for m in markers):
+            raise pytest.UsageError(
+                f"{item.nodeid}: test-registered plugins are not supported"
+            )
+        names = [m.args[0] for m in markers]
+        found.setdefault(frozenset(names), names)
+    if len(found) > 1:
+        raise pytest.UsageError(
+            f"{module_node.nodeid}: tests ask for different plugin sets "
+            f"{sorted(sorted(s) for s in found)}; one module shares one server"
+        )
+    return next(iter(found.values())) if found else []
+
+
+@pytest.fixture(scope="module")
+def _module_girder(request):
+    """One database and one server per test module, per xdist worker.
+
+    Replaces pytest-girder's per-test ``db``/``server``, which dropped the
+    database, rebuilt every index and loaded every plugin for each test:
+    fixtures were 98% of the suite's worker-time against a median test body
+    of 0.01s. ``_fresh_db`` resets the data between tests instead and keeps
+    the indexes.
+
+    ``load()`` runs once per module now, but it also writes to the database --
+    jsonforms creates the projects collection there -- so what the plugins
+    wrote is snapshotted right after loading and restored by ``_fresh_db``,
+    with the same ``_id``s, so anything that cached a seeded document (as
+    ``Project.project_collection`` does) still points at a real one.
+
+    Two things pytest-girder did that this deliberately does not:
+
+    * reset each model's ``_instance`` on teardown. The live singletons are
+      simply pointed at the next module's database below; resetting them
+      without pruning ``_modelSingletons`` is the leak girder/girder#3991
+      fixed upstream.
+    * honour ``--keep-db`` / ``--mock-db``. Nothing here uses them.
+
+    The database name carries the xdist worker id: two workers can each be
+    handed part of the same module, and a name from the module alone would
+    have them wipe each other's data.
+    """
+    from girder.models import _dbClients, getDbConnection, model_base
+    from girder.models.user import User
+    from pytest_girder.plugin_registry import PluginRegistry
+    from pytest_girder.utils import serverContext
+
+    worker = os.environ.get("PYTEST_XDIST_WORKER", "main")
+    digest = hashlib.md5(f"{worker}:{request.node.nodeid}".encode()).hexdigest()
+    name = f"girder_test_{digest}"
+    connection = getDbConnection(
+        uri=f"{request.config.getoption('--mongo-uri')}/{name}", quiet=False
+    )
+    _dbClients[(None, None)] = connection
+    connection.drop_database(name)
+    for model in model_base._modelSingletons:
+        try:
+            model.reconnect()
+        except OSError:
+            pass  # lazy index creation, as pytest-girder ignores it too
+    User()._cryptContext.scheme = "plaintext"  # skip bcrypt, as pytest-girder does
+
+    try:
+        with PluginRegistry()(), serverContext(
+            _module_plugins(request.node)
+        ) as server:
+            database = connection.get_database()
+            seeded = {
+                coll: list(database[coll].find())
+                for coll in database.list_collection_names()
+                if not coll.startswith("system.")
+            }
+            yield connection, server, seeded
+    finally:
+        connection.drop_database(name)
+        connection.close()
+        _dbClients.clear()
+
+
+@pytest.fixture
+def _fresh_db(_module_girder):
+    """Put the module's database back to how plugin loading left it."""
+    from ..models.project import Project
+
+    connection, _, seeded = _module_girder
+    database = connection.get_database()
+    for coll in database.list_collection_names():
+        if coll.startswith("system."):
+            continue
+        database[coll].delete_many({})
+        if seeded.get(coll):
+            database[coll].insert_many(seeded[coll])
+    # Restored with the same _id, but a test may rename the collection setting.
+    Project()._project_collection = None
+    return connection
+
+
+@pytest.fixture
+def db(_fresh_db):
+    return _fresh_db
+
+
+@pytest.fixture
+def server(_module_girder, _fresh_db):
+    return _module_girder[1]
 
 IGSN_SERVICE_URL = "https://igsn.example.org"
 IGSN_SERVICE_TOKEN = "test-token"
