@@ -200,6 +200,13 @@ Three details that are load-bearing:
 proposal has left draft), so a group member can edit a submitted proposal's other fields too, not
 only its status — the endpoint draws no finer line than that.
 
+The same transition also grants the group **`READ`** on the project's `submissionFolderId`
+folder and every subfolder (`lib/events.py:share_submission_folder`). The proposal's documents
+are uploaded there, and that folder is otherwise private to its creator, so without it a
+reviewer sees the document list on the project but gets a 403 on download. Only the standing
+group gets this: someone granted the flag by hand on one proposal needs folder access by hand
+too, and proposals submitted before this grant existed need it applied once.
+
 ### Proposal workflow email (`lib/mail.py`, `mail_templates/`)
 
 Status transitions on a `Project` send Mako-rendered mail through core's
