@@ -79,14 +79,24 @@ uv run pytest girder_jsonforms/tests/test_entry.py -k test_name    # single test
 ```
 
 Tests use `pytest-girder`, which requires a running MongoDB (the CI uses `mongo:4.2`) and Redis
-(`redis:7`) instance, and provides fixtures such as `server`, `admin`, `user`, `db` — all
-girder-specific fixtures come from the `pytest-girder` plugin. `girder_jsonforms/tests/conftest.py`
-adds only IGSN-registry fixtures (`local_mode`, `remote_mode`, `igsn_service`, `igsn_metadata`,
-`igsn_settings`), all prefixed or named to avoid shadowing the per-module fixtures older test files
-define. Set `GIRDER_MAX_CURSOR_TIMEOUT_MS` if cursors time out during tests (CI sets this to `60000`).
+(`redis:7`) instance, and provides fixtures such as `admin`, `user`, `fsAssetstore`.
+`girder_jsonforms/tests/conftest.py` overrides two of them, `db` and `server` (see the first gotcha
+below), and adds the IGSN-registry fixtures (`local_mode`, `remote_mode`, `igsn_service`,
+`igsn_metadata`, `igsn_settings`), all prefixed or named to avoid shadowing the per-module fixtures
+older test files define. Set `GIRDER_MAX_CURSOR_TIMEOUT_MS` if cursors time out during tests (CI sets this to `60000`).
 
-Two testing gotchas, both learned the hard way:
+Testing gotchas, learned the hard way:
 
+- **One server and one database per test module, per xdist worker** — not per test.
+  `conftest.py:_module_girder` loads the module's plugins once; `_fresh_db` puts the database back
+  before each test by emptying every collection (indexes kept) and re-inserting what plugin
+  loading wrote (the projects collection, same `_id`). So isolation between tests in a module is
+  *the database contents only*: a module-level variable, a thread outliving its test, or an
+  attribute cached on a model singleton carries over. `Project._project_collection` is reset by
+  hand in `_fresh_db`; any new singleton cache needs the same. Every test in a module must carry
+  the same `plugin(...)` set (order aside), or the module errors with a `UsageError`; that is why
+  `test_deposition.py`'s `TestPrefixCounter` names all three plugins. Before 2026-11-14 it was per
+  test, and fixtures were 98% of the suite's worker-time (`-n 4`: ~131s, now ~16s).
 - Any test that creates a deposition needs the `eagerWorkerTasks` fixture *if the plugin is loaded
   anywhere in the run*, because `deposition.created` dispatches a girder-worker task and there is no
   broker under test. A module can pass alone and fail in a full run without it.
@@ -368,12 +378,15 @@ docker stop test-mongo test-redis               # `docker rm` too only if you wa
 `tox -e pytest` always measures coverage (`--cov=girder_jsonforms`) and writes
 `coverage.xml`; `--cov-report=term-missing` adds the per-file table to the terminal.
 Parallelism is `-n {env:PYTEST_XDIST_N:4}`. At the default `-n 4`, the full suite (500
-tests) took about 2m20s on a 32-core box, with 74% total coverage (measured 2026-11-13).
-Raising `PYTEST_XDIST_N` past 8 is where the ulimit below starts to matter.
+tests) takes about 16s on a 32-core box, with 74% total coverage (measured 2026-11-14, after
+moving to one server per module; it was ~2m10s before). **Wider is slower now**: `-n 16` took
+~29s, because each worker handed part of a module pays that module's server and plugin setup
+again. Serial (`-n 0`) is ~17s.
 
 **The `--ulimit` on mongo is load-bearing above `-n 8`, and its absence fails
-confusingly.** `pytest-girder` gives every test its own database, so a wide run holds
-hundreds of WiredTiger files open at once. Against a default-limit mongo (1024 fds),
+confusingly** — at least it was while `pytest-girder` gave every test its own database, so a
+wide run held hundreds of WiredTiger files open at once. (Now one per module per worker: far
+fewer, but not re-measured without the flag, so keep starting mongo with it.) Against a default-limit mongo (1024 fds),
 `-n 16` makes mongod **abort mid-run** — `Too many open files` → `WT_PANIC` →
 `fassert()` → exit 14 — and every remaining test then errors against a dead database,
 which reads like a mass code regression rather than a resource limit. 64000 is
