@@ -1,15 +1,4 @@
-// Status colours: one foreground/background/border triple per Project.status.
-$status-draft = #5f6b7a
-$status-draft-bg = #f1f3f5
-$status-review = #8a5a00
-$status-review-bg = #fff4d6
-$status-accepted = #1f7a45
-$status-accepted-bg = #e3f5ea
-$status-rejected = #a93226
-$status-rejected-bg = #fbe6e4
-
-$border = #e3e6ea
-$muted = #6b7480
+@import '_projectTokens'
 
 .g-project-container
   max-width 1280px
@@ -54,36 +43,6 @@ $muted = #6b7480
   font-size 26px
   font-weight 600
   line-height 1.25
-
-.g-project-status
-  display inline-flex
-  align-items center
-  gap 2px
-  flex-shrink 0
-  padding 5px 14px 5px 10px
-  border 1px solid
-  border-radius 999px
-  font-size 13px
-  font-weight 600
-  letter-spacing .04em
-  text-transform uppercase
-  white-space nowrap
-  color $status-draft
-  background $status-draft-bg
-  border-color alpha($status-draft, .35)
-
-  &.g-project-status-under-review
-    color $status-review
-    background $status-review-bg
-    border-color alpha($status-review, .35)
-  &.g-project-status-accepted
-    color $status-accepted
-    background $status-accepted-bg
-    border-color alpha($status-accepted, .35)
-  &.g-project-status-rejected
-    color $status-rejected
-    background $status-rejected-bg
-    border-color alpha($status-rejected, .35)
 
 .g-project-review-bar
   display flex

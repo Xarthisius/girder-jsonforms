@@ -2,6 +2,7 @@ import $ from 'jquery';
 import 'bootstrap-autocomplete';
 
 import template from '../templates/projectView.pug';
+import '../stylesheets/projectStatus.styl';
 import '../stylesheets/projectView.styl';
 import labels from './projectLabels.js';
 
