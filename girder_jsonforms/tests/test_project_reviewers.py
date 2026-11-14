@@ -1,9 +1,16 @@
 """The standing reviewers group and the per-proposal flag grant."""
 
+import io
+
 import pytest
 
 from girder.constants import AccessType
+from girder.models.folder import Folder
 from girder.models.group import Group
+from girder.models.item import Item
+from girder.models.upload import Upload
+from pytest_girder.assertions import assertStatus, assertStatusOk
+from pytest_girder.utils import getResponseBody
 from girder.models.setting import Setting
 from girder.models.user import User
 
@@ -35,6 +42,21 @@ def draft_project(server, user):
             "creatorId": user["_id"],
         },
         user,
+    )
+
+
+def _upload_document(parent, user, name=b"proposal.pdf"):
+    """Put a document where the proposal app does: in the submission folder."""
+    item = Item().createItem(name.decode(), user, parent)
+    content = b"%PDF-1.4 proposal"
+    return Upload().uploadFromFile(
+        io.BytesIO(content), len(content), name.decode(), "item", item, user
+    )
+
+
+def _download(server, file_doc, user):
+    return server.request(
+        path=f"/file/{file_doc['_id']}/download", method="GET", user=user, isJson=False
     )
 
 
@@ -96,9 +118,7 @@ def test_group_member_can_review_a_submitted_proposal(
 
     assert ProjectModel().hasAccessFlags(project, user=reviewer, flags=REVIEW_FLAG)
     assert ProjectModel().hasAccess(project, user=reviewer, level=AccessType.WRITE)
-    loaded = ProjectModel().load(
-        project["_id"], level=AccessType.WRITE, user=reviewer
-    )
+    loaded = ProjectModel().load(project["_id"], level=AccessType.WRITE, user=reviewer)
     assert loaded is not None
 
 
@@ -114,9 +134,7 @@ def test_group_members_are_notified_of_a_submission(
 
 
 @pytest.mark.plugin("jsonforms")
-def test_draft_edits_do_not_grant_access(
-    server, user, draft_project, eagerWorkerTasks
-):
+def test_draft_edits_do_not_grant_access(server, user, draft_project, eagerWorkerTasks):
     group = reviewers_group()
     project = ProjectModel().update_project(
         draft_project, {"description": "Still drafting"}, user
@@ -228,3 +246,109 @@ def test_public_settings_do_not_create_the_group(server, admin):
     assert resp.json["jsonforms.reviewers_group_id"] is None
     name = Setting().get(PluginSettings.REVIEWERS_GROUP_NAME)
     assert Group().findOne({"name": name}) is None
+
+
+def _attach_documents(project, user):
+    """One document at the top of the submission folder, one in a subfolder."""
+    folder = Folder().load(project["submissionFolderId"], force=True)
+    top = _upload_document(folder, user)
+    nested = _upload_document(
+        Folder().createFolder(folder, "attachments", creator=user),
+        user,
+        name=b"letter.pdf",
+    )
+    project["files"] = [
+        {"type": "proposal", "fileId": top["_id"]},
+        {"type": "letterOfSupport", "fileId": nested["_id"]},
+    ]
+    return ProjectModel().save(project), (top, nested)
+
+
+@pytest.mark.plugin("jsonforms")
+def test_group_member_can_download_submitted_documents(
+    server, user, reviewer, draft_project, fsAssetstore, eagerWorkerTasks
+):
+    """The project ACL shows a reviewer the document list; the download is
+    authorised by that same ACL, not by the submission folder's."""
+    project, documents = _attach_documents(draft_project, user)
+    folder_acl = Folder().load(project["submissionFolderId"], force=True)["access"]
+
+    for file_doc in documents:
+        # Not while it is a draft.
+        assertStatus(_download(server, file_doc, reviewer), 403)
+
+    ProjectModel().update_project(project, {"status": "under review"}, user)
+
+    for file_doc in documents:
+        resp = _download(server, file_doc, reviewer)
+        assertStatusOk(resp)
+        assert getResponseBody(resp, text=False) == b"%PDF-1.4 proposal"
+    resp = server.request(
+        path=f"/file/{documents[0]['_id']}/download/proposal.pdf",
+        method="GET",
+        user=reviewer,
+        isJson=False,
+        additionalHeaders=[("Range", "bytes=9-")],
+    )
+    assertStatus(resp, 206)
+    assert getResponseBody(resp, text=False) == b"proposal"
+
+    # Nothing was written to the folders: there is no grant to leak if the
+    # save fails, or to outlive a revocation.
+    for folder in Folder().find({"_id": project["submissionFolderId"]}):
+        assert folder["access"] == folder_acl
+    assert Folder().findOne({"name": "attachments"})["access"]["groups"] == []
+
+
+@pytest.mark.plugin("jsonforms")
+def test_project_readers_outside_the_group_can_download(
+    server, user, admin, draft_project, fsAssetstore, eagerWorkerTasks
+):
+    """Anyone with READ on the project, not only the standing group: here a
+    reviewer granted on this one proposal by hand."""
+    project, (top, _) = _attach_documents(draft_project, user)
+    other = User().createUser(
+        login="byhand",
+        password="password",
+        firstName="By",
+        lastName="Hand",
+        email="byhand@example.com",
+    )
+    assertStatus(_download(server, top, other), 403)
+
+    ProjectModel().setUserAccess(
+        project, other, AccessType.WRITE, flags=[REVIEW_FLAG], save=True
+    )
+
+    assertStatusOk(_download(server, top, other))
+
+
+@pytest.mark.plugin("jsonforms")
+def test_revoking_the_project_revokes_the_documents(
+    server, user, reviewer, draft_project, fsAssetstore, eagerWorkerTasks
+):
+    project, (top, _) = _attach_documents(draft_project, user)
+    project = ProjectModel().update_project(project, {"status": "under review"}, user)
+    assertStatusOk(_download(server, top, reviewer))
+
+    ProjectModel().setGroupAccess(project, reviewers_group(), None, save=True)
+
+    assertStatus(_download(server, top, reviewer), 403)
+
+
+@pytest.mark.plugin("jsonforms")
+def test_files_outside_the_submission_folder_are_not_shared(
+    server, user, admin, reviewer, draft_project, fsAssetstore, eagerWorkerTasks
+):
+    """Anyone with WRITE on a project can list any fileId in it; that must not
+    let them hand its readers a file they cannot read themselves."""
+    private = Folder().createFolder(
+        admin, "private", parentType="user", public=False, creator=admin
+    )
+    secret = _upload_document(private, admin, name=b"secret.pdf")
+    draft_project["files"] = [{"type": "proposal", "fileId": secret["_id"]}]
+    project = ProjectModel().save(draft_project)
+    ProjectModel().update_project(project, {"status": "under review"}, user)
+
+    assertStatus(_download(server, secret, reviewer), 403)
+    assertStatus(_download(server, secret, user), 403)

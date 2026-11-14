@@ -42,7 +42,7 @@ from .rest.deposition import Deposition
 from .rest.entry import FormEntry
 from .rest.form import Form
 from .settings import IGSN_REGEX, PluginSettings
-from .rest.project import Project
+from .rest.project import Project, download_project_file
 from .worker_plugin.amdee import register_deposition_with_aimd
 from .worker_plugin.folder_ops import (
     assign_igsn_task,
@@ -514,6 +514,8 @@ class JSONFormsPlugin(GirderPlugin):
         events.bind(
             "model.project.save", "jsonforms.mail", notify_project_status
         )
+        for route in ("file/:id/download", "file/:id/download/:name"):
+            events.bind(f"rest.get.{route}.before", "jsonforms", download_project_file)
         events.bind("project.samples_added", "jsonforms", process_add_samples)
         events.bind("project.samples_removed", "jsonforms", process_remove_samples)
 
