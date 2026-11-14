@@ -2,7 +2,6 @@ import logging
 
 from girder.constants import AccessType
 from girder.models.collection import Collection
-from girder.models.folder import Folder
 from girder.models.group import Group
 from girder.models.setting import Setting
 from girder.models.user import User
@@ -125,38 +124,6 @@ def reviewers_group(create=True):
         )
 
 
-def share_submission_folder(document, group):
-    """Give ``group`` READ on a proposal's submission folder and its subfolders.
-
-    The proposal's documents are uploaded there, and the folder sits in the
-    projects collection with access for its creator only, so the project ACL
-    alone lets a reviewer see a document's name but not download it. Items
-    and files inherit from their folder, which is why the folders are what get
-    granted. Subfolders are walked explicitly rather than by
-    ``setAccessList(recurse=True)``, which would overwrite their ACLs with the
-    parent's instead of adding one entry.
-    """
-    folder_id = document.get("submissionFolderId")
-    if folder_id is None:
-        return
-    folder = Folder().load(folder_id, force=True)
-    if folder is None:
-        logger.warning(
-            "Submission folder %s of project %s is missing; reviewers will not "
-            "be able to download its documents",
-            folder_id,
-            document.get("projectId"),
-        )
-        return
-    pending = [folder]
-    while pending:
-        folder = pending.pop()
-        Folder().setGroupAccess(folder, group, AccessType.READ, save=True, force=True)
-        pending.extend(
-            Folder().find({"parentId": folder["_id"], "parentCollection": "folder"})
-        )
-
-
 def grant_reviewers_access(event):
     """Give the reviewers group its flag on a proposal being submitted.
 
@@ -167,9 +134,7 @@ def grant_reviewers_access(event):
 
     WRITE, not READ: a reviewer has to change the proposal's status, and
     ``rest/project.py:update_project`` requires write access *plus* the flag
-    once a proposal has left draft. The submission folder gets READ, so the
-    group can download the proposal's documents without being able to change
-    them.
+    once a proposal has left draft.
     """
     from ..models.project import Project
 
@@ -198,4 +163,3 @@ def grant_reviewers_access(event):
         flags=[REVIEW_FLAG],
         force=True,
     )
-    share_submission_folder(document, group)

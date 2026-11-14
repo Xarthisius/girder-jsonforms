@@ -200,12 +200,19 @@ Three details that are load-bearing:
 proposal has left draft), so a group member can edit a submitted proposal's other fields too, not
 only its status — the endpoint draws no finer line than that.
 
-The same transition also grants the group **`READ`** on the project's `submissionFolderId`
-folder and every subfolder (`lib/events.py:share_submission_folder`). The proposal's documents
-are uploaded there, and that folder is otherwise private to its creator, so without it a
-reviewer sees the document list on the project but gets a 403 on download. Only the standing
-group gets this: someone granted the flag by hand on one proposal needs folder access by hand
-too, and proposals submitted before this grant existed need it applied once.
+A proposal's documents are uploaded into its `submissionFolderId` folder, which is private to the
+creator, so core's download check (READ on the file's folder) refuses reviewers. Nothing is granted
+on the folder. Instead, `rest/project.py:download_project_file` is bound *before*
+`GET /file/:id/download[/:name]` and serves the file itself when core would refuse but the user can
+READ a project that lists the file **and** holds it inside that project's submission folder tree.
+Access is therefore decided by the project ACL at download time: it covers the standing group,
+hand-granted reviewers and the accepted project's group alike, needs no backfill for proposals
+submitted earlier, and is gone the moment the project grant is revoked. The submission-folder
+condition is load-bearing: anyone with WRITE on a project can put an arbitrary fileId in `files`,
+and honouring that alone would let them hand the project's readers a file they cannot read. A file
+the proposal app stored anywhere else stays under core's check. The handler mirrors core's
+`File.download` (Range header, `offset`/`endByte`, `contentDisposition`) because core's route
+re-checks access itself and cannot be called past it — keep the two in step.
 
 ### Proposal workflow email (`lib/mail.py`, `mail_templates/`)
 
