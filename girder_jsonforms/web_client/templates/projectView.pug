@@ -1,166 +1,213 @@
+- var status = project.get('status')
+- var canDecide = project.get('_canReview') && status === 'under review'
+- var safety = project.get('safety')
+- var members = project.get('members') || []
+- var funding = project.get('funding') || {}
+- var files = project.get('files') || []
+- var samples = project.get('samples') || []
+- var instruments = project.get('instruments') || []
+
 .g-project-container
-  .g-project-actions
-    button.g-back-to-projects.btn.btn-sm.btn-primary(title="Back to projects")
+  .g-project-toolbar
+    button.g-back-to-projects.btn.btn-sm.btn-default(title="Back to projects")
       i.icon-left
-      | Back
-    if project.get('_canReview') && project.get('status') === 'under review'
-      button.g-approve-project.btn.btn-sm.btn-success(title="Approve project")
-        i.icon-ok
-        | Approve
-      button.g-reject-project.btn.btn-sm.btn-danger(title="Reject project")
-        i.icon-cancel
-        | Reject
+      |  Projects
 
-  h1.g-project-title= project.get('name')
+  //- The status pill and the left border of the header carry the same colour, so the
+  //- state of a proposal is readable before anything else on the page.
+  .g-project-header(class=`g-project-header-${labels.statusClass(status)}`)
+    .g-project-header-main
+      .g-project-eyebrow
+        span.g-project-id= project.get('projectId')
+        if project.get('organization')
+          span.g-project-eyebrow-sep ·
+          span= project.get('organization')
+      h1.g-project-title= project.get('name')
+    span.g-project-status(
+      class=`g-project-status-${labels.statusClass(status)}`,
+      title="Project status")
+      i(class=`icon-${labels.statusIcon(status)}`)
+      = labels.status(status)
 
-  .g-project-info
-    .g-project-info-line
-      span.text-muted= 'Project ID: '
-      span.g-info-type= project.get('projectId')
-    .g-project-info-line
-      span.text-muted= 'Status: '
-      span.g-info-type= project.get('status')
-    //- Project type decides what the proposal had to contain: a development project is
-    //- not asked for a document, funding or a public overview, so without this a thin
-    //- proposal and a development one look identical. See PROPOSAL_FORM_PLAN.md 2.5.
-    .g-project-info-line
-      span.text-muted= 'Type: '
-      span.g-info-type= labels.projectType(project.get('projectType')) || 'Not specified'
-    .g-project-info-line
-      span.text-muted= 'Access category: '
-      span.g-info-type= labels.accessCategory(project.get('accessCategory')) || 'Not specified'
-    if project.get('organization')
-      .g-project-info-line
-        span.text-muted= 'Organization: '
-        span.g-info-type= project.get('organization')
-    //- The classification is what tells staff how this project's data has to be handled
-    //- once it exists; it does not change who gets access (plan B3).
-    .g-project-info-line
-      span.text-muted= 'Data classification: '
-      span.g-info-type= labels.dataClassification(project.get('dataClassification')) || 'Not specified'
-    if project.get('daysRequested')
-      .g-project-info-line
-        span.text-muted= 'Time requested: '
-        span.g-info-type= project.get('daysRequested')
-    if project.get('assistanceRequired') !== undefined
-      .g-project-info-line
-        span.text-muted= 'Staff assistance: '
-        span.g-info-type= project.get('assistanceRequired') ? 'Required' : 'Not required'
-    if (project.get('instruments') || []).length
-      .g-project-info-line
-        span.text-muted= 'Instruments: '
-        span.g-info-type= (project.get('instruments') || []).map(function (i) { return i.name; }).join(', ')
-    if project.get('description')
-      .g-project-info-line
-        span.text-muted= 'Description: '
-        span.g-info-type= project.get('description')
-    if project.get('experimentPlan')
-      .g-project-info-line
-        span.text-muted= 'Experiments: '
-        span.g-info-type= project.get('experimentPlan')
+  if canDecide
+    .g-project-review-bar
+      .g-project-review-text
+        i.icon-attention-circled
+        |  This proposal is awaiting a decision.
+      .g-project-review-actions
+        button.g-approve-project.btn.btn-success(title="Approve project")
+          i.icon-ok
+          |  Approve
+        button.g-reject-project.btn.btn-danger(title="Reject project")
+          i.icon-cancel
+          |  Reject
 
-  //- Bootstrap panels rather than new CSS: this view has no stylesheet of its own and
-  //- rides on Girder's Bootstrap. A declared hazard colours the panel so it cannot be
-  //- skimmed past; an all-None declaration stays plain.
-  - var safety = project.get('safety')
-  if safety && ((safety.sampleHazards || []).length || (safety.otherHazards || []).length)
-    .panel(class=labels.hazardsDeclared(safety) ? 'panel-warning' : 'panel-default')
-      .panel-heading
-        strong Safety
-      .panel-body
-        .g-project-info-line
-          span.text-muted= 'Samples: '
-          span.g-info-type= labels.sampleHazards(safety.sampleHazards).join(', ') || 'Not declared'
-        .g-project-info-line
-          span.text-muted= 'Other hazards: '
-          span.g-info-type= labels.otherHazards(safety.otherHazards).join(', ') || 'Not declared'
-        if safety.description
-          .g-project-info-line
-            span.text-muted= 'Description: '
-            span.g-info-type= safety.description
-        if labels.needsApproval(safety)
-          .g-project-info-line
-            em.text-muted Biosafety or radioactive material: check that separate institutional approval is in place.
+  .g-project-layout
+    .g-project-main
+      if project.get('description')
+        .g-project-section
+          h2.g-project-section-title Description
+          .g-project-prose= project.get('description')
 
-  - var members = project.get('members') || []
-  if members.length
-    h2 Team
-    table.table.table-hover
-      thead
-        tr
-          th Name
-          th Status
-          th Institution
-          th ORCID
-          th Role
-      tbody
-        each member in members
-          tr
-            td
-              = ((member.firstName || '') + ' ' + (member.lastName || '')).trim() || member.email
-              if member.role === 'PI'
-                |  
-                span.label.label-primary PI
-              if member.isPointOfContact
-                |  
-                span.label.label-info Contact
-              if member.onSite
-                |  
-                span.label.label-default On site
-            td= labels.memberStatus(member.status) || '—'
-            td= member.institution || '—'
-            td= member.orcidId || '—'
-            td= labels.role(member.role)
+      if project.get('experimentPlan')
+        .g-project-section
+          h2.g-project-section-title Experiment plan
+          .g-project-prose= project.get('experimentPlan')
 
-  - var funding = project.get('funding') || {}
-  if (funding.grants || []).length || funding.internalBudgetNumber
-    h2 Funding
-    each grant in (funding.grants || [])
-      .g-project-info-line
-        span.g-info-type= [grant.agency, grant.grantNumber].filter(Boolean).join(' — ')
-    if funding.internalBudgetNumber
-      .g-project-info-line
-        span.text-muted= 'Budget / IO number: '
-        span.g-info-type= funding.internalBudgetNumber
+      //- A declared hazard colours the card so it cannot be skimmed past; an all-None
+      //- declaration stays plain.
+      if safety && ((safety.sampleHazards || []).length || (safety.otherHazards || []).length)
+        .g-project-section.g-project-safety(
+          class=labels.hazardsDeclared(safety) ? 'g-project-safety-hazard' : '')
+          h2.g-project-section-title
+            if labels.hazardsDeclared(safety)
+              i.icon-attention
+            | Safety
+          dl.g-project-facts
+            dt Samples
+            dd= labels.sampleHazards(safety.sampleHazards).join(', ') || 'Not declared'
+            dt Other hazards
+            dd= labels.otherHazards(safety.otherHazards).join(', ') || 'Not declared'
+            if safety.description
+              dt Description
+              dd.g-project-prose= safety.description
+          if labels.needsApproval(safety)
+            .g-project-safety-note
+              | Biosafety or radioactive material: check that separate institutional approval is in place.
 
-  - var files = project.get('files') || []
-  if files.length
-    h2 Documents
-    each file in files
-      .g-project-info-line
-        span.text-muted= (file.type || 'other') + ': '
-        span.g-info-type= file.name || file.fileId
+      if members.length
+        .g-project-section
+          h2.g-project-section-title
+            | Team
+            span.g-project-count= members.length
+          table.table.table-hover.g-project-table
+            thead
+              tr
+                th Name
+                th Status
+                th Institution
+                th ORCID
+                th Role
+            tbody
+              each member in members
+                tr
+                  td
+                    span.g-project-member-name= ((member.firstName || '') + ' ' + (member.lastName || '')).trim() || member.email
+                    if member.role === 'PI'
+                      span.label.label-primary PI
+                    if member.isPointOfContact
+                      span.label.label-info Contact
+                    if member.onSite
+                      span.label.label-default On site
+                    if member.email && (member.firstName || member.lastName)
+                      a.g-project-member-email(href=`mailto:${member.email}`)= member.email
+                  td= labels.memberStatus(member.status) || '—'
+                  td= member.institution || '—'
+                  td
+                    if member.orcidId
+                      a(href=labels.orcidUrl(member.orcidId), target="_blank", rel="noopener")= member.orcidId
+                    else
+                      | —
+                  td= labels.role(member.role)
 
-  h2 Samples
+      .g-project-section
+        h2.g-project-section-title
+          | Samples
+          span.g-project-count= samples.length
 
-  form.g-add-sample-form.form-inline(role="form")
-    .form-group
-      select.g-add-sample-field.form-control(
-        name="sampleIgsn"
-        id="g-add-sample-field"
-        autocomplete="off"
-        placeholder="Sample IGSN"
-      )
-    button.btn.btn-sm.btn-success(type="submit")
-      i.icon-plus
-      | Add sample
-    .g-add-sample-hint
-      small.form-text.text-muted
-        | Start typing to search for a registered IGSN.
+        form.g-add-sample-form.form-inline(role="form")
+          .form-group
+            select.g-add-sample-field.form-control(
+              name="sampleIgsn"
+              id="g-add-sample-field"
+              autocomplete="off"
+              placeholder="Sample IGSN"
+            )
+          button.btn.btn-sm.btn-success(type="submit")
+            i.icon-plus
+            | Add sample
+          .g-add-sample-hint
+            small.form-text.text-muted
+              | Start typing to search for a registered IGSN.
 
-  table.table.table-hover
-    thead
-      tr
-        th IGSN
-        th
-    tbody
-      each igsn in (project.get('samples') || [])
-        tr
-          td= igsn
-          td
-            button.g-remove-sample.btn.btn-sm.btn-danger(data-igsn=igsn, title="Remove sample")
-              i.icon-trash
-              | Remove
+        if samples.length
+          table.table.table-hover.g-project-table
+            thead
+              tr
+                th IGSN
+                th
+            tbody
+              each igsn in samples
+                tr
+                  td
+                    code= igsn
+                  td.text-right
+                    button.g-remove-sample.btn.btn-xs.btn-default(data-igsn=igsn, title="Remove sample")
+                      i.icon-trash
+                      | Remove
+        else
+          .g-no-sample-record.g-project-empty No samples on this project
 
-  if !(project.get('samples') || []).length
-    .g-no-sample-record No samples on this project
+    .g-project-side
+      .g-project-section
+        h2.g-project-section-title Details
+        //- Project type decides what the proposal had to contain: a development project is
+        //- not asked for a document, funding or a public overview, so without this a thin
+        //- proposal and a development one look identical. See PROPOSAL_FORM_PLAN.md 2.5.
+        dl.g-project-facts
+          dt Type
+          dd= labels.projectType(project.get('projectType')) || 'Not specified'
+          dt Access category
+          dd= labels.accessCategory(project.get('accessCategory')) || 'Not specified'
+          //- The classification is what tells staff how this project's data has to be
+          //- handled once it exists; it does not change who gets access (plan B3).
+          dt Data classification
+          dd= labels.dataClassification(project.get('dataClassification')) || 'Not specified'
+          if project.get('daysRequested')
+            dt Time requested
+            dd= project.get('daysRequested')
+          if project.get('assistanceRequired') !== undefined
+            dt Staff assistance
+            dd= project.get('assistanceRequired') ? 'Required' : 'Not required'
+          if instruments.length
+            dt Instruments
+            dd
+              each instrument in instruments
+                span.g-project-chip= instrument.name
+
+      .g-project-section
+        h2.g-project-section-title
+          | Documents
+          span.g-project-count= files.length
+        if files.length
+          ul.g-project-documents
+            each file in files
+              li
+                a.g-project-document(
+                  href=fileUrl(file.fileId),
+                  title=`Download ${file.name || 'document'}`)
+                  i.g-project-document-icon(class=`icon-${labels.fileIcon(file.name)}`)
+                  span.g-project-document-text
+                    span.g-project-document-name= file.name || file.fileId
+                    span.g-project-document-type= labels.fileType(file.type)
+                  i.icon-download.g-project-document-action
+                if labels.isPdf(file.name)
+                  a.g-project-document-preview(
+                    href=fileUrl(file.fileId, true),
+                    target="_blank",
+                    rel="noopener",
+                    title="Open in a new tab")
+                    i.icon-eye
+        else
+          .g-project-empty No documents attached
+
+      if (funding.grants || []).length || funding.internalBudgetNumber
+        .g-project-section
+          h2.g-project-section-title Funding
+          dl.g-project-facts
+            each grant in (funding.grants || [])
+              dt= grant.agency || 'Grant'
+              dd= grant.grantNumber || '—'
+            if funding.internalBudgetNumber
+              dt Budget / IO number
+              dd= funding.internalBudgetNumber

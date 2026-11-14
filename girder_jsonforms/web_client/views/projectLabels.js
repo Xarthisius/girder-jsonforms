@@ -62,6 +62,30 @@ const OTHER_HAZARD = {
     'user-equipment': 'Custom or user-supplied equipment'
 };
 
+/** Lifecycle states of `Project.status`; the icon is a Girder fontello name. */
+const STATUS = {
+    draft: { label: 'Draft', icon: 'pencil' },
+    'under review': { label: 'Under review', icon: 'clock' },
+    accepted: { label: 'Accepted', icon: 'ok-circled' },
+    rejected: { label: 'Rejected', icon: 'cancel-circled' }
+};
+
+/** Fontello icon for a document, picked from its file extension. */
+const FILE_ICON = {
+    pdf: 'file-pdf',
+    doc: 'file-word',
+    docx: 'file-word',
+    xls: 'file-excel',
+    xlsx: 'file-excel',
+    csv: 'file-excel',
+    ppt: 'file-powerpoint',
+    pptx: 'file-powerpoint',
+    png: 'file-image',
+    jpg: 'file-image',
+    jpeg: 'file-image',
+    zip: 'file-archive'
+};
+
 /** Hazards that normally need separate institutional approval before work can start. */
 const NEEDS_APPROVAL = ['biosafety', 'radioactive'];
 
@@ -70,7 +94,25 @@ const labels = (map) => (values) => (values || []).map(label(map));
 const hazards = (safety) => []
     .concat((safety && safety.sampleHazards) || [], (safety && safety.otherHazards) || []);
 
+const extension = (name) => {
+    const match = /\.([^./]+)$/.exec(name || '');
+    return match ? match[1].toLowerCase() : '';
+};
+
 export default {
+    status: (value) => (STATUS[value] || {}).label || value || 'Unknown',
+    statusIcon: (value) => (STATUS[value] || {}).icon || 'help-circled',
+    /** CSS-safe suffix for `g-project-status-*`: "under review" -> "under-review". */
+    statusClass: (value) => String(value || 'unknown').replace(/\s+/g, '-'),
+    fileIcon: (name) => FILE_ICON[extension(name)] || 'doc-text',
+    isPdf: (name) => extension(name) === 'pdf',
+    /** "proposal" / "letterOfSupport" -> "Proposal" / "Letter of support". */
+    fileType: (value) => {
+        const words = String(value || 'other').replace(/([a-z])([A-Z])/g, '$1 $2')
+            .replace(/[-_]+/g, ' ').toLowerCase();
+        return words.charAt(0).toUpperCase() + words.slice(1);
+    },
+    orcidUrl: (id) => (/^https?:\/\//.test(id) ? id : `https://orcid.org/${id}`),
     accessCategory: label(ACCESS_CATEGORY),
     dataClassification: label(DATA_CLASSIFICATION),
     projectType: label(PROJECT_TYPE),
