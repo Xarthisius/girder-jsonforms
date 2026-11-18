@@ -617,7 +617,7 @@ class BaseLabResource(Resource):
             "meta.igsn": 1,
             "meta.data_type": 1,
             "size": 1,
-            "update": 1,
+            "updated": 1,
             "created": 1,
             "creatorId": 1,
             "folderId": 1,
