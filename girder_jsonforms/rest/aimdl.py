@@ -742,7 +742,7 @@ def append_vega(self, event):
             }
         )
     elif item_response["name"].endswith("xrd.csv"):
-        vega_spec["encoding"]["x"]["title"] = "Angle 2θ"
+        vega_spec["encoding"]["x"]["title"] = "q (nm⁻¹)"
         vega_meta.update(
             {
                 "vega": json.dumps(vega_spec),
